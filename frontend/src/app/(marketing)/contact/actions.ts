@@ -29,7 +29,7 @@ export async function submitContactForm(data: {
       }
       return {
         success: false,
-        message: result.message || "Something went wrong. Please try again or email us directly at sid@faradworks.com.",
+        message: result.message || "Something went wrong. Please try again or email us directly at dev@faradworks.com.",
       };
     }
 
@@ -37,7 +37,7 @@ export async function submitContactForm(data: {
   } catch {
     return {
       success: false,
-      message: "Could not reach the server. Please try again or email us directly at sid@faradworks.com.",
+      message: "Could not reach the server. Please try again or email us directly at dev@faradworks.com.",
     };
   }
 }
