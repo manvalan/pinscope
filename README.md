@@ -2,11 +2,8 @@
 
 Pinscope reviews schematics the way a good senior engineer does: with the datasheets open.
 
-<!-- ── demo screenshot / GIF ──────────────────────────────────────────
-<p align="center">
-  <img src="frontend/public/report.png" width="760" alt="A Pinscope review, findings cited to datasheet pages">
-</p>
-─────────────────────────────────────────────────────────────────────── -->
+<img width="1912" height="1080" alt="pinscope-screenrecording" src="https://github.com/user-attachments/assets/7e9e4002-08df-423f-93c9-eefd52e88700" />
+
 
 Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your design, reads each IC's datasheet, and checks the circuit around every part against what the manufacturer actually specifies — reference application, pin functions, absolute maximums, recommended operating conditions. Every finding points at the datasheet page that backs it up, so you can judge the call yourself instead of trusting a black box.
 
