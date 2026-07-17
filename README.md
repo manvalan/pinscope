@@ -1,90 +1,48 @@
 # Pinscope
 
-**Agentic schematic validation — catch hardware design errors before you fab.**
+Pinscope reviews schematics the way a good senior engineer does: with the datasheets open.
 
-Pinscope reviews your schematic against every component datasheet. It parses your netlist and BOM into a queryable design graph, extracts pin tables and specs from datasheet PDFs with Claude, and runs an agentic per-IC review that compares your circuit neighborhood to the datasheet's reference application — flagging wrong pull-ups, missing decoupling, voltage-domain violations, swapped signals, and derating failures, each finding cited back to the datasheet page that backs it up.
+<!-- ── demo screenshot / GIF ──────────────────────────────────────────
+<p align="center">
+  <img src="frontend/public/report.png" width="760" alt="A Pinscope review, findings cited to datasheet pages">
+</p>
+─────────────────────────────────────────────────────────────────────── -->
 
-> Pinscope is the open-source core of [pinscope.ai](https://pinscope.ai) (same code, hosted, with team accounts). Self-hosting it like this is fully supported: everything runs locally against your own Anthropic API key, no account or cloud services required.
+Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your design, reads each IC's datasheet, and checks the circuit around every part against what the manufacturer actually specifies — reference application, pin functions, absolute maximums, recommended operating conditions. Every finding points at the datasheet page that backs it up, so you can judge the call yourself instead of trusting a black box.
+
+The reason it exists: ERC passes boards that don't work. Your EDA tool has no idea that the CH340E you powered from 5 V drives its TXD at 4.5 V into an MCU pin that maxes out at 3.6 V, or that the net you labeled `UART5_TX` lands on a pin whose alternate-function table only offers `UART5_RX`, or that the LDO's bypass pin you left floating costs you an order of magnitude in output noise. None of that is an electrical *rule* violation. All of it is in the datasheet, and nobody has time to re-read 400 pages per part on every revision.
 
 ## How it works
 
-```
-Upload BOM + netlist + datasheets
-        │
-        ▼
-Parse BOM ─ Extract IC pintables ─ Extract passives ─ DigiKey/value fallback
-        │
-        ▼
-Build design graph  (bipartite: components ⇄ nets, queryable)
-        │
-        ▼
-Per-IC direct datasheet review  (Claude reads the PDF + circuit neighborhood,
-        │                        queries the graph, cites pages for findings)
-        ▼
-Report + BOM summary + capacitor derating table
-```
+1. **Parse** the BOM (CSV/XLSX) and netlist (PADS-PCB `.asc` or EDIF 2.0.0 `.edn` — exportable from KiCad, Altium, OrCAD, Allegro, Xpedition, EasyEDA, Eagle) into a queryable bipartite graph of components and nets.
+2. **Extract** pin tables and specs from the PDFs. Large datasheets are trimmed to the relevant pages first, and every extraction is cached in a shared library, so a given part number is only ever processed once.
+3. **Review** each IC in isolation. The model gets the trimmed datasheet plus that IC's circuit neighborhood, can query the graph (`find_connected_components`, `get_net_for_pin`, `get_pintable`) and pull pages from a *connected* part's datasheet when a finding spans an interface. It files findings with severity, reasoning, and page citations.
+4. **Compute** the deterministic parts deterministically — BOM roll-up and a capacitor voltage-derating table come straight from the graph, no model involved.
 
-- **Netlists**: PADS-PCB ASCII (`.asc`) and EDIF 2.0.0 (`.edn`) — exportable from KiCad, Altium, OrCAD, Cadence, Xpedition, EasyEDA, EAGLE
-- **BOM**: CSV or XLSX
-- **Datasheets**: PDF per MPN (DigiKey auto-fetch supported with API keys)
-- **Deterministic where possible**: graph build, BOM collation, and capacitor voltage derating are exact computations, no AI
-- **Extraction is cached**: every extracted pintable/spec lands in a shared `library/` so an MPN is only ever paid for once
+A post-pass normalizes findings conservatively: it can merge duplicates and downgrade severity, never upgrade. If the reviewer hedged, the report hedges.
 
-## Quickstart
+It's a reviewer, not an oracle. It misses things, and it will occasionally question a choice you made on purpose — that's what the citations are for.
 
-Prereqs: Python 3.12+, Node 20+, an [Anthropic API key](https://console.anthropic.com/).
+## Try it on the bundled design
+
+`simple_project/` is a small MSPM0G3507 board with a CH340E USB-UART bridge and an SPX3819 LDO. Run it through and Pinscope flags, among other things, the LDO's bypass pin left unconnected (~300 µV<sub>RMS</sub> output noise instead of ~40) and the 5 V-powered CH340E driving the 3.3 V MCU directly — each with the page reference to check its work.
+
+You need Python 3.12+, Node 20+, and an [Anthropic API key](https://console.anthropic.com/):
 
 ```bash
-git clone https://github.com/Faradworks/Pinscope.git
-cd Pinscope
-
-# 1. Backend
-python3 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
-cp backend/.env.example .env          # then set ANTHROPIC_API_KEY
-
-# 2. Extraction skills (one-time): uploads the three extraction prompts in
-#    skills/ to YOUR Anthropic Console account and writes their IDs into
-#    backend/skills_manifest.json
-python3 scripts/upload_skills.py --update
-
-# 3. Run
-python3 -m uvicorn backend.main:app --reload   # http://localhost:8000
-cd frontend && npm install && npm run dev      # http://localhost:3000
+cp backend/.env.example .env                 # set ANTHROPIC_API_KEY
+python3 scripts/upload_skills.py --update    # one-time: registers the extraction prompts under your account
+python3 -m uvicorn backend.main:app --reload
+cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:3000, create a project, and upload the files from `simple_project/` (an MSPM0G3507 + CH340E reference design) to see a full run end-to-end. Projects and the extraction library are stored in `data/`; you run as a local admin user — no login.
+Open http://localhost:3000, create a project, and feed it the netlist and BOM from `simple_project/` plus datasheet PDFs for the ICs — grab those from the manufacturers, or set the optional DigiKey API keys and let it fetch them. Everything runs locally against your own key; projects and the extraction library live in `data/`. Architecture notes are in [CLAUDE.md](CLAUDE.md).
 
-## What's in the box
+## Hosted version
 
-| Layer | Where | What |
-|---|---|---|
-| Core library | `backend/pinscopex/` | Pydantic models, netlist/BOM parsers, graph builder, agentic validator, passive resolvers, taxonomy, derating |
-| Backend | `backend/` | FastAPI — async pipeline with SSE progress, project + library storage, per-call API cost logging |
-| Frontend | `frontend/` | Next.js 16 — dashboard, pipeline progress, report viewer with datasheet citations, derating table, admin console |
-| Extraction skills | `skills/` | Claude Console Skills for pintable / passive-pattern / specs extraction |
-| Taxonomy | `taxonomy/` | Living component taxonomy with per-subtype specs schemas |
-
-See [CLAUDE.md](CLAUDE.md) for architecture details and development guidelines.
-
-## Configuration
-
-Everything is env-driven (see `backend/.env.example`):
-
-- `ANTHROPIC_API_KEY` — required; extraction and review models are configurable per stage
-- `DIGIKEY_CLIENT_ID` / `DIGIKEY_CLIENT_SECRET` — optional; enables datasheet auto-fetch and parameter-based passive auto-resolve
-- `GCS_BUCKET` — optional; swaps local `data/` storage for Google Cloud Storage
-- `GEMINI_API_KEY` + `PROVIDER_*` — optional; route individual stages to Gemini
-
-## Tests
-
-```bash
-pip install pytest pytest-asyncio
-pytest tests/ -q
-```
-
-Tests run against `simple_project/` — it's the ground-truth reference design.
+This repo is the product minus accounts and billing. If you'd rather not run it yourself, [pinscope.ai](https://pinscope.ai) is the same code, hosted, with team workspaces and a shared parts library that's already warm.
 
 ## License
 
-[AGPL-3.0](LICENSE). Commercial licensing is available — contact dev@faradworks.com.
+AGPL-3.0. For commercial licensing, write to dev@faradworks.com.
