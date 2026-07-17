@@ -1,0 +1,24 @@
+{
+  "type": "fuse",
+  "specs": [
+    {"name": "current_rating_a", "description": "Rated current", "unit": "A", "required": true},
+    {"name": "voltage_rating_v", "description": "Maximum rated voltage", "unit": "V"},
+    {"name": "breaking_capacity_a", "description": "Maximum breaking/interrupting capacity", "unit": "A"}
+  ],
+  "subtypes": {
+    "fuse": {
+      "description": "Fuse (generic)"
+    },
+    "fuse.standard": {
+      "description": "Standard fuse (one-time blow)"
+    },
+    "fuse.ptc_resettable": {
+      "description": "PTC resettable fuse (polyfuse)",
+      "extra_specs": [
+        {"name": "hold_current_a", "description": "Maximum current without tripping (Ihold)", "unit": "A"},
+        {"name": "trip_current_a", "description": "Minimum current that triggers trip (Itrip)", "unit": "A"},
+        {"name": "resistance_ohm", "description": "Typical resistance at 25C (Rtyp)", "unit": "ohm"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "type": "discrete",
+  "specs": [
+    {"name": "package", "description": "Package type (e.g. SOD-123, SOT-23, TO-220)"},
+    {"name": "power_dissipation_w", "description": "Maximum power dissipation", "unit": "W"}
+  ],
+  "subtypes": {
+    "discrete.diode.rectifier": {
+      "description": "Standard rectifier diode",
+      "extra_specs": [
+        {"name": "reverse_voltage_v", "description": "Maximum reverse voltage (Vr/Vrrm)", "unit": "V", "required": true},
+        {"name": "forward_voltage_v", "description": "Typical forward voltage drop (Vf)", "unit": "V"},
+        {"name": "forward_current_a", "description": "Maximum continuous forward current (If)", "unit": "A"}
+      ]
+    },
+    "discrete.diode.schottky": {
+      "description": "Schottky barrier diode",
+      "extra_specs": [
+        {"name": "reverse_voltage_v", "description": "Maximum reverse voltage (Vr)", "unit": "V", "required": true},
+        {"name": "forward_voltage_v", "description": "Typical forward voltage drop (Vf)", "unit": "V"},
+        {"name": "forward_current_a", "description": "Maximum continuous forward current (If)", "unit": "A"}
+      ]
+    },
+    "discrete.diode.zener": {
+      "description": "Zener voltage regulator diode",
+      "extra_specs": [
+        {"name": "zener_voltage_v", "description": "Nominal Zener voltage (Vz)", "unit": "V", "required": true},
+        {"name": "zener_impedance_ohm", "description": "Zener impedance (Zzt)", "unit": "ohm"}
+      ]
+    },
+    "discrete.diode.tvs": {
+      "description": "TVS transient voltage suppressor diode",
+      "extra_specs": [
+        {"name": "standoff_voltage_v", "description": "Working standoff voltage (Vrwm)", "unit": "V", "required": true},
+        {"name": "clamping_voltage_v", "description": "Clamping voltage at Ipp", "unit": "V"},
+        {"name": "peak_pulse_current_a", "description": "Peak pulse current (Ipp)", "unit": "A"}
+      ]
+    },
+    "discrete.diode.esd": {
+      "description": "ESD protection diode / array for data lines",
+      "example_mpn": "USBLC6-2SC6",
+      "extra_specs": [
+        {"name": "standoff_voltage_v", "description": "Working standoff voltage (Vrwm)", "unit": "V", "required": true},
+        {"name": "clamping_voltage_v", "description": "Clamping voltage at specified current", "unit": "V"},
+        {"name": "io_capacitance_f", "description": "I/O line capacitance (Cio) — critical for signal integrity on data lines", "unit": "F"},
+        {"name": "leakage_current_a", "description": "Reverse leakage current (IR)", "unit": "A"}
+      ]
+    },
+    "discrete.transistor.mosfet.n_channel": {
+      "description": "N-channel MOSFET",
+      "extra_specs": [
+        {"name": "vds_max_v", "description": "Maximum drain-source voltage (Vds)", "unit": "V", "required": true},
+        {"name": "id_max_a", "description": "Maximum continuous drain current (Id)", "unit": "A"},
+        {"name": "rds_on_ohm", "description": "On-resistance (Rds_on)", "unit": "ohm"},
+        {"name": "vgs_th_v", "description": "Gate threshold voltage (Vgs_th)", "unit": "V"},
+        {"name": "qg_c", "description": "Total gate charge (Qg)", "unit": "C"}
+      ]
+    },
+    "discrete.transistor.mosfet.p_channel": {
+      "description": "P-channel MOSFET",
+      "extra_specs": [
+        {"name": "vds_max_v", "description": "Maximum drain-source voltage (Vds)", "unit": "V", "required": true},
+        {"name": "id_max_a", "description": "Maximum continuous drain current (Id)", "unit": "A"},
+        {"name": "rds_on_ohm", "description": "On-resistance (Rds_on)", "unit": "ohm"},
+        {"name": "vgs_th_v", "description": "Gate threshold voltage (Vgs_th)", "unit": "V"}
+      ]
+    },
+    "discrete.transistor.bjt.npn": {
+      "description": "NPN bipolar junction transistor",
+      "extra_specs": [
+        {"name": "vce_max_v", "description": "Maximum collector-emitter voltage (Vce)", "unit": "V", "required": true},
+        {"name": "ic_max_a", "description": "Maximum collector current (Ic)", "unit": "A"},
+        {"name": "hfe", "description": "DC current gain (hFE)"}
+      ]
+    },
+    "discrete.transistor.bjt.pnp": {
+      "description": "PNP bipolar junction transistor",
+      "extra_specs": [
+        {"name": "vce_max_v", "description": "Maximum collector-emitter voltage (Vce)", "unit": "V", "required": true},
+        {"name": "ic_max_a", "description": "Maximum collector current (Ic)", "unit": "A"},
+        {"name": "hfe", "description": "DC current gain (hFE)"}
+      ]
+    },
+    "discrete.led": {
+      "description": "Light-emitting diode",
+      "extra_specs": [
+        {"name": "forward_voltage_v", "description": "Typical forward voltage (Vf)", "unit": "V"},
+        {"name": "forward_current_a", "description": "Typical/max forward current (If)", "unit": "A"},
+        {"name": "color", "description": "LED color or wavelength"}
+      ]
+    }
+  }
+}

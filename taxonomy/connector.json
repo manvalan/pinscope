@@ -1,0 +1,30 @@
+{
+  "type": "connector",
+  "specs": [
+    {"name": "pin_count", "description": "Number of pins/contacts", "required": true},
+    {"name": "voltage_rating_v", "description": "Maximum rated voltage", "unit": "V"},
+    {"name": "current_rating_a", "description": "Maximum current per contact", "unit": "A"}
+  ],
+  "subtypes": {
+    "connector.header": {
+      "description": "Pin header connector",
+      "extra_specs": [
+        {"name": "pitch_mm", "description": "Pin pitch (center-to-center spacing)", "unit": "mm"},
+        {"name": "rows", "description": "Number of rows"},
+        {"name": "positions_per_row", "description": "Number of positions per row"}
+      ]
+    },
+    "connector.usb": {
+      "description": "USB connector",
+      "extra_specs": [
+        {"name": "usb_standard", "description": "USB standard version (2.0, 3.0, 3.1, Type-C)"}
+      ]
+    },
+    "connector.fpc": {
+      "description": "FPC/FFC connector",
+      "extra_specs": [
+        {"name": "pitch_mm", "description": "Contact pitch (center-to-center spacing)", "unit": "mm"}
+      ]
+    }
+  }
+}

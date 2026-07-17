@@ -1,0 +1,57 @@
+{
+  "type": "ic",
+  "subtypes": {
+    "ic.mcu": {
+      "description": "Microcontroller",
+      "example_mpn": "MSPM0G3507SPTR"
+    },
+    "ic.power.ldo": {
+      "description": "Low-dropout voltage regulator",
+      "example_mpn": "SPX3819M5-L-3-3"
+    },
+    "ic.power.switching_regulator": {
+      "description": "Switching voltage regulator (buck, boost, buck-boost)"
+    },
+    "ic.power.pmic": {
+      "description": "Power management IC (multi-rail, sequencing)"
+    },
+    "ic.interface.usb_uart_bridge": {
+      "description": "USB to UART bridge IC",
+      "example_mpn": "CH340E"
+    },
+    "ic.interface.level_shifter": {
+      "description": "Voltage level translator/shifter"
+    },
+    "ic.interface.can_transceiver": {
+      "description": "CAN bus transceiver"
+    },
+    "ic.interface.rs485_transceiver": {
+      "description": "RS-485/RS-422 transceiver"
+    },
+    "ic.protection.esd": {
+      "description": "ESD/TVS protection IC",
+      "example_mpn": "USBLC6-2SC6"
+    },
+    "ic.sensor.accelerometer": {
+      "description": "Accelerometer / IMU"
+    },
+    "ic.sensor.temperature": {
+      "description": "Temperature sensor IC"
+    },
+    "ic.memory.flash": {
+      "description": "NOR/NAND flash memory"
+    },
+    "ic.memory.eeprom": {
+      "description": "EEPROM"
+    },
+    "ic.logic.buffer": {
+      "description": "Buffer / line driver"
+    },
+    "ic.logic.gate": {
+      "description": "Logic gate IC"
+    },
+    "ic.amplifier.opamp": {
+      "description": "Operational amplifier"
+    }
+  }
+}

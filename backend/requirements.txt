@@ -1,0 +1,17 @@
+fastapi>=0.115
+uvicorn[standard]
+anthropic>=0.83
+google-genai>=1.59
+pydantic[email]>=2.0
+pydantic-settings
+python-multipart
+sse-starlette
+python-dotenv
+openpyxl>=3.1
+google-cloud-storage>=2.14
+google-cloud-run>=0.10
+google-api-python-client>=2.100
+pypdf>=4.0
+PyJWT[crypto]>=2.8
+cryptography>=42.0
+packaging>=23.0

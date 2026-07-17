@@ -1,0 +1,63 @@
+# Staged at build time by cloudbuild from frontend/content/changelog.md
+# so the Dockerfile can COPY it past .dockerignore's frontend/ exclude.
+backend/_changelog.md
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type checkers
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets
+.env
+.env.local
+**/.env
+**/.env.local
+
+# Claude Code
+.claude/
+.agents/
+skills-lock.json
+
+# Runtime data (projects, library)
+data/
+backend/data/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+.next/
+
+# retrospective
+*.retrospective
+.vercel
+
+# Local-only sample inputs (client schematics, test files)
+edif-files/

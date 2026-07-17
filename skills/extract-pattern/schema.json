@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "properties": {
+    "manufacturer": {"type": "string"},
+    "series": {"type": "string"},
+    "component_type": {
+      "type": "string",
+      "enum": ["resistor", "capacitor", "inductor"]
+    },
+    "component_subtype": {"type": "string"},
+    "description": {"type": "string"},
+    "regex": {"type": "string"},
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "position": {"type": "integer"},
+          "length": {"type": "integer"},
+          "description": {"type": "string"},
+          "lookup": {"type": "object"}
+        },
+        "required": ["name", "position", "length", "description"]
+      }
+    },
+    "value_decoder": {"type": "object"},
+    "example_mpns": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "required": [
+    "manufacturer", "series", "component_type", "component_subtype",
+    "description", "regex", "fields", "value_decoder", "example_mpns"
+  ]
+}

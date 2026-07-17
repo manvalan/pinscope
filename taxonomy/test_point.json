@@ -1,0 +1,8 @@
+{
+  "type": "test_point",
+  "subtypes": {
+    "test_point": {
+      "description": "Test point"
+    }
+  }
+}

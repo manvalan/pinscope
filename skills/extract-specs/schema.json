@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "component_subtype": {
+      "type": "string",
+      "description": "Dotted taxonomy path, e.g. discrete.diode.schottky, connector.usb",
+      "pattern": "^[a-z][a-z0-9_]+(\\.[a-z][a-z0-9_]+)*$"
+    },
+    "component_subtype_description": {
+      "type": "string",
+      "description": "Brief description of the component subtype. Used when this is a new taxonomy entry."
+    },
+    "package_info": {
+      "type": "object",
+      "properties": {
+        "base_family": {"type": "string"},
+        "package": {"type": "string"},
+        "pin_count": {"type": "integer"},
+        "description": {"type": "string"}
+      },
+      "required": ["base_family", "package", "pin_count"]
+    },
+    "pintable": {
+      "type": "array",
+      "description": "Pin table for the component. Include ALL pins.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": {},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "functions": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["number", "name"]
+      }
+    },
+    "values": {
+      "type": "object",
+      "description": "Extracted parameter values keyed ONLY by parameter names from the PARAMETERS TO EXTRACT list. Use SPICE multiplier prefixes (k, M, m, u, n, p) with units. Use null for missing/inapplicable parameters. Do NOT add parameters not in the list.",
+      "additionalProperties": {
+        "type": ["string", "number", "null"]
+      }
+    }
+  },
+  "required": ["component_subtype", "component_subtype_description", "package_info", "pintable", "values"]
+}

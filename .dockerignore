@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+**/.env
+**/.env.local
+.pytest_cache
+.mypy_cache
+data/
+frontend/
+.git/
+.claude/settings.*
+.claude/plans/
+.claude/memory/
+simple_project/

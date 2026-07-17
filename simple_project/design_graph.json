@@ -1,0 +1,1435 @@
+{
+  "components": {
+    "MH2": {
+      "reference": "MH2",
+      "value": "",
+      "footprint": "MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+      "component_type": "mechanical",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {
+        "1": "GND"
+      },
+      "specs": null
+    },
+    "FM2": {
+      "reference": "FM2",
+      "value": "",
+      "footprint": "Fiducial:Fiducial_1mm_Mask2mm",
+      "component_type": "fiducial",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {},
+      "specs": null
+    },
+    "C12": {
+      "reference": "C12",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "1": "/NRST",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C9": {
+      "reference": "C9",
+      "value": "18p",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10C180JB8NNNC",
+      "pins": {
+        "1": "/HFXIN",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "FM3": {
+      "reference": "FM3",
+      "value": "",
+      "footprint": "Fiducial:Fiducial_1mm_Mask2mm",
+      "component_type": "fiducial",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {},
+      "specs": null
+    },
+    "C6": {
+      "reference": "C6",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "1": "/UARTV3",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "R2": {
+      "reference": "R2",
+      "value": "5k1",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF5101T5E",
+      "pins": {
+        "1": "/USBC.CC1",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C11": {
+      "reference": "C11",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "2": "/VREF+",
+        "1": "/VREF-"
+      },
+      "specs": null
+    },
+    "J1": {
+      "reference": "J1",
+      "value": "USB4085-GF-A",
+      "footprint": "Connector_USB:USB_C_Receptacle_GCT_USB4085",
+      "component_type": "connector",
+      "component_subtype": "connector.usb",
+      "mpn": "USB4085-GF-A",
+      "pins": {
+        "A4": "+VUSB",
+        "A9": "+VUSB",
+        "B4": "+VUSB",
+        "B9": "+VUSB",
+        "A5": "/USBC.CC1",
+        "B5": "/USBC.CC2",
+        "A6": "/USBC.D+",
+        "B6": "/USBC.D+",
+        "A7": "/USBC.D-",
+        "B7": "/USBC.D-",
+        "A1": "GND",
+        "A12": "GND",
+        "B1": "GND",
+        "B12": "GND",
+        "S1": "GND"
+      },
+      "specs": {
+        "specs_type": "connector",
+        "component_subtype": "connector.usb",
+        "values": {},
+        "pintable": [],
+        "package_info": null
+      }
+    },
+    "J3": {
+      "reference": "J3",
+      "value": "PH-00834",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Horizontal",
+      "component_type": "connector",
+      "component_subtype": null,
+      "mpn": "PH-00834",
+      "pins": {
+        "6": "+3V3",
+        "10": "/I2C0.SCL",
+        "8": "/I2C0.SDA",
+        "1": "/SPI0.CLK",
+        "4": "/SPI0.CS0",
+        "2": "/SPI0.MISO",
+        "3": "/SPI0.MOSI",
+        "7": "/TIMA0.CCP0",
+        "9": "/TIMA0.CCP1",
+        "5": "GND"
+      },
+      "specs": null
+    },
+    "MH4": {
+      "reference": "MH4",
+      "value": "",
+      "footprint": "MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+      "component_type": "mechanical",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {
+        "1": "GND"
+      },
+      "specs": null
+    },
+    "U3": {
+      "reference": "U3",
+      "value": "MSPM0G3507SPTR",
+      "footprint": "Package_QFP:LQFP-48_7x7mm_P0.5mm",
+      "component_type": "ic",
+      "component_subtype": "ic.mcu",
+      "mpn": "MSPM0G3507SPTR",
+      "pins": {
+        "48": "+1V35",
+        "6": "+3V3",
+        "11": "/HFXIN",
+        "12": "/HFXOUT",
+        "19": "/I2C0.SCL",
+        "18": "/I2C0.SDA",
+        "4": "/NRST",
+        "8": "/ROSC",
+        "37": "/SPI0.CLK",
+        "16": "/SPI0.CS0",
+        "38": "/SPI0.MISO",
+        "36": "/SPI0.MOSI",
+        "35": "/SWCLK",
+        "34": "/SWDIO",
+        "24": "/TIMA0.CCP0",
+        "23": "/TIMA0.CCP1",
+        "14": "/TIMA1.CCP0",
+        "15": "/TIMA1.CCP1",
+        "29": "/UART0.NCTS",
+        "30": "/UART0.NRTS",
+        "2": "/UART0.RX",
+        "1": "/UART0.TX",
+        "43": "/VREF+",
+        "39": "/VREF-",
+        "7": "GND"
+      },
+      "specs": null
+    },
+    "R8": {
+      "reference": "R8",
+      "value": "5k1",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF5101T5E",
+      "pins": {
+        "1": "+3V3",
+        "2": "/NRST"
+      },
+      "specs": null
+    },
+    "J2": {
+      "reference": "J2",
+      "value": "",
+      "footprint": "Connector:Tag-Connect_TC2030-IDC-FP_2x03_P1.27mm_Vertical",
+      "component_type": "connector",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {
+        "1": "+3V3",
+        "3": "/NRST",
+        "4": "/SWCLK",
+        "2": "/SWDIO",
+        "5": "GND"
+      },
+      "specs": null
+    },
+    "R6": {
+      "reference": "R6",
+      "value": "1k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF1001T5E",
+      "pins": {
+        "1": "/LEDRK",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "R4": {
+      "reference": "R4",
+      "value": "100k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF1003T5E",
+      "pins": {
+        "1": "/ROSC",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "R7": {
+      "reference": "R7",
+      "value": "1k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF1001T5E",
+      "pins": {
+        "1": "/LEDGK",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C4": {
+      "reference": "C4",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL21A106KAYNNNE",
+      "pins": {
+        "1": "+3V3",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C10": {
+      "reference": "C10",
+      "value": "18p",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10C180JB8NNNC",
+      "pins": {
+        "1": "/HFXOUT",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C3": {
+      "reference": "C3",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL21A106KAYNNNE",
+      "pins": {
+        "1": "+5V",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "FM1": {
+      "reference": "FM1",
+      "value": "",
+      "footprint": "Fiducial:Fiducial_1mm_Mask2mm",
+      "component_type": "fiducial",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {},
+      "specs": null
+    },
+    "X1": {
+      "reference": "X1",
+      "value": "8MHz",
+      "footprint": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
+      "component_type": "crystal",
+      "component_subtype": null,
+      "mpn": "AV08000301",
+      "pins": {
+        "1": "/HFXIN",
+        "3": "/HFXOUT",
+        "2": "GND",
+        "4": "GND"
+      },
+      "specs": null
+    },
+    "R3": {
+      "reference": "R3",
+      "value": "0R",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF0000T5E",
+      "pins": {
+        "2": "+5V",
+        "1": "+VUSB"
+      },
+      "specs": null
+    },
+    "MH1": {
+      "reference": "MH1",
+      "value": "",
+      "footprint": "MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+      "component_type": "mechanical",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {
+        "1": "GND"
+      },
+      "specs": null
+    },
+    "D1": {
+      "reference": "D1",
+      "value": "USBLC6-2SC6",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-6",
+      "component_type": "discrete",
+      "component_subtype": "discrete.diode.tvs",
+      "mpn": "USBLC6-2SC6",
+      "pins": {
+        "5": "+VUSB",
+        "3": "/USB.D+",
+        "1": "/USB.D-",
+        "4": "/USBC.D+",
+        "6": "/USBC.D-",
+        "2": "GND"
+      },
+      "specs": {
+        "specs_type": "discrete",
+        "component_subtype": "discrete.diode.tvs",
+        "values": {
+          "standoff_voltage_v": "5.25V",
+          "clamping_voltage_v": "17V",
+          "peak_pulse_current_a": "5A",
+          "package": "SOT-23-6"
+        },
+        "pintable": [],
+        "package_info": null
+      }
+    },
+    "C1": {
+      "reference": "C1",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "1": "+VUSB",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "U2": {
+      "reference": "U2",
+      "value": "CH340E",
+      "footprint": "Package_SO:MSOP-10_3x3mm_P0.5mm",
+      "component_type": "ic",
+      "component_subtype": "ic.interface.usb_uart_bridge",
+      "mpn": "CH340E",
+      "pins": {
+        "7": "+5V",
+        "4": "/UART0.NCTS",
+        "5": "/UART0.NRTS",
+        "8": "/UART0.RX",
+        "9": "/UART0.TX",
+        "10": "/UARTV3",
+        "1": "/USB.D+",
+        "2": "/USB.D-",
+        "3": "GND"
+      },
+      "specs": null
+    },
+    "C2": {
+      "reference": "C2",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "1": "+5V",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C5": {
+      "reference": "C5",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "1": "+5V",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C8": {
+      "reference": "C8",
+      "value": "470n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL10B474KA8NNNC",
+      "pins": {
+        "1": "+1V35",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "R1": {
+      "reference": "R1",
+      "value": "5k1",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF5101T5E",
+      "pins": {
+        "1": "/USBC.CC2",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "D3": {
+      "reference": "D3",
+      "value": "WHITE",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "component_type": "discrete",
+      "component_subtype": null,
+      "mpn": "KT-0603W",
+      "pins": {
+        "1": "/LEDGK",
+        "2": "/TIMA1.CCP1"
+      },
+      "specs": null
+    },
+    "U1": {
+      "reference": "U1",
+      "value": "SPX3819M5-L-3-3",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-5",
+      "component_type": "ic",
+      "component_subtype": "ic.power.ldo",
+      "mpn": "SPX3819M5-L-3-3/TR",
+      "pins": {
+        "5": "+3V3",
+        "1": "+5V",
+        "3": "+5V",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "C7": {
+      "reference": "C7",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "component_type": "capacitor",
+      "component_subtype": null,
+      "mpn": "CL21A106KAYNNNE",
+      "pins": {
+        "1": "+3V3",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "R5": {
+      "reference": "R5",
+      "value": "0R",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "component_type": "resistor",
+      "component_subtype": null,
+      "mpn": "0603WAF0000T5E",
+      "pins": {
+        "1": "/VREF-",
+        "2": "GND"
+      },
+      "specs": null
+    },
+    "D2": {
+      "reference": "D2",
+      "value": "RED",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "component_type": "discrete",
+      "component_subtype": null,
+      "mpn": "KT-0603R",
+      "pins": {
+        "1": "/LEDRK",
+        "2": "/TIMA1.CCP0"
+      },
+      "specs": null
+    },
+    "MH3": {
+      "reference": "MH3",
+      "value": "",
+      "footprint": "MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+      "component_type": "mechanical",
+      "component_subtype": null,
+      "mpn": null,
+      "pins": {
+        "1": "GND"
+      },
+      "specs": null
+    }
+  },
+  "nets": {
+    "+1V35": {
+      "name": "+1V35",
+      "net_type": "power",
+      "voltage": 1.35,
+      "pins": [
+        {
+          "component_ref": "C8",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "48",
+          "pin_name": "VCORE"
+        }
+      ]
+    },
+    "+3V3": {
+      "name": "+3V3",
+      "net_type": "power",
+      "voltage": 3.3,
+      "pins": [
+        {
+          "component_ref": "C4",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C7",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J2",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J3",
+          "pin_number": "6",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R8",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U1",
+          "pin_number": "5",
+          "pin_name": "VOUT"
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "6",
+          "pin_name": "VDD"
+        }
+      ]
+    },
+    "+5V": {
+      "name": "+5V",
+      "net_type": "power",
+      "voltage": 5.0,
+      "pins": [
+        {
+          "component_ref": "C2",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C3",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C5",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R3",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U1",
+          "pin_number": "1",
+          "pin_name": "VIN"
+        },
+        {
+          "component_ref": "U1",
+          "pin_number": "3",
+          "pin_name": "EN"
+        },
+        {
+          "component_ref": "U2",
+          "pin_number": "7",
+          "pin_name": "VCC"
+        }
+      ]
+    },
+    "+VUSB": {
+      "name": "+VUSB",
+      "net_type": "power",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C1",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "D1",
+          "pin_number": "5",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "A4",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "A9",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "B4",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "B9",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R3",
+          "pin_number": "1",
+          "pin_name": null
+        }
+      ]
+    },
+    "/HFXIN": {
+      "name": "/HFXIN",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C9",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "11",
+          "pin_name": "PA5"
+        },
+        {
+          "component_ref": "X1",
+          "pin_number": "1",
+          "pin_name": null
+        }
+      ]
+    },
+    "/HFXOUT": {
+      "name": "/HFXOUT",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C10",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "12",
+          "pin_name": "PA6"
+        },
+        {
+          "component_ref": "X1",
+          "pin_number": "3",
+          "pin_name": null
+        }
+      ]
+    },
+    "/I2C0.SCL": {
+      "name": "/I2C0.SCL",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "10",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "19",
+          "pin_name": "PA11"
+        }
+      ]
+    },
+    "/I2C0.SDA": {
+      "name": "/I2C0.SDA",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "8",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "18",
+          "pin_name": "PA10"
+        }
+      ]
+    },
+    "/LEDGK": {
+      "name": "/LEDGK",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D3",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R7",
+          "pin_number": "1",
+          "pin_name": null
+        }
+      ]
+    },
+    "/LEDRK": {
+      "name": "/LEDRK",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D2",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R6",
+          "pin_number": "1",
+          "pin_name": null
+        }
+      ]
+    },
+    "/NRST": {
+      "name": "/NRST",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C12",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J2",
+          "pin_number": "3",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R8",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "4",
+          "pin_name": "NRST"
+        }
+      ]
+    },
+    "/ROSC": {
+      "name": "/ROSC",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "R4",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "8",
+          "pin_name": "PA2"
+        }
+      ]
+    },
+    "/SPI0.CLK": {
+      "name": "/SPI0.CLK",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "37",
+          "pin_name": "PB18"
+        }
+      ]
+    },
+    "/SPI0.CS0": {
+      "name": "/SPI0.CS0",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "4",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "16",
+          "pin_name": "PA8"
+        }
+      ]
+    },
+    "/SPI0.MISO": {
+      "name": "/SPI0.MISO",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "38",
+          "pin_name": "PB19"
+        }
+      ]
+    },
+    "/SPI0.MOSI": {
+      "name": "/SPI0.MOSI",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "3",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "36",
+          "pin_name": "PB17"
+        }
+      ]
+    },
+    "/SWCLK": {
+      "name": "/SWCLK",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J2",
+          "pin_number": "4",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "35",
+          "pin_name": "PA20"
+        }
+      ]
+    },
+    "/SWDIO": {
+      "name": "/SWDIO",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J2",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "34",
+          "pin_name": "PA19"
+        }
+      ]
+    },
+    "/TIMA0.CCP0": {
+      "name": "/TIMA0.CCP0",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "7",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "24",
+          "pin_name": "PB14"
+        }
+      ]
+    },
+    "/TIMA0.CCP1": {
+      "name": "/TIMA0.CCP1",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J3",
+          "pin_number": "9",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "23",
+          "pin_name": "PB9"
+        }
+      ]
+    },
+    "/TIMA1.CCP0": {
+      "name": "/TIMA1.CCP0",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D2",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "14",
+          "pin_name": "PB2"
+        }
+      ]
+    },
+    "/TIMA1.CCP1": {
+      "name": "/TIMA1.CCP1",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D3",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "15",
+          "pin_name": "PB3"
+        }
+      ]
+    },
+    "/UART0.NCTS": {
+      "name": "/UART0.NCTS",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "U2",
+          "pin_number": "4",
+          "pin_name": "RTS#"
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "29",
+          "pin_name": "PA14"
+        }
+      ]
+    },
+    "/UART0.NRTS": {
+      "name": "/UART0.NRTS",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "U2",
+          "pin_number": "5",
+          "pin_name": "CTS#"
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "30",
+          "pin_name": "PA15"
+        }
+      ]
+    },
+    "/UART0.RX": {
+      "name": "/UART0.RX",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "U2",
+          "pin_number": "8",
+          "pin_name": "TXD"
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "2",
+          "pin_name": "PA1"
+        }
+      ]
+    },
+    "/UART0.TX": {
+      "name": "/UART0.TX",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "U2",
+          "pin_number": "9",
+          "pin_name": "RXD"
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "1",
+          "pin_name": "PA0"
+        }
+      ]
+    },
+    "/UARTV3": {
+      "name": "/UARTV3",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C6",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U2",
+          "pin_number": "10",
+          "pin_name": "V3"
+        }
+      ]
+    },
+    "/USB.D+": {
+      "name": "/USB.D+",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D1",
+          "pin_number": "3",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U2",
+          "pin_number": "1",
+          "pin_name": "UD+"
+        }
+      ]
+    },
+    "/USB.D-": {
+      "name": "/USB.D-",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D1",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U2",
+          "pin_number": "2",
+          "pin_name": "UD-"
+        }
+      ]
+    },
+    "/USBC.CC1": {
+      "name": "/USBC.CC1",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J1",
+          "pin_number": "A5",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R2",
+          "pin_number": "1",
+          "pin_name": null
+        }
+      ]
+    },
+    "/USBC.CC2": {
+      "name": "/USBC.CC2",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "J1",
+          "pin_number": "B5",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R1",
+          "pin_number": "1",
+          "pin_name": null
+        }
+      ]
+    },
+    "/USBC.D+": {
+      "name": "/USBC.D+",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D1",
+          "pin_number": "4",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "A6",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "B6",
+          "pin_name": null
+        }
+      ]
+    },
+    "/USBC.D-": {
+      "name": "/USBC.D-",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "D1",
+          "pin_number": "6",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "A7",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "B7",
+          "pin_name": null
+        }
+      ]
+    },
+    "/VREF+": {
+      "name": "/VREF+",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C11",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "43",
+          "pin_name": "PA23"
+        }
+      ]
+    },
+    "/VREF-": {
+      "name": "/VREF-",
+      "net_type": "signal",
+      "voltage": null,
+      "pins": [
+        {
+          "component_ref": "C11",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R5",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "39",
+          "pin_name": "PA21"
+        }
+      ]
+    },
+    "GND": {
+      "name": "GND",
+      "net_type": "ground",
+      "voltage": 0.0,
+      "pins": [
+        {
+          "component_ref": "C1",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C10",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C12",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C2",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C3",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C4",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C5",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C6",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C7",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C8",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "C9",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "D1",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "A1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "A12",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "B1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "B12",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J1",
+          "pin_number": "S1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J2",
+          "pin_number": "5",
+          "pin_name": null
+        },
+        {
+          "component_ref": "J3",
+          "pin_number": "5",
+          "pin_name": null
+        },
+        {
+          "component_ref": "MH1",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "MH2",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "MH3",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "MH4",
+          "pin_number": "1",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R1",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R2",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R4",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R5",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R6",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "R7",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "U1",
+          "pin_number": "2",
+          "pin_name": "GND"
+        },
+        {
+          "component_ref": "U2",
+          "pin_number": "3",
+          "pin_name": "GND"
+        },
+        {
+          "component_ref": "U3",
+          "pin_number": "7",
+          "pin_name": "VSS"
+        },
+        {
+          "component_ref": "X1",
+          "pin_number": "2",
+          "pin_name": null
+        },
+        {
+          "component_ref": "X1",
+          "pin_number": "4",
+          "pin_name": null
+        }
+      ]
+    }
+  }
+}

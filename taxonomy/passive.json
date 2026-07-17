@@ -1,0 +1,71 @@
+{
+  "type": "passive",
+  "specs": [
+    {"name": "value_formatted", "description": "Human-readable value with SI prefix (e.g. 4.7 kohm, 100 nF)"},
+    {"name": "tolerance", "description": "Tolerance specification (e.g. ±1%, ±10%)"},
+    {"name": "package", "description": "Package type (e.g. 0603, 0805, 1206)"}
+  ],
+  "subtypes": {
+    "passive.resistor": {
+      "description": "Chip resistor",
+      "example_mpn": "0603WAF5101T5E",
+      "extra_specs": [
+        {"name": "value_ohms", "description": "Resistance value", "unit": "ohm", "required": true},
+        {"name": "power_rating_w", "description": "Power rating", "unit": "W"}
+      ]
+    },
+    "passive.resistor.thick_film": {
+      "description": "Thick film chip resistor",
+      "extra_specs": [
+        {"name": "value_ohms", "description": "Resistance value", "unit": "ohm", "required": true},
+        {"name": "power_rating_w", "description": "Power rating", "unit": "W"}
+      ]
+    },
+    "passive.resistor.thin_film": {
+      "description": "Thin film chip resistor",
+      "extra_specs": [
+        {"name": "value_ohms", "description": "Resistance value", "unit": "ohm", "required": true},
+        {"name": "power_rating_w", "description": "Power rating", "unit": "W"}
+      ]
+    },
+    "passive.capacitor.ceramic": {
+      "description": "Multi-layer ceramic capacitor (MLCC)",
+      "example_mpn": "CL10B474KA8NNNC",
+      "extra_specs": [
+        {"name": "value_farads", "description": "Capacitance value", "unit": "F", "required": true},
+        {"name": "voltage_rating_v", "description": "Rated voltage", "unit": "V"},
+        {"name": "dielectric", "description": "Dielectric type (e.g. X7R, C0G, X5R)"}
+      ]
+    },
+    "passive.capacitor.tantalum": {
+      "description": "Tantalum capacitor",
+      "extra_specs": [
+        {"name": "value_farads", "description": "Capacitance value", "unit": "F", "required": true},
+        {"name": "voltage_rating_v", "description": "Rated voltage", "unit": "V"}
+      ]
+    },
+    "passive.capacitor.electrolytic": {
+      "description": "Aluminum electrolytic capacitor",
+      "extra_specs": [
+        {"name": "value_farads", "description": "Capacitance value", "unit": "F", "required": true},
+        {"name": "voltage_rating_v", "description": "Rated voltage", "unit": "V"}
+      ]
+    },
+    "passive.inductor": {
+      "description": "Inductor / choke",
+      "extra_specs": [
+        {"name": "value_henries", "description": "Inductance value", "unit": "H", "required": true},
+        {"name": "current_rating_a", "description": "Saturation / rated current", "unit": "A"},
+        {"name": "dcr_ohms", "description": "DC resistance", "unit": "ohm"}
+      ]
+    },
+    "passive.ferrite_bead": {
+      "description": "Ferrite bead",
+      "extra_specs": [
+        {"name": "value_henries", "description": "Impedance at test frequency (stored as inductance proxy)", "unit": "H"},
+        {"name": "current_rating_a", "description": "Rated current", "unit": "A"},
+        {"name": "dcr_ohms", "description": "DC resistance", "unit": "ohm"}
+      ]
+    }
+  }
+}

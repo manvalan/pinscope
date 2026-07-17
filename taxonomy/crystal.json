@@ -1,0 +1,18 @@
+{
+  "type": "crystal",
+  "specs": [
+    {"name": "frequency_hz", "description": "Nominal frequency", "unit": "Hz", "required": true},
+    {"name": "load_capacitance_f", "description": "Specified load capacitance (CL)", "unit": "F"},
+    {"name": "esr_ohm", "description": "Equivalent series resistance (ESR)", "unit": "ohm"}
+  ],
+  "subtypes": {
+    "crystal": {
+      "description": "Crystal / crystal oscillator",
+      "extra_specs": [
+        {"name": "frequency_stability_ppm", "description": "Frequency stability/tolerance", "unit": "ppm"},
+        {"name": "drive_level_w", "description": "Maximum drive level", "unit": "W"},
+        {"name": "shunt_capacitance_f", "description": "Shunt capacitance (C0)", "unit": "F"}
+      ]
+    }
+  }
+}

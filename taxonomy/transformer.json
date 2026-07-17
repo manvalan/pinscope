@@ -1,0 +1,26 @@
+{
+  "type": "transformer",
+  "specs": [
+    {"name": "turns_ratio", "description": "Primary to secondary turns ratio"},
+    {"name": "voltage_primary_v", "description": "Primary voltage rating", "unit": "V"},
+    {"name": "voltage_secondary_v", "description": "Secondary voltage rating", "unit": "V"},
+    {"name": "current_rating_a", "description": "Maximum current rating", "unit": "A"}
+  ],
+  "subtypes": {
+    "transformer.power": {
+      "description": "Power transformer",
+      "extra_specs": [
+        {"name": "power_rating_w", "description": "Maximum power rating", "unit": "W"},
+        {"name": "isolation_voltage_v", "description": "Isolation/withstand voltage between windings", "unit": "V"}
+      ]
+    },
+    "transformer.signal": {
+      "description": "Signal / isolation transformer",
+      "extra_specs": [
+        {"name": "isolation_voltage_v", "description": "Isolation/withstand voltage between windings", "unit": "V"},
+        {"name": "insertion_loss_db", "description": "Insertion loss", "unit": "dB"},
+        {"name": "bandwidth_hz", "description": "Operating bandwidth (-3dB)", "unit": "Hz"}
+      ]
+    }
+  }
+}

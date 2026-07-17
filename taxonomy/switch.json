@@ -1,0 +1,28 @@
+{
+  "type": "switch",
+  "specs": [
+    {"name": "voltage_rating_v", "description": "Maximum rated voltage", "unit": "V"},
+    {"name": "current_rating_a", "description": "Maximum rated current", "unit": "A"}
+  ],
+  "subtypes": {
+    "switch.tactile": {
+      "description": "Tactile push-button switch",
+      "extra_specs": [
+        {"name": "contact_configuration", "description": "Contact arrangement (e.g. SPST-NO, SPST-NC)"}
+      ]
+    },
+    "switch.dip": {
+      "description": "DIP switch",
+      "extra_specs": [
+        {"name": "positions", "description": "Number of independent switch positions"},
+        {"name": "contact_configuration", "description": "Contact arrangement per position (e.g. SPST)"}
+      ]
+    },
+    "switch.slide": {
+      "description": "Slide switch",
+      "extra_specs": [
+        {"name": "contact_configuration", "description": "Contact arrangement (e.g. SPDT, DPDT)"}
+      ]
+    }
+  }
+}

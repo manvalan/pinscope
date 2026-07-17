@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "component_subtype": {
+      "type": "string",
+      "description": "Dotted taxonomy path, e.g. ic.mcu, ic.power.ldo"
+    },
+    "package_info": {
+      "type": "object",
+      "properties": {
+        "base_family": {"type": "string"},
+        "package": {"type": "string"},
+        "pin_count": {"type": "integer"},
+        "description": {"type": "string"}
+      },
+      "required": ["base_family", "package", "pin_count"]
+    },
+    "pintable": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": {},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "functions": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["number", "name"]
+      }
+    }
+  },
+  "required": ["component_subtype", "package_info", "pintable"]
+}
