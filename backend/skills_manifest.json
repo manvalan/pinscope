@@ -1,18 +1,18 @@
 {
   "default_model_version": "1.4.0",
   "extract-pintable": {
-    "skill_id": "skill_013cTQFk8bqwJVemreNihQRW",
-    "latest_version": "1777167199421424",
+    "skill_id": "skill_01VMWPZuvuZAe4LmLbmsNWNY",
+    "latest_version": "1784798970179642",
     "display_title": "Extract Pin Table"
   },
   "extract-pattern": {
-    "skill_id": "skill_0195iVb55HeQgKHFkePC56hP",
-    "latest_version": "1777167200857394",
+    "skill_id": "skill_01JuA5xdSJsz2V4dcwzpTRpe",
+    "latest_version": "1784798971057751",
     "display_title": "Extract Passive Pattern"
   },
   "extract-specs": {
-    "skill_id": "skill_016sqcgvuVea95Nb4uJYBj7h",
-    "latest_version": "1777167202182784",
+    "skill_id": "skill_01NHZY6K3tvdbAzBo7eGT8qD",
+    "latest_version": "1784798971971891",
     "display_title": "Extract Component Specs"
   }
 }

@@ -269,7 +269,10 @@ class AnthropicProvider(LLMProvider):
         runs ``validate.py`` server-side via code_execution, and voluntarily
         calls ``output_tool`` once it has well-formed data.
         """
-        try:\n            skill_id, version = settings.get_skill(skill_name)\n        except Exception:\n            skill_id, version = None, None
+        try:
+            skill_id, version = settings.get_skill(skill_name)
+        except Exception:
+            skill_id, version = None, None
 
         # Build initial user content
         user_content: list[dict] = []
