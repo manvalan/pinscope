@@ -26,7 +26,7 @@ export function safeMpn(mpn: string): string {
   return mpn.replace(/\//g, "_").replace(/:/g, "_");
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 // Auth token getter — set by useAuthApi hook
 let _getToken: (() => Promise<string | null>) | null = null;

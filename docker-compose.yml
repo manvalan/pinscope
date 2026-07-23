@@ -1,0 +1,49 @@
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: pinscope-backend
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+    volumes:
+      - ./data:/app/data
+      - ./taxonomy:/app/taxonomy
+
+    ports:
+      - "8080:8080"
+
+    networks:
+      - pinscope
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ""
+
+    container_name: pinscope-frontend
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      - "3000:3000"
+
+    networks:
+      - pinscope
+
+
+networks:
+  pinscope:
+    driver: bridge

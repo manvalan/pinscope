@@ -36,9 +36,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: blob:",
               "font-src 'self' data: https://vercel.live https://assets.vercel.com https://fonts.gstatic.com",
               "connect-src 'self' blob: https://storage.googleapis.com https://vercel.live wss://ws-us3.pusher.com" +
-                extra(CSP_CONNECT_HOSTS) +
-                " " +
-                (process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:8000"),
+                extra(CSP_CONNECT_HOSTS),
               "frame-src 'self' https://vercel.live" + extra(CSP_FRAME_HOSTS),
               "worker-src 'self' blob:",
             ].join("; "),

@@ -269,7 +269,7 @@ class AnthropicProvider(LLMProvider):
         runs ``validate.py`` server-side via code_execution, and voluntarily
         calls ``output_tool`` once it has well-formed data.
         """
-        skill_id, version = settings.get_skill(skill_name)
+        try:\n            skill_id, version = settings.get_skill(skill_name)\n        except Exception:\n            skill_id, version = None, None
 
         # Build initial user content
         user_content: list[dict] = []
@@ -278,13 +278,15 @@ class AnthropicProvider(LLMProvider):
         user_content.append({"type": "text", "text": user_text})
 
         messages: list[dict] = [{"role": "user", "content": user_content}]
-        container: dict = {
-            "skills": [{
-                "type": "custom",
-                "skill_id": skill_id,
-                "version": version,
-            }],
-        }
+        container: dict | None = None
+        if skill_id:
+            container = {
+                "skills": [{
+                    "type": "custom",
+                    "skill_id": skill_id,
+                    "version": version,
+                }],
+            }
 
         total_input = 0
         total_output = 0
