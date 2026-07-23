@@ -44,6 +44,14 @@ Open http://localhost:3000, create a project, and feed it the netlist and BOM fr
 
 This repo is the product minus accounts and billing. If you'd rather not run it yourself, [pinscope.ai](https://pinscope.ai) is the same code, hosted, with team workspaces and a shared parts library that's already warm.
 
+## Fork changes
+
+This fork adds:
+- Docker deployment
+- Caddy reverse proxy protection
+- OSS authentication-free backend mode
+- Local deployment support
+
 ## License
 
 AGPL-3.0. For commercial licensing, write to dev@faradworks.com.
