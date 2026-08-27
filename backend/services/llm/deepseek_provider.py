@@ -253,10 +253,16 @@ class DeepSeekSession(LLMSession):
         ]
         oai_messages.extend(messages_to_openai(messages, vision=self._vision))
 
+        # DeepSeek rejects forced tool_choice while thinking is on
+        # ("Thinking mode does not support this tool_choice"). Auto-resolve
+        # and extraction always force a save_* tool, so drop thinking there.
+        forced_tool = isinstance(tool_choice, dict) and "name" in tool_choice
+        thinking = self._thinking and not forced_tool
+
         extra_body: dict[str, Any] = {
-            "thinking": {"type": "enabled" if self._thinking else "disabled"},
+            "thinking": {"type": "enabled" if thinking else "disabled"},
         }
-        if self._thinking:
+        if thinking:
             extra_body["reasoning_effort"] = self._reasoning_effort
         kwargs: dict[str, Any] = {
             "model": self.model,

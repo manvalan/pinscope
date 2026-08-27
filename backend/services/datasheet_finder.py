@@ -105,6 +105,10 @@ def mpn_query_variants(mpn: str) -> list[str]:
     add(raw)
     add(raw.replace("_", "/"))
     add(raw.replace("/", "_"))
+    for sep in (" — ", " – ", " - "):
+        if sep in raw:
+            add(raw.split(sep, 1)[0])
+            break
     if "," in raw:
         add(raw.split(",", 1)[0])
     if len(_alnum(raw)) > 8 and raw[-1] in "Rr" and raw[-2].isalnum():

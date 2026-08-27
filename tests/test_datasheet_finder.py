@@ -39,8 +39,8 @@ def test_mpn_catalog_match_orderable_suffix():
 def test_mpn_query_variants_underscore_and_reel():
     variants = mpn_query_variants("25AA1024-I_SM")
     assert "25AA1024-I/SM" in variants
-    variants = mpn_query_variants("ADAU1467WBCPZ300R")
-    assert "ADAU1467WBCPZ300" in variants
+    variants = mpn_query_variants("RC0805FR-0733RL — 33 Ω — 1% — 0805")
+    assert "RC0805FR-0733RL" in variants
 
 
 def test_pick_lcsc_family_orderable():

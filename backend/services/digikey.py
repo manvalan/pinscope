@@ -113,11 +113,19 @@ def _find_product(mpn: str, products: list[dict]) -> dict | None:
 
     Prefers punctuation-insensitive equality, then packing suffixes, then a
     longer orderable code that starts with the BOM MPN. Does not fall back
-    to ``products[0]``.
+    to ``products[0]``. Tries BOM spelling variants (underscore, reel, extra
+    description after an em dash).
     """
     if not products:
         return None
+    for query in mpn_query_variants(mpn):
+        hit = _find_product_one(query, products)
+        if hit:
+            return hit
+    return None
 
+
+def _find_product_one(mpn: str, products: list[dict]) -> dict | None:
     exact = None
     loose = None
     family = None
@@ -325,7 +333,16 @@ async def fetch_params(mpn: str) -> ParamsFetchResult:
         return ParamsFetchResult(mpn, error="DigiKey API not configured")
 
     try:
-        products = await _keyword_search(mpn)
+        products: list[dict] = []
+        tried: set[str] = set()
+        for keyword in mpn_query_variants(mpn):
+            key = keyword.upper()
+            if key in tried:
+                continue
+            tried.add(key)
+            products = await _keyword_search(keyword)
+            if _find_product(mpn, products):
+                break
     except httpx.HTTPStatusError as e:
         logger.warning("DigiKey search failed for %s: %s", mpn, e)
         return ParamsFetchResult(mpn, error=f"DigiKey search failed ({e.response.status_code})")

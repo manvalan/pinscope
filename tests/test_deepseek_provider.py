@@ -95,6 +95,49 @@ def test_messages_to_openai_tool_roundtrip():
     assert out[2]["role"] == "user"
 
 
+def test_forced_tool_choice_disables_thinking():
+    captured: dict = {}
+
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            captured.update(kwargs)
+            fn = SimpleNamespace(name="save_resolved_specs", arguments="{}")
+            tc = SimpleNamespace(id="c1", function=fn)
+            msg = SimpleNamespace(content=None, reasoning_content=None, tool_calls=[tc])
+            usage = SimpleNamespace(
+                prompt_tokens=10, completion_tokens=5,
+                prompt_cache_hit_tokens=0, prompt_tokens_details=None,
+            )
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=msg, finish_reason="tool_calls")],
+                usage=usage,
+            )
+
+    class FakeClient:
+        def __init__(self):
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    from backend.services.llm.deepseek_provider import DeepSeekSession
+    session = DeepSeekSession(
+        client=FakeClient(),
+        model="deepseek-v4-flash",
+        system="sys",
+        max_tokens=256,
+        thinking=True,
+        reasoning_effort="medium",
+    )
+    import asyncio
+    from backend.services.llm.types import Message, TextBlock, ToolSchema
+    asyncio.run(session.complete(
+        messages=[Message("user", [TextBlock("resolve")])],
+        tools=[ToolSchema(name="save_resolved_specs", description="x", input_schema={"type": "object"})],
+        tool_choice={"name": "save_resolved_specs"},
+    ))
+    assert captured["extra_body"]["thinking"]["type"] == "disabled"
+    assert "reasoning_effort" not in captured["extra_body"]
+    assert captured["tool_choice"]["function"]["name"] == "save_resolved_specs"
+
+
 def test_tool_schema_and_choice():
     schema = ToolSchema(
         name="save_pintable",
