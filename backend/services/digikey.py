@@ -12,6 +12,12 @@ from dataclasses import dataclass, field
 import httpx
 
 from backend.config import settings
+from backend.services.datasheet_finder import (
+    _alnum,
+    mpn_catalog_match,
+    mpn_matches,
+    mpn_query_variants,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,31 +109,50 @@ async def _keyword_search(mpn: str) -> list[dict]:
 
 
 def _find_product(mpn: str, products: list[dict]) -> dict | None:
-    """Find the product whose MPN exactly matches ``mpn`` (case/space-insensitive).
+    """Pick a DigiKey product for ``mpn``.
 
-    Returns None when no result has a matching MPN. We intentionally do NOT
-    fall back to ``products[0]`` — keyword-search hits without an MPN match
-    are usually for a different part, and silently returning them has
-    polluted the library with wrong specs for non-MPN tokens like ``10uF``.
+    Prefers punctuation-insensitive equality, then packing suffixes, then a
+    longer orderable code that starts with the BOM MPN. Does not fall back
+    to ``products[0]``.
     """
     if not products:
         return None
 
-    mpn_upper = mpn.upper().replace(" ", "")
+    exact = None
+    loose = None
+    family = None
+    want = _alnum(mpn)
     for product in products:
-        if _get_mpn(product).upper().replace(" ", "") == mpn_upper:
-            return product
-    return None
+        cand = _get_mpn(product)
+        if not cand:
+            continue
+        got = _alnum(cand)
+        if got == want:
+            exact = product
+            break
+        if loose is None and mpn_matches(mpn, cand):
+            loose = product
+        elif family is None and mpn_catalog_match(mpn, cand):
+            family = product
+    return exact or loose or family
 
 
 async def _search_mpn(mpn: str) -> str | None:
     """Search DigiKey for an MPN and return the primary datasheet URL, or None."""
-    products = await _keyword_search(mpn)
-    product = _find_product(mpn, products)
-    if not product:
-        return None
-    url = _get_ds_url(product)
-    return url or None
+    tried: set[str] = set()
+    for keyword in mpn_query_variants(mpn):
+        key = keyword.upper()
+        if key in tried:
+            continue
+        tried.add(key)
+        products = await _keyword_search(keyword)
+        product = _find_product(mpn, products)
+        if not product:
+            continue
+        url = _get_ds_url(product)
+        if url:
+            return url
+    return None
 
 
 # ---------------------------------------------------------------------------

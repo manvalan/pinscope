@@ -9,7 +9,9 @@ from backend.services.datasheet_finder import (
     _pick_lcsc_product,
     _ti_slugs,
     find_datasheet,
+    mpn_catalog_match,
     mpn_matches,
+    mpn_query_variants,
 )
 
 
@@ -18,10 +20,39 @@ def test_mpn_matches_exact_and_packing():
     assert mpn_matches("SPX3819M5-L-3-3", "SPX3819M5-L-3-3/TR")
     assert mpn_matches("MSPM0G3507SPTR", "MSPM0G3507")
     assert mpn_matches("MSPM0G3507", "MSPM0G3507SPTR")
+    assert mpn_matches("25AA1024-I_SM", "25AA1024-I/SM")
     # Variant letter is a different die — must not match
     assert not mpn_matches("CH340", "CH340E")
     assert not mpn_matches("CH340E", "CH340G")
     assert not mpn_matches("TLV9062", "TLV9002")
+
+
+def test_mpn_catalog_match_orderable_suffix():
+    assert mpn_catalog_match("ESP32-S31-WROOM-3", "ESP32-S31-WROOM-3-N16R16V")
+    assert mpn_catalog_match("24AA025E64", "24AA025E64-I/SN")
+    assert mpn_catalog_match("LAN8720A", "LAN8720A-CP-TR")
+    assert mpn_catalog_match("W25Q128JVS", "W25Q128JVSIQ")
+    assert not mpn_catalog_match("CH340", "CH340E")
+    assert not mpn_catalog_match("10uF", "GRM21BR61A106KE19L")
+
+
+def test_mpn_query_variants_underscore_and_reel():
+    variants = mpn_query_variants("25AA1024-I_SM")
+    assert "25AA1024-I/SM" in variants
+    variants = mpn_query_variants("ADAU1467WBCPZ300R")
+    assert "ADAU1467WBCPZ300" in variants
+
+
+def test_pick_lcsc_family_orderable():
+    products = [
+        {
+            "productModel": "ESP32-S31-WROOM-3-N16R16V",
+            "pdfUrl": "http://esp.pdf",
+        },
+    ]
+    picked = _pick_lcsc_product("ESP32-S31-WROOM-3", products)
+    assert picked is not None
+    assert picked["pdfUrl"] == "http://esp.pdf"
 
 
 def test_pick_lcsc_prefers_exact_model():

@@ -81,20 +81,74 @@ def mpn_matches(query: str, candidate: str) -> bool:
     return bool(_PACKING_REMAINDER.match(longer[len(shorter):]))
 
 
+# Base MPNs this long are treated as a manufacturer family code: DigiKey/LCSC
+# orderable strings may add package/temp (24AA025E64 vs 24AA025E64-I/SN).
+# Keep this above short tokens like "10uF" / "CH340" so we do not steal a
+# sibling die's datasheet.
+_MIN_FAMILY_LEN = 7
+
+
+def mpn_query_variants(mpn: str) -> list[str]:
+    """Search strings to try when catalogs spell the same MPN differently."""
+    raw = (mpn or "").strip()
+    if not raw:
+        return []
+    variants: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: str) -> None:
+        value = value.strip()
+        if value and value not in seen:
+            seen.add(value)
+            variants.append(value)
+
+    add(raw)
+    add(raw.replace("_", "/"))
+    add(raw.replace("/", "_"))
+    if "," in raw:
+        add(raw.split(",", 1)[0])
+    if len(_alnum(raw)) > 8 and raw[-1] in "Rr" and raw[-2].isalnum():
+        add(raw[:-1])
+    stripped = _strip_packing_alnum(raw)
+    if stripped:
+        add(stripped)
+    return variants
+
+
+def mpn_catalog_match(query: str, candidate: str) -> bool:
+    """Same part for datasheet lookup: punctuation, packing, or orderable suffix."""
+    if mpn_matches(query, candidate):
+        return True
+    q = _alnum(query)
+    c = _alnum(candidate)
+    if len(q) < _MIN_FAMILY_LEN or not c:
+        return False
+    return c.startswith(q) and len(c) > len(q)
+
+
 def _pick_lcsc_product(mpn: str, products: list[dict]) -> dict | None:
     exact: dict | None = None
     loose: dict | None = None
+    family: dict | None = None
     want = _alnum(mpn)
     for p in products:
-        model = p.get("productModel") or ""
+        model = (
+            p.get("productModel")
+            or p.get("productName")
+            or p.get("productIntroEn")
+            or ""
+        )
         if not model:
             continue
-        if _alnum(model) == want:
+        got = _alnum(model)
+        if got == want:
             exact = p
             break
         if loose is None and mpn_matches(mpn, model):
             loose = p
-    return exact or loose
+        elif family is None and mpn_catalog_match(mpn, model):
+            family = p
+    return exact or loose or family
 
 
 async def _download_pdf(url: str) -> bytes:
@@ -118,7 +172,7 @@ async def _lcsc_search(keyword: str) -> list[dict]:
     ) as client:
         resp = await client.post(
             f"{_LCSC_BASE}/product/query/list",
-            json={"keyword": keyword, "currentPage": 1, "pageSize": 15},
+            json={"keyword": keyword, "currentPage": 1, "pageSize": 30},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -163,10 +217,7 @@ async def _from_lcsc(mpn: str, lcsc_id: str | None) -> DatasheetHit | None:
         product = None
 
     if product is None:
-        keywords = [mpn]
-        stripped = _strip_packing_alnum(mpn)
-        if stripped and stripped.upper() != _alnum(mpn):
-            keywords.append(stripped)
+        keywords = mpn_query_variants(mpn)
         for keyword in keywords:
             try:
                 products = await _lcsc_search(keyword)
