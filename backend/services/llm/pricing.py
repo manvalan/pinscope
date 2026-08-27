@@ -8,10 +8,19 @@ from __future__ import annotations
 
 
 # Per-million-token USD rates. Source-of-truth links:
+#   DeepSeek:  https://api-docs.deepseek.com/quick_start/pricing
 #   Anthropic: https://docs.anthropic.com/en/docs/about-claude/pricing
 #   Google:    https://ai.google.dev/pricing
-# Last updated: 2026-07-01
+# Last updated: 2026-08-27
 PRICING: dict[str, dict[str, dict[str, float]]] = {
+    "deepseek": {
+        # Peak-hour rates (conservative). Off-peak is 50% of these.
+        # Cache-hit input is billed via CACHE_RATES["deepseek"]["read"].
+        "deepseek-v4-flash":              {"input": 0.44, "output": 1.32},
+        "deepseek-v4-flash-vision-exp":   {"input": 0.44, "output": 1.32},
+        "deepseek-v4-pro":                {"input": 1.32, "output": 3.96},
+        "default":                        {"input": 0.44, "output": 1.32},
+    },
     "anthropic": {
         "claude-opus-4-6":            {"input": 5.00,  "output": 25.00},
         "claude-opus-4-5":            {"input": 5.00,  "output": 25.00},
@@ -54,6 +63,7 @@ PRICING: dict[str, dict[str, dict[str, float]]] = {
 #           normal input pass)
 #   read:   cost when a cached prefix is *reused* (much cheaper)
 CACHE_RATES: dict[str, dict[str, float]] = {
+    "deepseek":  {"create": 1.00, "read": 0.032},
     "anthropic": {"create": 1.25, "read": 0.10},
     "gemini":    {"create": 1.00, "read": 0.25},
 }
@@ -62,10 +72,10 @@ CACHE_RATES: dict[str, dict[str, float]] = {
 def cost_for_entry(entry: dict) -> float:
     """USD cost for an api_logs entry. Reads ``provider`` (default
     ``anthropic`` for legacy entries) and ``model`` to pick rates."""
-    provider = entry.get("provider") or "anthropic"
-    table = PRICING.get(provider) or PRICING["anthropic"]
+    provider = entry.get("provider") or "deepseek"
+    table = PRICING.get(provider) or PRICING["deepseek"]
     rates = table.get(entry.get("model", ""), table["default"])
-    cache_rates = CACHE_RATES.get(provider, CACHE_RATES["anthropic"])
+    cache_rates = CACHE_RATES.get(provider, CACHE_RATES["deepseek"])
     input_rate = rates["input"]
     output_rate = rates["output"]
     return (

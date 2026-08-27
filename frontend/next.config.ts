@@ -7,7 +7,20 @@ import {
 
 const extra = (hosts: string[]) => (hosts.length ? ` ${hosts.join(" ")}` : "");
 
+function apiOrigin(): string[] {
+  const raw = process.env.NEXT_PUBLIC_API_URL;
+  if (!raw) return [];
+  try {
+    return [new URL(raw).origin];
+  } catch {
+    return [];
+  }
+}
+
+const connectHosts = [...CSP_CONNECT_HOSTS, ...apiOrigin()];
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   serverExternalPackages: ["pdfjs-dist"],
   turbopack: {
     resolveAlias: {
@@ -36,7 +49,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: blob:",
               "font-src 'self' data: https://vercel.live https://assets.vercel.com https://fonts.gstatic.com",
               "connect-src 'self' blob: https://storage.googleapis.com https://vercel.live wss://ws-us3.pusher.com" +
-                extra(CSP_CONNECT_HOSTS),
+                extra(connectHosts),
               "frame-src 'self' https://vercel.live" + extra(CSP_FRAME_HOSTS),
               "worker-src 'self' blob:",
             ].join("; "),

@@ -26,12 +26,17 @@ class TextBlock:
     # this turn is fed back into the conversation, or the next call 400s.
     # Anthropic: always None.
     thought_signature: bytes | None = None
+    # DeepSeek thinking-mode: assistant ``reasoning_content`` that must be
+    # replayed on the next turn or the API returns 400.
+    reasoning_content: str | None = None
 
 
 @dataclass
 class PdfBlock:
-    """Inline PDF document. Provider encodes as base64 (Anthropic) or
-    inline_data (Gemini) and applies caching policy if cacheable=True."""
+    """Inline PDF document. Anthropic encodes as base64, Gemini as
+    inline_data. DeepSeek does not accept PDFs natively — the provider
+    converts the file to extracted text (and page images on a vision
+    model) before sending."""
     path: Path
     cacheable: bool = False
 
@@ -45,6 +50,7 @@ class ToolCall:
     # Same purpose as TextBlock.thought_signature — Gemini 3 attaches one
     # to every function_call part when thinking is on. Round-trip required.
     thought_signature: bytes | None = None
+    reasoning_content: str | None = None
 
 
 @dataclass

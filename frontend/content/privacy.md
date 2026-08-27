@@ -98,7 +98,7 @@ We use subprocessors and service providers to host and operate the Service (for 
 
 ### 6.2 AI model providers
 
-To generate Outputs, relevant portions of Customer Content are transmitted to AI model providers acting as subprocessors. Providers may include services such as OpenAI, Anthropic, Google, or similar AI platforms.
+To generate Outputs, relevant portions of Customer Content are transmitted to AI model providers acting as subprocessors. Providers may include services such as DeepSeek, Anthropic, Google, or similar AI platforms.
 
 These providers process Content to generate responses. Their data handling, retention, and caching practices are governed by their respective terms and our configuration.
 

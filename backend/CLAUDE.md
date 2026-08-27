@@ -9,7 +9,7 @@ FastAPI application providing async pipeline orchestration, project storage, and
 python3 -m uvicorn backend.main:app --reload    # localhost:8000
 ```
 
-Config reads from `.env` at project root (see `config.py`). Key settings: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` (default `claude-sonnet-4-6`), per-stage model overrides (`model_pintable`, `model_pattern`, `model_specs`, `model_validation`, `model_auto_resolve`), `CORS_ORIGINS`, `DIGIKEY_CLIENT_ID`, `DIGIKEY_CLIENT_SECRET`, `DIGIKEY_ENVIRONMENT`.
+Config reads from `backend/.env` (see `config.py`). Key settings: `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, per-stage DeepSeek overrides (`model_pintable_deepseek`, `model_validation_deepseek`, …), `PROVIDER_DEFAULT` (default `deepseek`), optional `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`, `CORS_ORIGINS`, DigiKey keys.
 
 For local mode, leave `GCS_BUCKET` empty — uses `LocalStorageBackend` (`data/` directory) and no auth (user_id defaults to `"local"`, admin access granted).
 

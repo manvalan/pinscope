@@ -144,7 +144,7 @@ _REVIEW_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 
-_MAX_PDF_PAGES = 90
+_MAX_PDF_PAGES = 120
 
 # Per-review excerpt budget — keeps fan-out cost bounded on hub ICs (e.g. an
 # MCU connected to many neighbors). On exhaustion, the tool returns a budget
@@ -159,9 +159,9 @@ _MAX_PDF_PAGES = 90
 # per neighbor fits the ~3 topic fetches (pin levels + abs-max + electrical)
 # one interface check needs; 60 global allows ~2 such neighbors before the
 # fan-out ceiling kicks in.
-_PER_REVIEW_FETCH_BUDGET = 8
-_PER_REVIEW_PAGE_BUDGET = 60
-_PER_NEIGHBOR_PAGE_BUDGET = 30
+_PER_REVIEW_FETCH_BUDGET = 12
+_PER_REVIEW_PAGE_BUDGET = 90
+_PER_NEIGHBOR_PAGE_BUDGET = 45
 
 # A signal net with more components than this is treated as a hub/bus and
 # excluded from the neighbor set even if classified as "signal". Bounds

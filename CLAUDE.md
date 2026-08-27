@@ -22,7 +22,7 @@ Three layers:
 | **Backend** | `backend/` | FastAPI app — async pipeline orchestration, SSE progress, project/file storage |
 | **Frontend** | `frontend/` | Next.js 16 app — project dashboard, pipeline progress, report viewer, derating, admin dashboard |
 
-Plus `skills/` — Claude Console Skills for datasheet extraction (pintable, patterns, specs).
+Plus `skills/` — extraction prompts (pintable, patterns, specs) inlined locally for DeepSeek; optional Anthropic Console Skills if you route a stage to Anthropic.
 
 The pipeline stages: Parse BOM → Extract IC Pintables → Extract Simple Components → Extract Passives → DigiKey Auto-Resolve + Value Fallback → Build Graph → Direct Datasheet Review. Pipeline runs can be cancelled mid-execution via `POST /api/pipeline/{id}/cancel`.
 
@@ -42,10 +42,10 @@ Files: `.asc` (PADS-PCB netlist; `.edn` EDIF 2.0.0 also accepted), `.csv`/`.xlsx
 
 - **Modular extractors** — Domain-specific extraction per component type, unified constraint schema
 - **Netlist as graph** — Queryable bipartite graph (components + nets) with traversal helpers
-- **Claude API for PDF extraction** — Forced tool calls for structured output (pintable, passive patterns, specs)
-- **Prompt caching** — Extraction and review API calls use `cache_control={"type": "ephemeral"}` on system prompts and input context to reduce cost on repeated calls
-- **Claude Console Skills** — Extraction prompts deployed as managed skills; skill_ids and versions loaded from `backend/skills_manifest.json` (upload your own via `scripts/upload_skills.py`)
-- **Direct datasheet review** — Claude reads the IC datasheet PDF and circuit neighborhood together, compares to reference application circuit, and flags issues via graph query tools (`find_connected_components`, `get_net_for_pin`, `get_pintable`)
+- **LLM API for PDF extraction** — Forced tool calls for structured output (pintable, passive patterns, specs). Default provider is DeepSeek.
+- **Prompt caching** — Anthropic stamps `cache_control`; Gemini uses CachedContent; DeepSeek uses automatic prefix cache (cache-hit tokens in usage).
+- **Local extraction skills** — `skills/*/SKILL.md` is inlined and `validate.py` runs in-process. Anthropic Console Skills remain optional via `scripts/upload_skills.py`.
+- **Direct datasheet review** — The model reads the IC datasheet plus circuit neighborhood, compares to the reference application circuit, and flags issues via graph query tools (`find_connected_components`, `get_net_for_pin`, `get_pintable`). DeepSeek converts PDFs to text (and page images on the vision model).
 - **Datasheet page trimming** — Large PDFs are keyword-trimmed to relevant pages before sending to Claude, reducing token cost (`pypdf`)
 - **DigiKey fallback (exact MPN only)** — When pattern-based and direct extraction fail, DigiKey API fetches product parameters for auto-resolve. DigiKey matches only on exact MPN; fuzzy hits are rejected to avoid polluting the shared library with wrong-dielectric / wrong-voltage parts.
 - **Value-string fallback** — When DigiKey misses an R/C/L/FB passive, a value-string resolver maps the BOM `Value` string to typed passive specs. Value-derived specs are persisted per-project only — never to the shared library.
@@ -75,7 +75,7 @@ Per-MPN IC extraction captures:
 For discrete/simple components:
 4. **Specs** — Component specs (value, tolerance, package, voltage rating, etc.); parameters are filtered against taxonomy specs schemas
 
-Extraction uses **Claude Console Skills** (required, via `skill_id` in `backend/skills_manifest.json`). No inline fallback — raises error if skill not configured. Skills are defined in `skills/` and uploaded via `scripts/upload_skills.py` — run it once against your own Anthropic Console account to populate the manifest with your skill IDs.
+Extraction inlines **local skills** (`skills/*/SKILL.md` + `validate.py`). Anthropic Console Skills are optional when `PROVIDER_*=anthropic` and a skill_id is in `backend/skills_manifest.json`.
 
 ## Claude Console Skills
 
@@ -110,12 +110,12 @@ Key taxonomy features:
 
 ## Tech Stack
 
-- **Core**: Python 3.12+, Pydantic 2.x, Anthropic SDK (async + sync), openpyxl (XLSX BOM support), pypdf (datasheet page trimming)
+- **Core**: Python 3.12+, Pydantic 2.x, OpenAI SDK (DeepSeek), Anthropic SDK (optional), google-genai (optional), openpyxl, pypdf, PyMuPDF
 - **Backend**: FastAPI, uvicorn, sse-starlette, pydantic-settings
 - **Frontend**: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4, shadcn/ui (Base UI), react-pdf
-- **AI**: Claude API with forced tool calls for extraction, direct datasheet review for validation
-- **Model**: `claude-sonnet-4-6` default for extraction and review, `claude-haiku-4-5` for DigiKey auto-resolve and passive value fallback (per-stage overrides via `.env`)
-- **Skills**: Claude Console Skills API for managed extraction prompts (3 active skills: pintable, pattern, specs)
+- **AI**: DeepSeek Chat Completions (OpenAI-compatible) with forced tool calls for extraction and agentic review. Optional Anthropic / Gemini fallbacks.
+- **Model**: `deepseek-v4-flash-vision-exp` for extraction, `deepseek-v4-pro` for review, `deepseek-v4-flash` for auto-resolve (per-stage overrides via `.env`)
+- **Skills**: Local SKILL.md + validate.py (DeepSeek/Gemini); optional Anthropic Console Skills
 - **External APIs**: DigiKey API v4 (OAuth2) — optional datasheet auto-fetch and parameter-based auto-resolve (`DIGIKEY_CLIENT_ID`, `DIGIKEY_CLIENT_SECRET`)
 
 ## Extracted Model Versioning
@@ -133,7 +133,7 @@ All `ComponentConstraints` extracted JSON files carry a `model_version` semver f
 - Netlist parser and BOM parser are pure functions with no side effects
 - All data structures use Pydantic models in `backend/pinscopex/models.py`
 - Frontend types in `frontend/src/lib/types.ts` must stay in sync with `backend/pinscopex/models.py`
-- Extraction prompts live in `skills/` as Claude Console Skills (SKILL.md + schema.json + validate.py)
+- Extraction prompts live in `skills/` (SKILL.md + schema.json + validate.py) and run locally against DeepSeek
 - **Never swallow exceptions silently** — prefer logging or re-raising over bare `except: continue`. Silent failures hide real bugs.
 
 ## Running

@@ -59,6 +59,31 @@ async def check_library(req: LibraryCheckRequest, request: Request):
     }
 
 
+@router.get("/library")
+async def get_library(request: Request):
+    """List chips, passives, discrete specs, and datasheets in the shared library."""
+    storage = get_storage(request)
+    return JSONResponse(
+        content=proj_svc.list_library_catalog(storage),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/library/datasheet/{mpn:path}")
+async def get_library_datasheet(mpn: str, request: Request):
+    """Stream a datasheet PDF from the shared library."""
+    storage = get_storage(request)
+    key = proj_svc.library_has_datasheet(storage, mpn)
+    if not key:
+        raise HTTPException(404, f"Datasheet not in library: {mpn}")
+    data = storage.read_bytes(key)
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{mpn}.pdf"'},
+    )
+
+
 class CreateProjectRequest(BaseModel):
     name: str
 
@@ -722,31 +747,38 @@ async def make_collaborator_owner(
     return {"ok": True, "owner_user_id": collaborator_user_id}
 
 
-# --- DigiKey auto-fetch ---
+# --- Datasheet auto-fetch ---
 
 
 @router.get("/digikey/datasheet")
-async def fetch_digikey_datasheet(mpn: str, request: Request):
-    """Fetch a datasheet PDF from DigiKey for the given MPN.
+@router.get("/datasheets/fetch")
+async def fetch_auto_datasheet(mpn: str, request: Request, lcsc: str | None = None):
+    """Fetch a datasheet PDF for the given MPN.
 
-    Returns the PDF bytes on success, or a JSON error on failure.
+    Tries LCSC (no API key), Texas Instruments direct URLs, then DigiKey
+    if configured. ``/api/digikey/datasheet`` is kept as an alias.
     """
-    from backend.services.digikey import fetch_datasheet
+    from backend.services.datasheet_finder import find_datasheet
 
-    result = await fetch_datasheet(mpn)
+    result = await find_datasheet(mpn, lcsc_id=lcsc)
     if not result.ok:
-        # 404, not 502: "DigiKey has no exact match" / "the manufacturer CDN
-        # blocked the download" is an expected per-MPN miss the wizard handles
-        # (it shows a "fetch failed — upload manually" row), not a broken
-        # gateway. 502 made a board full of exotic parts read as a server
-        # meltdown in the browser console.
         return JSONResponse(
             status_code=404,
-            content={"detail": result.error or "Failed to fetch datasheet", "url": result.url},
+            content={
+                "detail": result.error or "Failed to fetch datasheet",
+                "url": result.url,
+                "source": result.source,
+            },
         )
     headers = {"Content-Disposition": f'attachment; filename="{mpn}.pdf"'}
     if result.url:
         headers["X-Datasheet-Url"] = result.url
+    if result.source:
+        headers["X-Datasheet-Source"] = result.source
+    try:
+        proj_svc.remember_datasheet(get_storage(request), mpn, result.pdf_bytes)
+    except Exception:
+        pass
     return Response(content=result.pdf_bytes, media_type="application/pdf", headers=headers)
 
 
@@ -777,8 +809,8 @@ async def auto_resolve(req: AutoResolveRequest, request: Request):
 
     if not settings.use_digikey:
         raise HTTPException(400, "DigiKey API not configured")
-    if not settings.anthropic_api_key:
-        raise HTTPException(400, "Anthropic API key not configured")
+    if not settings.has_llm_credentials():
+        raise HTTPException(400, "LLM API key not configured")
 
     storage = get_storage(request)
     sem = asyncio.Semaphore(10)

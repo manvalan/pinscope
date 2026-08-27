@@ -21,9 +21,12 @@ Library (global, shared across users):
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 from pydantic import BaseModel
 
@@ -618,18 +621,29 @@ def save_netlist(
 def save_datasheet(
     storage: StorageBackend, user_id: str, project_id: str, mpn: str, data: bytes
 ) -> str:
-    """Save a datasheet PDF to the project uploads directory.
+    """Save a datasheet PDF to the project and to the shared library.
 
-    Library writes happen during pattern extraction (one PDF per pattern series).
+    The project copy is what the pipeline reads for this run. The library
+    copy means a later project with the same MPN can skip the download.
     """
     safe = safe_mpn(mpn)
     key = f"{_project_prefix(user_id, project_id)}/uploads/datasheets/{safe}.pdf"
     storage.write_bytes(key, data)
-    # Count datasheets
+    remember_datasheet(storage, mpn, data)
     ds_prefix = f"{_project_prefix(user_id, project_id)}/uploads/datasheets/"
     count = sum(1 for k in storage.list_prefix(ds_prefix) if k.endswith(".pdf"))
     update_project(storage, user_id, project_id, datasheet_count=count)
     return key
+
+
+def remember_datasheet(storage: StorageBackend, mpn: str, data: bytes) -> None:
+    """Write a datasheet into the shared library without failing the caller."""
+    try:
+        from backend.services.datasheet_store import store_datasheet_bytes
+
+        store_datasheet_bytes(storage, data, mpn)
+    except Exception:
+        log.exception("Failed to store datasheet for %s in the shared library", mpn)
 
 
 def get_bom_key(
@@ -757,6 +771,112 @@ def save_to_library(
     dst_key = f"library/{category}/{filename}"
     storage.copy_object(src_key, dst_key)
     return dst_key
+
+
+def list_library_catalog(storage: StorageBackend) -> dict:
+    """List ICs, passive patterns, discrete specs, and datasheet refs.
+
+    Used by the user-facing library page and the admin components panel.
+    """
+    from backend.services.datasheet_store import REF_PREFIX, resolve_datasheet
+
+    ics: list[dict] = []
+    seen_ic_mpns: set[str] = set()
+    for key in storage.list_prefix("library/extracted/"):
+        if not key.endswith(".json"):
+            continue
+        try:
+            data = storage.read_json(key)
+            mpn = data.get("mpn") or key.rsplit("/", 1)[-1].replace(".json", "")
+            if mpn in seen_ic_mpns:
+                continue
+            seen_ic_mpns.add(mpn)
+            ics.append({
+                "mpn": mpn,
+                "type": "ic",
+                "subtype": data.get("component_subtype", ""),
+                "pin_count": len(data.get("pintable", [])),
+                "has_ratings": bool(data.get("absolute_maximum_ratings")),
+                "has_datasheet": bool(resolve_datasheet(storage, mpn)),
+            })
+        except Exception:
+            continue
+
+    passives: list[dict] = []
+    seen_passive_names: set[str] = set()
+    for key in storage.list_prefix("library/patterns/"):
+        if not key.endswith(".json"):
+            continue
+        try:
+            data = storage.read_json(key)
+            name = data.get("name") or key.rsplit("/", 1)[-1].replace(".json", "")
+            if name in seen_passive_names:
+                continue
+            seen_passive_names.add(name)
+            passives.append({
+                "mpn": name,
+                "type": "passive",
+                "subtype": data.get("component_type", ""),
+                "description": data.get("description", ""),
+                "regex": data.get("regex", ""),
+            })
+        except Exception:
+            continue
+
+    simple_models: list[dict] = []
+    seen_model_mpns: set[str] = set()
+    for prefix in ("library/models/", "library/passives/"):
+        for key in storage.list_prefix(prefix):
+            if not key.endswith(".json"):
+                continue
+            try:
+                data = storage.read_json(key)
+                mpn = data.get("mpn", "") or key.rsplit("/", 1)[-1].replace(".json", "")
+                if mpn in seen_model_mpns:
+                    continue
+                seen_model_mpns.add(mpn)
+                specs = data.get("specs", {}) or {}
+                simple_models.append({
+                    "mpn": mpn,
+                    "type": "simple",
+                    "specs_type": specs.get("specs_type", ""),
+                    "subtype": specs.get("component_subtype", ""),
+                    "param_count": len(specs.get("values", {}) or {}),
+                    "has_datasheet": bool(resolve_datasheet(storage, mpn)),
+                })
+            except Exception:
+                continue
+
+    datasheets: list[dict] = []
+    seen_ds: set[str] = set()
+    for key in storage.list_prefix(REF_PREFIX):
+        if not key.endswith(".json"):
+            continue
+        try:
+            ref = storage.read_json(key)
+            mpn = ref.get("mpn") or key.rsplit("/", 1)[-1].replace(".json", "")
+            if mpn in seen_ds:
+                continue
+            seen_ds.add(mpn)
+            datasheets.append({
+                "mpn": mpn,
+                "hash": ref.get("hash"),
+                "has_extraction": mpn in seen_ic_mpns,
+                "has_model": mpn in seen_model_mpns,
+            })
+        except Exception:
+            continue
+
+    ics.sort(key=lambda r: r["mpn"].lower())
+    passives.sort(key=lambda r: r["mpn"].lower())
+    simple_models.sort(key=lambda r: r["mpn"].lower())
+    datasheets.sort(key=lambda r: r["mpn"].lower())
+    return {
+        "ics": ics,
+        "passives": passives,
+        "simple": simple_models,
+        "datasheets": datasheets,
+    }
 
 
 def list_library_patterns(storage: StorageBackend) -> list[str]:

@@ -1,9 +1,9 @@
 """Provider-agnostic LLM client layer.
 
-All Claude API calls in the backend route through this package via the
-``LLMProvider`` interface. The default provider is Anthropic; per-stage
+All model calls in the backend route through this package via the
+``LLMProvider`` interface. The default provider is DeepSeek; per-stage
 overrides via ``Settings.provider_*`` env vars route specific stages to
-other providers (currently Anthropic + Gemini).
+Anthropic or Gemini if those keys are configured.
 """
 
 from backend.services.llm.factory import call_with_fallback, get_provider

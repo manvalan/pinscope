@@ -1,13 +1,29 @@
-# Pinscope
+# Pinscope (DeepSeek)
 
 Pinscope reviews schematics the way a good senior engineer does: with the datasheets open.
 
-<img width="1912" height="1080" alt="pinscope-screenrecording" src="https://github.com/user-attachments/assets/7e9e4002-08df-423f-93c9-eefd52e88700" />
+This tree is adapted from [manvalan/pinscope](https://github.com/manvalan/pinscope) so the pipeline talks to the **DeepSeek API** (`deepseek-v4-flash`, `deepseek-v4-pro`, and `deepseek-v4-flash-vision-exp`) instead of requiring an Anthropic Console skill upload. Anthropic and Gemini remain optional fallbacks.
 
+Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your design, reads each IC's datasheet, and checks the circuit around every part against what the manufacturer actually specifies — reference application, pin functions, absolute maximums, recommended operating conditions. Every finding points at the datasheet page that backs it up.
 
-Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your design, reads each IC's datasheet, and checks the circuit around every part against what the manufacturer actually specifies — reference application, pin functions, absolute maximums, recommended operating conditions. Every finding points at the datasheet page that backs it up, so you can judge the call yourself instead of trusting a black box.
+## What changed for DeepSeek
 
-The reason it exists: ERC passes boards that don't work. Your EDA tool has no idea that the CH340E you powered from 5 V drives its TXD at 4.5 V into an MCU pin that maxes out at 3.6 V, or that the net you labeled `UART5_TX` lands on a pin whose alternate-function table only offers `UART5_RX`, or that the LDO's bypass pin you left floating costs you an order of magnitude in output noise. None of that is an electrical *rule* violation. All of it is in the datasheet, and nobody has time to re-read 400 pages per part on every revision.
+DeepSeek's Chat Completions API is OpenAI-compatible but **does not accept native PDF documents**. Pinscope therefore:
+
+1. **Extracts datasheet text** with `pypdf` (page-marked) and sends it as chat content.
+2. **Renders pages to JPEG** with PyMuPDF when the stage uses a vision model, so pin diagrams and tables survive.
+3. **Runs extraction skills locally.** `skills/*/SKILL.md` is inlined as the system prompt; `validate.py` runs in-process. You do not need Anthropic Console Skills.
+4. **Round-trips `reasoning_content`** when DeepSeek thinking mode is on, so multi-turn review and tool calls do not 400.
+
+Default routing:
+
+| Stage | Model |
+| --- | --- |
+| Pintable / pattern / specs extraction | `deepseek-v4-flash-vision-exp` |
+| Per-IC datasheet review | `deepseek-v4-pro` |
+| Auto-resolve / normalize | `deepseek-v4-flash` |
+
+Override with `PROVIDER_*` and `MODEL_*_DEEPSEEK` in `backend/.env`. See `backend/.env.example`.
 
 ## How it works
 
@@ -15,43 +31,55 @@ The reason it exists: ERC passes boards that don't work. Your EDA tool has no id
   <img src="docs/how-it-works.svg" width="920" alt="Pipeline: the netlist and BOM are parsed into a design graph; datasheet PDFs are extracted into pin tables and specs; a per-IC review reads both and files findings cited to datasheet pages; the derating table and BOM roll-up are computed straight from the graph, no model involved.">
 </p>
 
-1. **Parse** the BOM (CSV/XLSX) and netlist (PADS-PCB `.asc` or EDIF 2.0.0 `.edn` — exportable from KiCad, Altium, OrCAD, Allegro, Xpedition, EasyEDA, Eagle) into a queryable bipartite graph of components and nets.
-2. **Extract** pin tables and specs from the PDFs. Large datasheets are trimmed to the relevant pages first, and every extraction is cached in a shared library, so a given part number is only ever processed once.
-3. **Review** each IC in isolation. The model gets the trimmed datasheet plus that IC's circuit neighborhood, can query the graph (`find_connected_components`, `get_net_for_pin`, `get_pintable`) and pull pages from a *connected* part's datasheet when a finding spans an interface. It files findings with severity, reasoning, and page citations.
-4. **Compute** the deterministic parts deterministically — BOM roll-up and a capacitor voltage-derating table come straight from the graph, no model involved.
-
-A post-pass normalizes findings conservatively: it can merge duplicates and downgrade severity, never upgrade. If the reviewer hedged, the report hedges.
-
-It's a reviewer, not an oracle. It misses things, and it will occasionally question a choice you made on purpose — that's what the citations are for.
+1. **Parse** the BOM (CSV/XLSX) and netlist (PADS-PCB `.asc` or EDIF 2.0.0 `.edn`) into a queryable bipartite graph of components and nets.
+2. **Extract** pin tables and specs from the PDFs. Large datasheets are trimmed to the relevant pages first, and every extraction is cached in a shared library.
+3. **Review** each IC in isolation. The model gets the datasheet plus that IC's circuit neighborhood, can query the graph, and files findings with severity, reasoning, and page citations. Extraction now also stores absolute-maximum ratings so the reviewer does not have to rediscover supply limits from a 300-page PDF.
+4. **Compute** the deterministic parts deterministically — BOM roll-up and a capacitor voltage-derating table come straight from the graph.
 
 ## Try it on the bundled design
 
-`simple_project/` is a small MSPM0G3507 board with a CH340E USB-UART bridge and an SPX3819 LDO. Run it through and Pinscope flags, among other things, the LDO's bypass pin left unconnected (~300 µV<sub>RMS</sub> output noise instead of ~40) and the 5 V-powered CH340E driving the 3.3 V MCU directly — each with the page reference to check its work.
+`simple_project/` is a small MSPM0G3507 board with a CH340E USB-UART bridge and an SPX3819 LDO.
 
-You need Python 3.12+, Node 20+, and an [Anthropic API key](https://console.anthropic.com/):
+You need Python 3.12+, Node 20+, and a [DeepSeek API key](https://platform.deepseek.com/):
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r backend/requirements.txt
-cp backend/.env.example .env                 # set ANTHROPIC_API_KEY
-python3 scripts/upload_skills.py --update    # one-time: registers the extraction prompts under your account
-python3 -m uvicorn backend.main:app --reload
-cd frontend && npm install && npm run dev
+cp backend/.env.example backend/.env   # set DEEPSEEK_API_KEY
+
+python3 -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 18741
+
+# in another terminal
+cd frontend && npm install
+NEXT_PUBLIC_API_URL=http://127.0.0.1:18741 npm run dev -- --port 18742 --hostname 127.0.0.1
 ```
 
-Open http://localhost:3000, create a project, and feed it the netlist and BOM from `simple_project/` plus datasheet PDFs for the ICs — grab those from the manufacturers, or set the optional DigiKey API keys and let it fetch them. Everything runs locally against your own key; projects and the extraction library live in `data/`. Architecture notes are in [CLAUDE.md](CLAUDE.md).
+Open the frontend URL, create a project, and feed it the netlist and BOM from `simple_project/`. Datasheets are fetched automatically (LCSC, TI, optional DigiKey); you can still drop in PDFs by hand. Fetched PDFs and extracted pin tables land in the **Library** (sidebar) and are reused on later projects. Everything runs locally against your own key; projects and the extraction library live in `data/`.
 
-## Hosted version
+Anthropic Console Skills (`python3 scripts/upload_skills.py --update`) are optional and only needed if you set `PROVIDER_DEFAULT=anthropic`.
 
-This repo is the product minus accounts and billing. If you'd rather not run it yourself, [pinscope.ai](https://pinscope.ai) is the same code, hosted, with team workspaces and a shared parts library that's already warm.
+## Docker
 
-## Fork changes
+```bash
+cp backend/.env.example .env   # set DEEPSEEK_API_KEY
+docker compose up --build
+```
 
-This fork adds:
-- Docker deployment
-- Caddy reverse proxy protection
-- OSS authentication-free backend mode
-- Local deployment support
+Backend on port 8080, frontend on port 3000.
+
+### Update a live instance (e.g. pinscope.michelebigi.it)
+
+On the server, from the Pinscope checkout:
+
+```bash
+./scripts/update-pinscope.sh
+```
+
+The script pulls the current branch, writes `NEXT_PUBLIC_API_URL` / `CORS_ORIGINS` for `https://pinscope.michelebigi.it`, rebuilds both Docker images, and leaves `data/` alone. First run: put `DEEPSEEK_API_KEY` in `.env` at the repo root (compose reads that file). `--no-pull` skips git. `SITE=https://other.host ./scripts/update-pinscope.sh` overrides the public URL.
+
+Do not set `ENVIRONMENT=production` unless Clerk auth is configured — that flag refuses to boot with auth disabled.
 
 ## License
 
-AGPL-3.0. For commercial licensing, write to dev@faradworks.com.
+AGPL-3.0, same as upstream Pinscope. For commercial licensing of the original, write to dev@faradworks.com.

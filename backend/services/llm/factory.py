@@ -15,10 +15,14 @@ log = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=8)
 def get_provider_by_name(name: str) -> LLMProvider:
-    """Return a singleton provider instance for ``name`` ("anthropic" |
-    "gemini"). Used by :func:`get_provider` and :func:`call_with_fallback`."""
+    """Return a singleton provider instance for ``name`` ("deepseek" |
+    "anthropic" | "gemini"). Used by :func:`get_provider` and
+    :func:`call_with_fallback`."""
+    if name == "deepseek":
+        from backend.services.llm.deepseek_provider import DeepSeekProvider
+        return DeepSeekProvider()
     if name == "anthropic":
         from backend.services.llm.anthropic_provider import AnthropicProvider
         return AnthropicProvider()

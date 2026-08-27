@@ -77,86 +77,13 @@ async def list_components(request: Request):
     """List all extracted IC components and passive patterns in the library."""
     await _require_admin(request)
     storage = get_storage(request)
-
-    # IC extractions (deduplicate by MPN)
-    ic_keys = [
-        k for k in storage.list_prefix("library/extracted/")
-        if k.endswith(".json")
-    ]
-    ics = []
-    seen_ic_mpns: set[str] = set()
-    for key in ic_keys:
-        try:
-            data = storage.read_json(key)
-            mpn = data.get("mpn") or key.rsplit("/", 1)[-1].replace(".json", "")
-            if mpn in seen_ic_mpns:
-                continue
-            seen_ic_mpns.add(mpn)
-            ics.append({
-                "mpn": mpn,
-                "type": "ic",
-                "subtype": data.get("component_subtype", ""),
-                "pin_count": len(data.get("pintable", [])),
-                "has_ratings": bool(data.get("absolute_maximum_ratings")),
-            })
-        except Exception:
-            continue
-
-    # Passive patterns
-    pattern_keys = [
-        k for k in storage.list_prefix("library/patterns/")
-        if k.endswith(".json")
-    ]
-    passives = []
-    seen_passive_names: set[str] = set()
-    for key in pattern_keys:
-        try:
-            data = storage.read_json(key)
-            name = data.get("name") or key.rsplit("/", 1)[-1].replace(".json", "")
-            if name in seen_passive_names:
-                continue
-            seen_passive_names.add(name)
-            passives.append({
-                "mpn": name,
-                "type": "passive",
-                "subtype": data.get("component_type", ""),
-                "description": data.get("description", ""),
-                "regex": data.get("regex", ""),
-            })
-        except Exception:
-            continue
-
-    # Simple component models (library/models/) + passive models (library/passives/)
-    model_keys = [
-        k for k in storage.list_prefix("library/models/")
-        if k.endswith(".json")
-    ]
-    passive_model_keys = [
-        k for k in storage.list_prefix("library/passives/")
-        if k.endswith(".json")
-    ]
-    simple_models = []
-    seen_model_mpns: set[str] = set()
-    for key in model_keys + passive_model_keys:
-        try:
-            data = storage.read_json(key)
-            mpn = data.get("mpn", "")
-            if mpn in seen_model_mpns:
-                continue
-            seen_model_mpns.add(mpn)
-            specs = data.get("specs", {})
-            simple_models.append({
-                "mpn": mpn,
-                "type": "simple",
-                "specs_type": specs.get("specs_type", ""),
-                "subtype": specs.get("component_subtype", ""),
-                "param_count": len(specs.get("values", {})),
-            })
-        except Exception:
-            continue
-
+    catalog = proj_svc.list_library_catalog(storage)
     return JSONResponse(
-        content={"ics": ics, "passives": passives, "simple": simple_models},
+        content={
+            "ics": catalog["ics"],
+            "passives": catalog["passives"],
+            "simple": catalog["simple"],
+        },
         headers={"Cache-Control": "no-store"},
     )
 

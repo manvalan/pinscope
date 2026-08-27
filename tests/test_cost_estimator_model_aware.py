@@ -30,15 +30,15 @@ from backend.services.llm.pricing import PRICING
 def restore_settings():
     """Snapshot every per-stage routing field; restore after the test."""
     fields = [
-        "anthropic_model", "gemini_model",
+        "anthropic_model", "gemini_model", "deepseek_model",
         "provider_default", "provider_validation",
         "provider_pintable", "provider_pattern", "provider_specs",
         "provider_auto_resolve",
-        "model_validation", "model_validation_gemini",
-        "model_pintable", "model_pintable_gemini",
-        "model_pattern", "model_pattern_gemini",
-        "model_specs", "model_specs_gemini",
-        "model_auto_resolve", "model_auto_resolve_gemini",
+        "model_validation", "model_validation_gemini", "model_validation_deepseek",
+        "model_pintable", "model_pintable_gemini", "model_pintable_deepseek",
+        "model_pattern", "model_pattern_gemini", "model_pattern_deepseek",
+        "model_specs", "model_specs_gemini", "model_specs_deepseek",
+        "model_auto_resolve", "model_auto_resolve_gemini", "model_auto_resolve_deepseek",
     ]
     snapshot = {f: getattr(settings, f) for f in fields if hasattr(settings, f)}
     yield
@@ -67,25 +67,21 @@ def test_review_cost_changes_with_validation_model(restore_settings):
 
 
 def test_review_cost_changes_with_validation_provider(restore_settings):
-    """Flipping PROVIDER_VALIDATION between anthropic and gemini must
+    """Flipping PROVIDER_VALIDATION between deepseek and anthropic must
     swap the rate table the estimator pulls from."""
+    settings.provider_validation = "deepseek"
+    settings.model_validation_deepseek = "deepseek-v4-pro"
+    deepseek_cost = estimate_stage_cost_usd("review")
+
     settings.provider_validation = "anthropic"
     settings.model_validation = "claude-sonnet-4-6"
     anthropic_cost = estimate_stage_cost_usd("review")
 
-    settings.provider_validation = "gemini"
-    settings.gemini_model = "gemini-3.1-pro-preview"
-    settings.model_validation_gemini = ""  # fall back to gemini_model
-    gemini_cost = estimate_stage_cost_usd("review")
-
-    # Both > 0 and they're different — the test doesn't lock direction
-    # because the cache-read multiplier asymmetry between providers
-    # could legitimately swing it either way as the rate tables evolve.
+    assert deepseek_cost > 0
     assert anthropic_cost > 0
-    assert gemini_cost > 0
-    assert abs(anthropic_cost - gemini_cost) > 0.01, (
+    assert abs(deepseek_cost - anthropic_cost) > 0.01, (
         f"expected materially different costs, got "
-        f"anthropic={anthropic_cost!r} gemini={gemini_cost!r}"
+        f"deepseek={deepseek_cost!r} anthropic={anthropic_cost!r}"
     )
 
 

@@ -22,7 +22,7 @@ class ApiLogEntry(BaseModel):
     stage: str  # pintable | rules | pattern | validation | ...
     identifier: str  # MPN or component designator
     model: str
-    provider: str = "anthropic"  # anthropic | gemini
+    provider: str = "deepseek"  # deepseek | anthropic | gemini
     input_tokens: int
     output_tokens: int
     cache_creation_input_tokens: int = 0
@@ -42,7 +42,7 @@ class ApiLogEntry(BaseModel):
 
 @dataclass
 class CallMeta:
-    """Metadata returned alongside every Claude API call result."""
+    """Metadata returned alongside every LLM API call result."""
     input_tokens: int
     output_tokens: int
     cache_creation_input_tokens: int

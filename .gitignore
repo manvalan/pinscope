@@ -61,3 +61,7 @@ frontend/out/
 
 # Local-only sample inputs (client schematics, test files)
 edif-files/
+
+# Cloud agent scratch
+agent-tools/
+

@@ -46,7 +46,7 @@ from backend.pinscopex.taxonomy import SIMPLE_TYPES, type_for_ref
 from backend.config import settings
 from backend.services import admin_settings as settings_svc
 from backend.services.billing_hook import InsufficientCredits, get_billing
-from backend.services.datasheet_store import compute_md5_from_path, store_datasheet
+from backend.services.datasheet_store import compute_md5_from_path, store_datasheet, store_datasheet_bytes
 from backend.services import extraction, projects as proj_svc
 from backend.services.api_logs import ApiLogger, total_cost
 from backend.services.cost_estimator import estimate_stage_cost_usd
@@ -660,6 +660,60 @@ async def _stage_bom_parse(ctx: PipelineContext) -> None:
         pass  # send_pipeline_started_email handles errors internally
 
 
+def _lcsc_id_for_mpn(ctx: PipelineContext, mpn: str) -> str | None:
+    payload = ctx.lcsc_data.get(mpn) or {}
+    code = payload.get("lcsc") or payload.get("lcsc_id")
+    if isinstance(code, str) and code.strip():
+        return code.strip()
+    mapping = getattr(ctx.meta, "lcsc_to_mpn", None) or {}
+    for lcsc, resolved in mapping.items():
+        if resolved == mpn:
+            return lcsc
+    return None
+
+
+async def _ensure_local_datasheet(
+    ctx: PipelineContext, mpn: str, pdf_path: Path, *, stage: str = "ic_extraction",
+) -> bool:
+    """Make ``pdf_path`` exist: project upload, library, or auto-fetch.
+
+    Returns True if the PDF is on disk afterwards.
+    """
+    if pdf_path.is_file():
+        return True
+    lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, mpn)
+    if lib_ds_key:
+        ctx.storage.download_to_local(lib_ds_key, pdf_path)
+        return True
+    from backend.services.datasheet_finder import find_datasheet
+
+    broker.publish(
+        ctx.project_id, "step_update",
+        {"stage": stage, "substep": mpn,
+         "status": "running", "detail": "finding datasheet"},
+    )
+    hit = await find_datasheet(mpn, lcsc_id=_lcsc_id_for_mpn(ctx, mpn))
+    if not hit.ok or not hit.pdf_bytes:
+        return False
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf_path.write_bytes(hit.pdf_bytes)
+    try:
+        proj_svc.save_datasheet(
+            ctx.storage, ctx.user_id, ctx.project_id, mpn, hit.pdf_bytes,
+        )
+    except Exception:
+        logger.exception("Failed to persist auto-fetched datasheet for %s", mpn)
+    try:
+        store_datasheet_bytes(ctx.storage, hit.pdf_bytes, mpn)
+    except Exception:
+        logger.exception("Failed to library-store auto-fetched datasheet for %s", mpn)
+    logger.info(
+        "Auto-fetched datasheet for %s via %s (%d KB)",
+        mpn, hit.source or "unknown", len(hit.pdf_bytes) // 1024,
+    )
+    return True
+
+
 async def _stage_ic_extraction(ctx: PipelineContext) -> None:
     """Stage 2 — Extract IC pin tables from datasheets."""
     extracted_dir = ctx.ws.local_path("extracted")
@@ -705,18 +759,14 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
                             "status": "complete", "detail": detail})
             continue
 
-        # Need PDF — check project uploads first, then library
+        # Need PDF — check project uploads first, then library, then auto-fetch
         pdf_path = ctx.ws.local_path(f"uploads/datasheets/{safe}.pdf")
-        if not pdf_path.is_file():
-            lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, mpn)
-            if lib_ds_key:
-                ctx.storage.download_to_local(lib_ds_key, pdf_path)
-            else:
-                ctx.skipped.append(SkippedItem(mpn, "ic_extraction", "No datasheet uploaded"))
-                broker.publish(ctx.project_id, "step_update",
-                               {"stage": "ic_extraction", "substep": mpn,
-                                "status": "failed", "error": "No datasheet uploaded"})
-                continue
+        if not await _ensure_local_datasheet(ctx, mpn, pdf_path):
+            ctx.skipped.append(SkippedItem(mpn, "ic_extraction", "No datasheet found"))
+            broker.publish(ctx.project_id, "step_update",
+                           {"stage": "ic_extraction", "substep": mpn,
+                            "status": "failed", "error": "No datasheet found"})
+            continue
         pending.append((mpn, safe, json_path, pdf_path))
 
     # Phase 2 (concurrent, up to ic_concurrency): extract cache-miss MPNs.
@@ -836,17 +886,15 @@ async def _stage_simple_extraction(ctx: PipelineContext) -> None:
                             "status": "complete", "detail": detail})
             continue
 
-        # Check for uploaded PDF — check project uploads first, then library
+        # Check for uploaded PDF — project, library, then auto-fetch
         pdf_path = ctx.ws.local_path(f"uploads/datasheets/{safe}.pdf")
-        if not pdf_path.is_file():
-            lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, mpn)
-            if lib_ds_key:
-                ctx.storage.download_to_local(lib_ds_key, pdf_path)
-            else:
-                broker.publish(ctx.project_id, "step_update",
-                               {"stage": "simple_extraction", "substep": mpn,
-                                "status": "complete", "detail": "no datasheet (optional)"})
-                continue
+        if not await _ensure_local_datasheet(
+            ctx, mpn, pdf_path, stage="simple_extraction",
+        ):
+            broker.publish(ctx.project_id, "step_update",
+                           {"stage": "simple_extraction", "substep": mpn,
+                            "status": "complete", "detail": "no datasheet (optional)"})
+            continue
 
         if not _check_credit_gate(ctx, "simple_extraction", mpn, estimate_stage_cost_usd("simple_extraction")):
             await _paused_stage_publish(ctx, "simple_extraction", "out of credits")
@@ -1426,14 +1474,12 @@ async def _stage_validation(ctx: PipelineContext) -> None:
 
     # Ensure all IC datasheet PDFs are available locally for review.
     # Cached ICs skipped pintable extraction, so their PDFs may not
-    # have been downloaded yet.
+    # have been downloaded yet. Auto-fetch fills remaining gaps.
     for mpn in ctx.ic_mpns:
         safe = safe_mpn(mpn)
         pdf_path = ds_dir / f"{safe}.pdf"
         if not pdf_path.is_file():
-            lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, mpn)
-            if lib_ds_key:
-                ctx.storage.download_to_local(lib_ds_key, pdf_path)
+            await _ensure_local_datasheet(ctx, mpn, pdf_path, stage="review")
 
     # Snapshot the full review queue so pause checkpoints can show what's left.
     # Mirrors the filter in validate_design_async: ICs with a PDF available.

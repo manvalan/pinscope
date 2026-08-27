@@ -2,6 +2,40 @@
 
 What's new in Pinscope.
 
+## 2.10.0 — 2026-08-27 — Deeper datasheet review
+
+Each IC review now sees more of the datasheet and starts from a structured abs-max table, so voltage, decoupling, and interface checks are less likely to stop at "Unverified".
+
+- [Improved] Extraction pulls Absolute Maximum Ratings (supplies, pin voltages, current, temperature) alongside the pin table, and the reviewer gets those numbers in context.
+- [Improved] DeepSeek ingest uses PyMuPDF text (tables survive better than pypdf) and, on vision models, renders pin / abs-max / electrical / application pages instead of always the first 24.
+- [Improved] Review checklist now includes recommended operating conditions, VIH/VIL, crystal load caps, and datasheet-named external parts. Turn budget 16, more excerpt pages, three follow-ups per concern.
+
+## 2.9.0 — 2026-08-27 — Component library
+
+Chips and passives stay in a shared library after the first look, so the next board does not re-download datasheets or re-extract pin tables.
+
+- [New] Library page in the sidebar: ICs (pin tables), passive series, discrete specs, and saved PDFs.
+- [New] Datasheets are written to the library as soon as they are fetched or uploaded, not only after a full review.
+- [Improved] The create-project wizard already skipped parts that were extracted once; that reuse now covers the PDF itself as well.
+
+## 2.8.0 — 2026-08-27 — Automatic datasheets
+
+Pinscope now finds datasheet PDFs on its own. You can still upload a file, but you no longer need DigiKey keys for the common case.
+
+- [New] Auto-fetch from LCSC (no API key) by manufacturer part number or LCSC code, with exact-MPN matching so a CH340E never silently becomes a CH340G.
+- [New] Direct Texas Instruments datasheet URLs (`ti.com/lit/ds/symlink/…`) as a second source for TI parts.
+- [New] Pipeline fallback: if a datasheet was not uploaded in the wizard, extraction and review try the same lookup before skipping the IC.
+- [Improved] DigiKey remains an optional third source when `DIGIKEY_CLIENT_ID` / `DIGIKEY_CLIENT_SECRET` are set.
+
+## 2.7.0 — 2026-08-27 — DeepSeek API
+
+Pinscope now talks to DeepSeek by default. Extraction skills run locally; datasheet PDFs are converted to text (and page images on the vision model) because DeepSeek does not accept native PDF documents.
+
+- [New] DeepSeek provider (`deepseek-v4-flash`, `deepseek-v4-pro`, `deepseek-v4-flash-vision-exp`) via the OpenAI-compatible Chat Completions API.
+- [New] Local skill runner: `skills/*/SKILL.md` is inlined and `validate.py` runs in-process — no Anthropic Console upload required.
+- [New] PDF ingest for DeepSeek: pypdf text extraction plus optional PyMuPDF page renders on vision models.
+- [Improved] Anthropic and Gemini remain optional fallbacks via `PROVIDER_*` / `FALLBACK_PROVIDER_*`.
+
 ## 2.6.0 — 2026-07-12 — Export Report to Excel
 
 Download a project's findings as an Excel spreadsheet straight from the report — one click, ready to share, filter, or archive outside Pinscope.

@@ -92,9 +92,7 @@ class LLMProvider(Protocol):
     ) -> tuple[dict, "Completion"]:
         """Execute a managed Skill and return (forced-tool input, Completion).
 
-        Anthropic uses Console Skills (skill_id + container + code_execution
-        beta). Gemini raises ``NotImplementedError`` — there is no
-        Gemini-managed-Skill equivalent today; if you want a Gemini path for
-        skill-style extraction, inline the SKILL.md content as ``system`` and
-        run validation locally."""
+        DeepSeek and Gemini inline ``skills/<name>/SKILL.md`` and run
+        ``validate.py`` locally. Anthropic uses Console Skills when a
+        skill_id is configured, otherwise the same local path."""
         ...

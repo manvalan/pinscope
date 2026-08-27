@@ -1,9 +1,12 @@
-"""Async datasheet extraction using Claude API.
+"""Async datasheet extraction using the configured LLM provider.
 
 Ports the extraction steps from run_pipeline.py to async:
   - extract_pintable: Pin table + package info + taxonomy assignment
   - extract_pattern: Passive MPN pattern
   - extract_specs: Component specs (discrete, connectors, crystals, etc.)
+
+Skills (SKILL.md + validate.py) run locally for DeepSeek/Gemini. Anthropic
+can still use Console Skills when a skill_id is in skills_manifest.json.
 """
 
 from __future__ import annotations
@@ -55,7 +58,7 @@ from backend.services.llm import (
 
 PINTABLE_TOOL = {
     "name": "save_pintable",
-    "description": "Save the extracted pin table, package info, and component subtype.",
+    "description": "Save the extracted pin table, package info, absolute-maximum ratings, and component subtype.",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -92,6 +95,31 @@ PINTABLE_TOOL = {
                         },
                     },
                     "required": ["number", "name"],
+                },
+            },
+            "absolute_maximum_ratings": {
+                "type": "array",
+                "description": (
+                    "Rows from the Absolute Maximum Ratings table: supplies, "
+                    "pin voltages, current, temperature. Omit recommended-"
+                    "operating values. Empty array if the table is unreadable."
+                ),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "parameter": {
+                            "type": "string",
+                            "description": "As printed, e.g. 'VCC', 'VIN', 'Storage temperature'",
+                        },
+                        "min": {"type": ["number", "null"]},
+                        "max": {"type": ["number", "null"]},
+                        "unit": {"type": "string", "description": "V, mA, °C, …"},
+                        "source_page": {
+                            "type": "integer",
+                            "description": "1-based datasheet page of this row",
+                        },
+                    },
+                    "required": ["parameter", "unit", "source_page"],
                 },
             },
         },
@@ -208,14 +236,16 @@ SPECS_TOOL = {
 # ---------------------------------------------------------------------------
 
 
-_MAX_PDF_PAGES = 90
+_MAX_PDF_PAGES = 120
 
 log = logging.getLogger(__name__)
 
 # Keywords used to find relevant pages for each extraction stage.
 _PINTABLE_KEYWORDS = re.compile(
     r"pin\s*(out|diagram|configuration|description|assignment|function|name|table|map)"
-    r"|ball\s*map|package\s*(pin|drawing|outline)|signal\s+description",
+    r"|ball\s*map|package\s*(pin|drawing|outline)|signal\s+description"
+    r"|absolute\s+maximum|recommended\s+operating|electrical\s+characteristics"
+    r"|ordering\s+information|device\s+information",
     re.IGNORECASE,
 )
 
@@ -278,6 +308,44 @@ def _to_tool(d: dict) -> ToolSchema:
         description=d["description"],
         input_schema=d["input_schema"],
     )
+
+
+def _coerce_abs_max(raw: object) -> list[dict]:
+    """Keep well-formed abs-max rows; drop garbage rather than failing extraction."""
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        parameter = str(row.get("parameter") or "").strip()
+        unit = str(row.get("unit") or "").strip()
+        page = row.get("source_page")
+        if not parameter or not unit:
+            continue
+        try:
+            source_page = int(page)
+        except (TypeError, ValueError):
+            continue
+        if source_page < 1:
+            continue
+
+        def _num(v: object) -> float | None:
+            if v is None or v == "":
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        out.append({
+            "parameter": parameter,
+            "min": _num(row.get("min")),
+            "max": _num(row.get("max")),
+            "unit": unit,
+            "source_page": source_page,
+        })
+    return out
 
 
 _GENERATE_SPECS_TOOL = {
@@ -479,7 +547,7 @@ async def extract_pintable(
     taxonomy = format_for_prompt("ic", tax_dir)
 
     trimmed = _select_pages(pdf_path, _PINTABLE_KEYWORDS)
-    skill_id, version = settings.get_skill("extract-pintable")
+    skill_id, version = settings.get_skill_or_none("extract-pintable")
     system = (
         f"DYNAMIC CONTEXT FOR THIS EXTRACTION:\n"
         f"MPN: {mpn}\n\n"
@@ -548,7 +616,9 @@ async def extract_pintable(
         component_subtype=subtype,
         package_info=result["package_info"],
         pintable=result["pintable"],
-        absolute_maximum_ratings=[],
+        absolute_maximum_ratings=_coerce_abs_max(
+            result.get("absolute_maximum_ratings") or [],
+        ),
         rules=[],
     )
 
@@ -576,7 +646,7 @@ async def extract_pattern(
     tax_dir = taxonomy_dir or settings.taxonomy_dir
     taxonomy = format_for_prompt("passive", tax_dir)
 
-    skill_id, version = settings.get_skill("extract-pattern")
+    skill_id, version = settings.get_skill_or_none("extract-pattern")
     system = (
         f"DYNAMIC CONTEXT FOR THIS EXTRACTION:\n\n"
         f"EXISTING PASSIVE TAXONOMY SUBTYPES:\n{taxonomy}\n\n"
@@ -665,7 +735,7 @@ async def extract_specs(
     subtypes_text = format_for_prompt(component_type, tax_dir)
     specs_text = format_specs_for_prompt(component_type, tax_dir)
 
-    skill_id, version = settings.get_skill("extract-specs")
+    skill_id, version = settings.get_skill_or_none("extract-specs")
     system = (
         f"DYNAMIC CONTEXT FOR THIS EXTRACTION:\n"
         f"MPN: {mpn}\n"

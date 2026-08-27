@@ -19,7 +19,30 @@ _SKILLS_MANIFEST: dict = (
 
 
 class Settings(BaseSettings):
-    # Anthropic
+    # DeepSeek (default provider — OpenAI-compatible Chat Completions)
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-v4-flash"
+    deepseek_vision_model: str = "deepseek-v4-flash-vision-exp"
+    # "enabled" (default) or "disabled". DeepSeek V4 thinks by default;
+    # disable to cut cost on simple mapping calls.
+    deepseek_thinking: str = "enabled"
+    deepseek_reasoning_effort: str = "medium"
+    # PDF ingest: DeepSeek does not accept native PDFs. Text is always
+    # extracted; page images are attached only when the stage model is a
+    # vision model (see model_*_deepseek defaults below).
+    deepseek_pdf_max_chars: int = 500_000
+    deepseek_pdf_image_pages: int = 32
+
+    # Per-stage DeepSeek model overrides (fall back to deepseek_model)
+    model_pintable_deepseek: str = "deepseek-v4-flash-vision-exp"
+    model_pattern_deepseek: str = "deepseek-v4-flash-vision-exp"
+    model_specs_deepseek: str = "deepseek-v4-flash-vision-exp"
+    model_validation_deepseek: str = "deepseek-v4-pro"
+    model_auto_resolve_deepseek: str = "deepseek-v4-flash"
+    model_normalize_deepseek: str = "deepseek-v4-flash"
+
+    # Anthropic (optional fallback)
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
 
@@ -44,9 +67,8 @@ class Settings(BaseSettings):
     model_normalize_gemini: str = ""
 
     # Provider routing — provider_default is the global default; per-stage
-    # overrides win when non-empty. Set provider_validation=gemini to route
-    # the validation stage to Gemini while leaving extraction on Anthropic.
-    provider_default: str = "anthropic"
+    # overrides win when non-empty. Valid values: deepseek | anthropic | gemini.
+    provider_default: str = "deepseek"
     provider_pintable: str = ""
     provider_pattern: str = ""
     provider_specs: str = ""
@@ -55,10 +77,10 @@ class Settings(BaseSettings):
     provider_normalize: str = ""
 
     # Per-stage fallback provider/model — used if the primary stage call
-    # raises (e.g. Gemini 503 UNAVAILABLE). Leave empty to disable fallback
+    # raises (e.g. DeepSeek 503). Leave empty to disable fallback
     # for that stage. If fallback_provider_<stage> is set but
     # fallback_model_<stage> is empty, the fallback uses that provider's
-    # default model (anthropic_model or gemini_model).
+    # default model (deepseek_model, anthropic_model, or gemini_model).
     fallback_provider_pintable: str = ""
     fallback_provider_pattern: str = ""
     fallback_provider_specs: str = ""
@@ -90,6 +112,7 @@ class Settings(BaseSettings):
     # Paths (relative to project root, used by LocalStorageBackend)
     data_dir: Path = _PROJECT_ROOT / "data"
     taxonomy_dir: Path = _PROJECT_ROOT / "taxonomy"
+    skills_dir: Path = _PROJECT_ROOT / "skills"
 
     # GCS (if set, use GCSStorageBackend; otherwise LocalStorageBackend)
     gcs_bucket: str = ""
@@ -139,7 +162,12 @@ class Settings(BaseSettings):
     survey_sheet_id: str = ""
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:18742",
+        "http://127.0.0.1:18742",
+    ]
 
     # Cloud Run Job worker (pipeline runner)
     pipeline_worker_job_name: str = "pinscopex-pipeline-worker"
@@ -190,13 +218,17 @@ class Settings(BaseSettings):
     def model_for_stage(self, stage: str) -> str:
         """Return the model for a pipeline stage, provider-aware.
 
-        For Anthropic: falls back to model_<stage>, then anthropic_model.
+        For DeepSeek:  falls back to model_<stage>_deepseek, then deepseek_model.
         For Gemini:    falls back to model_<stage>_gemini, then gemini_model.
+        For Anthropic: falls back to model_<stage>, then anthropic_model.
         """
         provider = self.provider_for_stage(stage)
         if provider == "gemini":
             override = getattr(self, f"model_{stage}_gemini", "")
             return override or self.gemini_model
+        if provider == "deepseek":
+            override = getattr(self, f"model_{stage}_deepseek", "")
+            return override or self.deepseek_model
         override = getattr(self, f"model_{stage}", "")
         return override or self.anthropic_model
 
@@ -210,8 +242,42 @@ class Settings(BaseSettings):
             return None
         fb_model = getattr(self, f"fallback_model_{stage}", "")
         if not fb_model:
-            fb_model = self.gemini_model if fb_provider == "gemini" else self.anthropic_model
+            if fb_provider == "gemini":
+                fb_model = self.gemini_model
+            elif fb_provider == "deepseek":
+                fb_model = self.deepseek_model
+            else:
+                fb_model = self.anthropic_model
         return (fb_provider, fb_model)
+
+    def default_model_for_provider(self, provider: str) -> str:
+        if provider == "gemini":
+            return self.gemini_model
+        if provider == "deepseek":
+            return self.deepseek_model
+        return self.anthropic_model
+
+    def has_llm_credentials(self) -> bool:
+        """True if the configured default provider has an API key."""
+        name = self.provider_default
+        if name == "deepseek":
+            return bool(self.deepseek_api_key)
+        if name == "gemini":
+            return bool(self.gemini_api_key)
+        if name == "anthropic":
+            return bool(self.anthropic_api_key)
+        return bool(
+            self.deepseek_api_key or self.anthropic_api_key or self.gemini_api_key
+        )
+
+    def get_skill_or_none(self, name: str) -> tuple[str | None, str | None]:
+        """Return (skill_id, version) or (None, None) if the Anthropic
+        Console skill is not in the manifest. DeepSeek/Gemini extraction
+        inlines SKILL.md locally and does not need a skill_id."""
+        entry = _SKILLS_MANIFEST.get(name)
+        if not entry:
+            return None, None
+        return entry.get("skill_id"), entry.get("latest_version")
 
     def get_default_model_version(self) -> str:
         """Return the default model_version for new extractions from skills_manifest.json."""

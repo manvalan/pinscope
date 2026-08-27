@@ -19,11 +19,11 @@ COPY backend/ /app/backend/
 # Taxonomy: fallback for local mode; GCS mode downloads from bucket
 COPY taxonomy/ /app/taxonomy/
 
+# Extraction skills (SKILL.md + validate.py) — required for DeepSeek/Gemini
+COPY skills/ /app/skills/
+
 # Changelog: single source of truth for the user-facing Pinscope version.
-# Read by backend/_version.py at startup and stamped onto each new pipeline run.
-# Staged into backend/ by cloudbuild before this step runs so the broad
-# `frontend/` exclude in .dockerignore doesn't block the COPY.
-COPY backend/_changelog.md /app/changelog.md
+COPY frontend/content/changelog.md /app/changelog.md
 
 EXPOSE 8080
 

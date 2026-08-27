@@ -125,9 +125,9 @@ def estimate_stage_cost_usd(stage: str) -> float:
     settings_stage = str(base["settings_stage"])
     provider = settings.provider_for_stage(settings_stage)
     model = settings.model_for_stage(settings_stage)
-    table = PRICING.get(provider) or PRICING["anthropic"]
+    table = PRICING.get(provider) or PRICING["deepseek"]
     rates = table.get(model, table["default"])
-    cache = CACHE_RATES.get(provider, CACHE_RATES["anthropic"])
+    cache = CACHE_RATES.get(provider, CACHE_RATES["deepseek"])
     return (
         int(base["input"]) * rates["input"]
         + int(base["output"]) * rates["output"]

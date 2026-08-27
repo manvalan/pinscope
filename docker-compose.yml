@@ -12,7 +12,9 @@ services:
       - .env
 
     environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
     volumes:
       - ./data:/app/data
@@ -29,7 +31,7 @@ services:
       context: ./frontend
       dockerfile: dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ""
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
 
     container_name: pinscope-frontend
     restart: unless-stopped

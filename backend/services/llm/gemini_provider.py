@@ -371,9 +371,13 @@ class GeminiProvider(LLMProvider):
         pdf_path: str | None,
         output_tool: ToolSchema,
     ) -> tuple[dict, Completion]:
-        raise NotImplementedError(
-            f"GeminiProvider.run_skill() not implemented (skill={skill_name!r}). "
-            f"Anthropic Console Skills have no Gemini equivalent. To migrate "
-            f"this skill to Gemini, inline its SKILL.md as the system prompt "
-            f"and run validate.py locally."
+        from backend.services.llm.local_skill import run_skill_locally
+        return await run_skill_locally(
+            self,
+            skill_name=skill_name,
+            model=model,
+            system=system,
+            user_text=user_text,
+            pdf_path=pdf_path,
+            output_tool=output_tool,
         )

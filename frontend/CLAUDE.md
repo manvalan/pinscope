@@ -8,7 +8,7 @@ Next.js 16 app (App Router, Turbopack) providing a web UI for Pinscope schematic
 
 - **Next.js 16** with App Router, Tailwind CSS v4, shadcn/ui (Base UI primitives, not Radix)
 - **Route groups**: `(app)` for app routes (dashboard, projects, admin), `(marketing)` for public pages (landing, contact, privacy, terms)
-- **Backend integration**: `src/lib/api.ts` fetches from `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8000`)
+- **Backend integration**: `src/lib/api.ts` fetches from `NEXT_PUBLIC_API_URL` (defaults to `http://127.0.0.1:18741`)
 - **SSE for pipeline progress**: Streams events from `GET /api/pipeline/{id}/events`
 - **Sidebar navigation**: Project pages use sidebar nav with tabs via URL query params (`?tab=bom|derating|power|logs|settings`)
 - **Power tree visualization**: Interactive graph via React Flow (`@xyflow/react`) + dagre layout

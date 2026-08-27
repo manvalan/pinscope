@@ -26,7 +26,7 @@ export function safeMpn(mpn: string): string {
   return mpn.replace(/\//g, "_").replace(/:/g, "_");
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:18741";
 
 // Auth token getter — set by useAuthApi hook
 let _getToken: (() => Promise<string | null>) | null = null;
@@ -370,6 +370,61 @@ export async function checkLibrary(
   });
   if (!res.ok) return { ic_resolved: [], passive_resolved: [], simple_resolved: [], datasheets_available: [] };
   return res.json();
+}
+
+export interface LibraryIC {
+  mpn: string;
+  type: "ic";
+  subtype: string;
+  pin_count: number;
+  has_ratings: boolean;
+  has_datasheet: boolean;
+}
+
+export interface LibraryPassive {
+  mpn: string;
+  type: "passive";
+  subtype: string;
+  description: string;
+  regex: string;
+}
+
+export interface LibrarySimple {
+  mpn: string;
+  type: "simple";
+  specs_type: string;
+  subtype: string;
+  param_count: number;
+  has_datasheet: boolean;
+}
+
+export interface LibraryDatasheet {
+  mpn: string;
+  hash: string | null;
+  has_extraction: boolean;
+  has_model: boolean;
+}
+
+export interface LibraryCatalog {
+  ics: LibraryIC[];
+  passives: LibraryPassive[];
+  simple: LibrarySimple[];
+  datasheets: LibraryDatasheet[];
+}
+
+export async function fetchLibrary(): Promise<LibraryCatalog> {
+  const res = await authFetch(`${BASE}/api/library`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to load component library");
+  return res.json();
+}
+
+export async function fetchLibraryDatasheetUrl(mpn: string): Promise<string | null> {
+  const res = await authFetch(
+    `${BASE}/api/library/datasheet/${encodeURIComponent(mpn)}`,
+  );
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
 }
 
 // --- Pipeline ---
@@ -849,33 +904,53 @@ export async function resolveLcscPassive(
   return res.json();
 }
 
-export class DigiKeyFetchError extends Error {
+export class DatasheetFetchError extends Error {
   url: string | null;
-  constructor(message: string, url: string | null) {
+  source: string | null;
+  constructor(message: string, url: string | null, source: string | null = null) {
     super(message);
-    this.name = "DigiKeyFetchError";
+    this.name = "DatasheetFetchError";
     this.url = url;
+    this.source = source;
   }
+}
+
+/** @deprecated Use DatasheetFetchError */
+export const DigiKeyFetchError = DatasheetFetchError;
+
+export async function fetchAutoDatasheet(
+  mpn: string,
+  lcscId?: string,
+): Promise<{ file: File; url: string | null; source: string | null }> {
+  const params = new URLSearchParams({ mpn });
+  if (lcscId) params.set("lcsc", lcscId);
+  const res = await authFetch(
+    `${BASE}/api/datasheets/fetch?${params.toString()}`,
+  );
+  if (!res.ok) {
+    const err = await res
+      .json()
+      .catch(() => ({ detail: "Fetch failed", url: null, source: null }));
+    throw new DatasheetFetchError(
+      err.detail || "Failed to fetch datasheet",
+      err.url ?? null,
+      err.source ?? null,
+    );
+  }
+  const url = res.headers.get("X-Datasheet-Url");
+  const source = res.headers.get("X-Datasheet-Source");
+  const blob = await res.blob();
+  return {
+    file: new File([blob], `${mpn}.pdf`, { type: "application/pdf" }),
+    url,
+    source,
+  };
 }
 
 export async function fetchDigikeyDatasheet(
   mpn: string,
 ): Promise<{ file: File; url: string | null }> {
-  const res = await authFetch(
-    `${BASE}/api/digikey/datasheet?mpn=${encodeURIComponent(mpn)}`,
-  );
-  if (!res.ok) {
-    const err = await res
-      .json()
-      .catch(() => ({ detail: "Fetch failed", url: null }));
-    throw new DigiKeyFetchError(
-      err.detail || "Failed to fetch datasheet from DigiKey",
-      err.url ?? null,
-    );
-  }
-  const url = res.headers.get("X-Datasheet-Url");
-  const blob = await res.blob();
-  return { file: new File([blob], `${mpn}.pdf`, { type: "application/pdf" }), url };
+  return fetchAutoDatasheet(mpn);
 }
 
 // --- Datasheets ---

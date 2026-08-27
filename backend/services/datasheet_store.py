@@ -73,7 +73,7 @@ def store_datasheet(
     bk = blob_key(md5)
     if not storage.exists(bk):
         storage.upload_from_local(local_path, bk)
-    storage.write_json(ref_key(mpn), {"hash": md5, "blob_key": bk})
+    storage.write_json(ref_key(mpn), {"hash": md5, "blob_key": bk, "mpn": mpn})
     return bk
 
 
@@ -87,7 +87,7 @@ def store_datasheet_bytes(
     bk = blob_key(md5)
     if not storage.exists(bk):
         storage.write_bytes(bk, data)
-    storage.write_json(ref_key(mpn), {"hash": md5, "blob_key": bk})
+    storage.write_json(ref_key(mpn), {"hash": md5, "blob_key": bk, "mpn": mpn})
     return bk
 
 

@@ -5,6 +5,11 @@
 
 export const CSP_SCRIPT_HOSTS: string[] = [];
 
-export const CSP_CONNECT_HOSTS: string[] = [];
+export const CSP_CONNECT_HOSTS: string[] = [
+  "http://127.0.0.1:18741",
+  "http://localhost:18741",
+  "http://127.0.0.1:8080",
+  "http://localhost:8080",
+];
 
 export const CSP_FRAME_HOSTS: string[] = [];

@@ -30,6 +30,20 @@
         },
         "required": ["number", "name"]
       }
+    },
+    "absolute_maximum_ratings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "parameter": {"type": "string"},
+          "min": {"type": ["number", "null"]},
+          "max": {"type": ["number", "null"]},
+          "unit": {"type": "string"},
+          "source_page": {"type": "integer"}
+        },
+        "required": ["parameter", "unit", "source_page"]
+      }
     }
   },
   "required": ["component_subtype", "package_info", "pintable"]

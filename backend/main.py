@@ -58,6 +58,9 @@ async def lifespan(app: FastAPI):
         (base / "library" / "extracted").mkdir(parents=True, exist_ok=True)
         (base / "library" / "patterns").mkdir(parents=True, exist_ok=True)
         (base / "library" / "models").mkdir(parents=True, exist_ok=True)
+        (base / "library" / "passives").mkdir(parents=True, exist_ok=True)
+        (base / "library" / "datasheets" / "refs").mkdir(parents=True, exist_ok=True)
+        (base / "library" / "datasheets" / "blobs").mkdir(parents=True, exist_ok=True)
     yield
     # Pipelines run in a separate Cloud Run Job worker (or local
     # subprocess in dev), so the API process has nothing to clean up
@@ -131,7 +134,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["content-type", "authorization"],
-    expose_headers=["X-Datasheet-Url"],
+    expose_headers=["X-Datasheet-Url", "X-Datasheet-Source"],
 )
 
 @app.exception_handler(ProjectNotFound)

@@ -41,7 +41,18 @@ Decode the MPN and package details into a single `PackageInfo`:
 
 Look for an "Ordering Information" or "Device Information" table in the datasheet — most datasheets have one.
 
-### 4. Assign component subtype (taxonomy)
+### 4. Extract absolute maximum ratings
+
+Copy the **Absolute Maximum Ratings** table (not Recommended Operating Conditions). For each row that a reviewer would need to compare against the schematic rails:
+
+- `parameter` (str) — as printed (`VCC`, `VIN`, `I/O pin voltage`, `Storage temperature`, …)
+- `min` / `max` (number or null) — numeric limit; omit the other side if the table only lists one
+- `unit` (str) — `V`, `mA`, `°C`, …
+- `source_page` (int) — 1-based datasheet page of that row
+
+Include supply voltages, pin/input voltages, input current, and temperature. Skip ESD human-body-model rows unless they are the only voltage limit given. Do not invent numbers; if the table is a raster with no readable values, return an empty array.
+
+### 5. Assign component subtype (taxonomy)
 
 The existing IC taxonomy subtypes are provided in the system prompt under `EXISTING IC TAXONOMY SUBTYPES`. Pick the best matching subtype based on the component's MPN, package info, and pin names.
 
@@ -49,7 +60,7 @@ If no existing subtype fits, propose a new one following the dot-notation conven
 
 Set the chosen subtype on the `component_subtype` field.
 
-### 5. Quality checks
+### 6. Quality checks
 
 Before producing output, verify:
 - Pin count matches what the datasheet says for this package
@@ -57,7 +68,7 @@ Before producing output, verify:
 - No pins are missing (compare against the datasheet's stated pin count)
 - Pin names look reasonable (not garbled OCR artifacts)
 
-### 6. Validate and output
+### 7. Validate and output
 
 Validate your extraction against the output schema:
 

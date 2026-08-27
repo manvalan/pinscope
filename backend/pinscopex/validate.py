@@ -54,13 +54,21 @@ how it's wired in the actual circuit.
 Treat this IC as a COVERAGE CHECKLIST, not a single investigation. Before \
 hunting for problems, enumerate every focus area this IC has — derive them \
 from its pins, nets, neighbors, and subtype. A typical checklist:
-- Power & decoupling on each supply pin.
+- Power & decoupling on each supply pin — recommended Cin/Cout values, \
+ESR, and placement notes, not just "a cap is present".
 - Each signal interface to each connected component — voltage \
 compatibility, direction, and correct cross-connection (e.g. TX↔RX).
-- Absolute-maximum ratings on each pin vs. the actual rail driving it.
+- Absolute-maximum ratings on each pin vs. the actual rail driving it. \
+Use the extracted abs-max table in the component context when present; \
+confirm against the datasheet page if a number is missing or ambiguous.
+- Recommended operating conditions and electrical characteristics \
+(VIH/VIL, VOL/VOH, input leakage, drive strength) where they change \
+whether the interface actually works.
 - Reset / enable / boot / mode-strap / configuration pins.
-- Clock or crystal circuit, if present.
-- Required external components named by the datasheet.
+- Clock or crystal circuit, if present — load capacitors and the \
+datasheet's recommended values.
+- Required external components named by the datasheet (bootstrap, \
+compensation, feedback divider, sense resistor).
 - Unused / no-connect pins.
 
 Then work the areas one at a time. For EACH area, don't just confirm a \
@@ -231,10 +239,10 @@ whose purpose you have not identified.
 
 ### Budget per concern: cap ONE concern, not the whole review
 A single concern (one potential finding under investigation) gets at \
-most two follow-up tool calls beyond what was already in your initial \
+most three follow-up tool calls beyond what was already in your initial \
 context. If the concern is not resolved within that budget, submit it \
 as WARNING with `why` starting `Unverified: <what you could not \
-establish in two queries>` and move on to the next area. This per-concern \
+establish in three queries>` and move on to the next area. This per-concern \
 cap exists so one concern cannot swallow the whole review — NOT so you \
 finish early. Your total budget across all concerns is generous: spend it \
 on breadth. The failure mode to avoid is leaving focus areas of this IC \
@@ -414,7 +422,7 @@ context if needed.
 
 
 # Maximum turns for the review agentic loop
-_MAX_REVIEW_TURNS = 10
+_MAX_REVIEW_TURNS = 16
 
 
 # ---------------------------------------------------------------------------
@@ -449,6 +457,18 @@ def build_component_context(
     if constraints and constraints.package_info:
         pi = constraints.package_info
         lines.append(f"Package: {pi.package}, {pi.pin_count} pins")
+    if constraints and constraints.absolute_maximum_ratings:
+        lines.append("Absolute maximum ratings (extracted; confirm page if used as ERROR):")
+        for r in constraints.absolute_maximum_ratings:
+            bits = []
+            if r.min is not None:
+                bits.append(f"min {r.min:g}")
+            if r.max is not None:
+                bits.append(f"max {r.max:g}")
+            span = " ".join(bits) if bits else "?"
+            lines.append(
+                f"  {r.parameter}: {span} {r.unit} (datasheet p.{r.source_page})"
+            )
     lines.append("")
 
     # Build pin list — prefer extracted pintable order, fall back to netlist.

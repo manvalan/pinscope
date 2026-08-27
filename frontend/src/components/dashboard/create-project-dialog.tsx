@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Zap,
   ExternalLink,
+  RotateCw,
 } from "lucide-react";
 import { authEnabled } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -48,10 +49,10 @@ import {
   uploadDatasheet,
   startPipeline,
   checkLibrary,
-  fetchDigikeyDatasheet,
+  fetchAutoDatasheet,
   autoResolveSimple,
   resolveLcscPassive,
-  DigiKeyFetchError,
+  DatasheetFetchError,
   LcscResolveError,
   reopenProject,
   renameProject,
@@ -374,8 +375,7 @@ const _subKey = (id: string | null): string => id ?? NULL_SUBDESIGN_KEY;
 // without overloading the resolve endpoint.
 const LCSC_RESOLVE_CONCURRENCY = 5;
 
-// Cap on parallel DigiKey datasheet fetches per step. DigiKey will rate-limit
-// at higher concurrency on large BOMs.
+// Cap on parallel datasheet fetches per step.
 const AUTO_FETCH_CONCURRENCY = 8;
 
 function naturalSortKey(s: string): (string | number)[] {
@@ -564,6 +564,7 @@ export function CreateProjectDialog({
   const [fetchStatus, setFetchStatus] = useState<Map<string, FetchStatus>>(new Map());
   const [fetchErrors, setFetchErrors] = useState<Map<string, string>>(new Map());
   const [fetchUrls, setFetchUrls] = useState<Map<string, string>>(new Map());
+  const [fetchSources, setFetchSources] = useState<Map<string, string>>(new Map());
   const [autoFetching, setAutoFetching] = useState(false);
 
   // ---- LCSC bridging state ----
@@ -1168,9 +1169,13 @@ export function CreateProjectDialog({
 
       const fetchOne = async (mpn: string) => {
         try {
-          const { file, url } = await fetchDigikeyDatasheet(mpn);
+          const { file, url, source } = await fetchAutoDatasheet(
+            mpn,
+            mpnToLcsc.get(mpn),
+          );
           setter((prev) => new Map(prev).set(mpn, file));
           if (url) setFetchUrls((prev) => new Map(prev).set(mpn, url));
+          if (source) setFetchSources((prev) => new Map(prev).set(mpn, source));
           setFetchStatus((prev) => {
             const next = new Map(prev);
             next.delete(mpn);
@@ -1185,8 +1190,11 @@ export function CreateProjectDialog({
           const msg = e instanceof Error ? e.message : "Fetch failed";
           setFetchStatus((prev) => new Map(prev).set(mpn, "failed"));
           setFetchErrors((prev) => new Map(prev).set(mpn, msg));
-          if (e instanceof DigiKeyFetchError && e.url) {
+          if (e instanceof DatasheetFetchError && e.url) {
             setFetchUrls((prev) => new Map(prev).set(mpn, e.url!));
+          }
+          if (e instanceof DatasheetFetchError && e.source) {
+            setFetchSources((prev) => new Map(prev).set(mpn, e.source!));
           }
         }
       };
@@ -1206,7 +1214,7 @@ export function CreateProjectDialog({
 
       setAutoFetching(false);
     },
-    [libraryDatasheets, existingDatasheetStems],
+    [libraryDatasheets, existingDatasheetStems, mpnToLcsc],
   );
 
   // Track which datasheet steps already auto-fetched in this dialog session
@@ -2391,7 +2399,7 @@ export function CreateProjectDialog({
                 </div>
               ) : (<>
               <p className="text-sm text-muted-foreground">
-                Datasheets are auto-fetched from DigiKey. Upload manually for any that fail below.
+                Datasheets are fetched automatically and saved to the component library. The next board that uses the same MPN skips the download; after one review, pin-table extraction is skipped too. Upload a PDF for any row that fails.
               </p>
               {(() => {
                 const failedCount = unresolvedIcMpns.filter(
@@ -2410,8 +2418,28 @@ export function CreateProjectDialog({
                         {failedCount} datasheet{failedCount !== 1 ? "s" : ""} couldn&apos;t download automatically.
                       </p>
                       <p className="text-amber-800/80 dark:text-amber-200/80 mt-0.5 leading-snug">
-                        Vendor sites sometimes block automated downloads or return a non-PDF error page. On each failed row below: click the DigiKey link to open the datasheet (or search the manufacturer&apos;s site), save the PDF, then use the <span className="font-medium">PDF</span> upload button on that row to attach it.
+                        Vendor sites sometimes block automated downloads. Retry, or on each failed row open the link if one is shown, save the PDF, then use the <span className="font-medium">PDF</span> upload button.
                       </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-7"
+                        disabled={autoFetching}
+                        onClick={() =>
+                          handleAutoFetch(
+                            unresolvedIcMpns.map((e) => e.mpn),
+                            setDatasheetFiles,
+                            datasheetFiles,
+                          )
+                        }
+                      >
+                        {autoFetching ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <RotateCw className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        Retry failed
+                      </Button>
                     </div>
                   </div>
                 );
@@ -2458,7 +2486,7 @@ export function CreateProjectDialog({
                             href={mpnFetchUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Open datasheet on DigiKey"
+                            title="Open datasheet"
                             className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline inline-flex items-center gap-1 truncate max-w-full"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -2480,6 +2508,11 @@ export function CreateProjectDialog({
                           <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono truncate max-w-[100px]">
                             {file.name}
                           </span>
+                          {fetchSources.get(mpn) && (
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                              {fetchSources.get(mpn)}
+                            </span>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon-xs"
@@ -2646,7 +2679,7 @@ export function CreateProjectDialog({
                                   href={sFetchUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  title="Open datasheet on DigiKey"
+                                  title="Open datasheet"
                                   className="shrink-0 text-muted-foreground hover:text-foreground"
                                   onClick={(e) => e.stopPropagation()}
                                 >

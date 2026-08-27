@@ -15,6 +15,7 @@ import {
   Zap,
   ScrollText,
   MessageSquareWarning,
+  Library,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthApi } from "@/hooks/use-auth-api";
@@ -128,6 +129,18 @@ function DefaultNav({ pathname, isAdmin }: { pathname: string; isAdmin: boolean 
         Projects
       </Link>
       <Link
+        href="/library"
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+          pathname === "/library"
+            ? "bg-accent text-accent-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+        )}
+      >
+        <Library className="h-4 w-4" />
+        Library
+      </Link>
+      <Link
         href="/feedback"
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
@@ -207,6 +220,13 @@ function ProjectNav({
       >
         <ArrowLeft className="h-4 w-4" />
         Dashboard
+      </Link>
+      <Link
+        href="/library"
+        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+      >
+        <Library className="h-4 w-4" />
+        Library
       </Link>
 
       <div className="px-3 pt-3 pb-1">

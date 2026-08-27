@@ -274,6 +274,18 @@ class AnthropicProvider(LLMProvider):
         except Exception:
             skill_id, version = None, None
 
+        if not skill_id:
+            from backend.services.llm.local_skill import run_skill_locally
+            return await run_skill_locally(
+                self,
+                skill_name=skill_name,
+                model=model,
+                system=system,
+                user_text=user_text,
+                pdf_path=pdf_path,
+                output_tool=output_tool,
+            )
+
         # Build initial user content
         user_content: list[dict] = []
         if pdf_path:

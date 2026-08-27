@@ -47,6 +47,21 @@ def validate(data: dict) -> list[str]:
             if dupes:
                 errors.append(f"Duplicate pin numbers: {dupes}")
 
+    if "absolute_maximum_ratings" in data:
+        ratings = data["absolute_maximum_ratings"]
+        if ratings is not None and not isinstance(ratings, list):
+            errors.append("absolute_maximum_ratings must be an array")
+        elif isinstance(ratings, list):
+            for i, row in enumerate(ratings):
+                if not isinstance(row, dict):
+                    errors.append(f"absolute_maximum_ratings[{i}] must be an object")
+                    continue
+                for f in ("parameter", "unit", "source_page"):
+                    if f not in row:
+                        errors.append(
+                            f"absolute_maximum_ratings[{i}] missing required field: {f}"
+                        )
+
     return errors
 
 
