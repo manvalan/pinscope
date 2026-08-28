@@ -475,6 +475,36 @@ function isEdifNetlist(text: string): boolean {
   return text.slice(0, 1024).trimStart().slice(0, 5).toLowerCase() === "(edif";
 }
 
+function SuggestedDatasheetLinks({ urls }: { urls: string[] }) {
+  if (!urls.length) return null;
+  return (
+    <div className="flex flex-col gap-0.5 mt-0.5">
+      {urls.slice(0, 4).map((href) => {
+        let host = href;
+        try {
+          host = new URL(href).hostname.replace(/^www\./, "");
+        } catch {
+          /* keep raw */
+        }
+        return (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={href}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 truncate max-w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            <span className="truncate">Open in browser · {host}</span>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export function CreateProjectDialog({
   disabled,
   onCreateProject,
@@ -567,6 +597,7 @@ export function CreateProjectDialog({
   const [fetchStatus, setFetchStatus] = useState<Map<string, FetchStatus>>(new Map());
   const [fetchErrors, setFetchErrors] = useState<Map<string, string>>(new Map());
   const [fetchUrls, setFetchUrls] = useState<Map<string, string>>(new Map());
+  const [fetchUrlLists, setFetchUrlLists] = useState<Map<string, string[]>>(new Map());
   const [fetchSources, setFetchSources] = useState<Map<string, string>>(new Map());
   const [autoFetching, setAutoFetching] = useState(false);
 
@@ -890,6 +921,7 @@ export function CreateProjectDialog({
     setFetchStatus(new Map());
     setFetchErrors(new Map());
     setFetchUrls(new Map());
+    setFetchUrlLists(new Map());
     setAutoFetching(false);
     setResolveStatus(new Map());
     setResolveErrors(new Map());
@@ -1195,6 +1227,9 @@ export function CreateProjectDialog({
           setFetchErrors((prev) => new Map(prev).set(mpn, msg));
           if (e instanceof DatasheetFetchError && e.url) {
             setFetchUrls((prev) => new Map(prev).set(mpn, e.url!));
+          }
+          if (e instanceof DatasheetFetchError && e.urls.length) {
+            setFetchUrlLists((prev) => new Map(prev).set(mpn, e.urls));
           }
           if (e instanceof DatasheetFetchError && e.source) {
             setFetchSources((prev) => new Map(prev).set(mpn, e.source!));
@@ -2421,7 +2456,7 @@ export function CreateProjectDialog({
                         {failedCount} datasheet{failedCount !== 1 ? "s" : ""} couldn&apos;t download automatically.
                       </p>
                       <p className="text-amber-800/80 dark:text-amber-200/80 mt-0.5 leading-snug">
-                        Vendor sites sometimes block automated downloads. Retry, or on each failed row open the link if one is shown, save the PDF, then use the <span className="font-medium">PDF</span> upload button.
+                        Vendor sites sometimes block automated downloads from this server. Retry, or open a link on the failed row <span className="font-medium">in this browser</span>, save the PDF, then use the <span className="font-medium">PDF</span> upload button.
                       </p>
                       <Button
                         variant="outline"
@@ -2455,6 +2490,8 @@ export function CreateProjectDialog({
                   const mpnFetchStatus = fetchStatus.get(mpn);
                   const mpnFetchError = fetchErrors.get(mpn);
                   const mpnFetchUrl = fetchUrls.get(mpn);
+                  const mpnFetchUrls = fetchUrlLists.get(mpn)
+                    ?? (mpnFetchUrl ? [mpnFetchUrl] : []);
                   // If this MPN came from an LCSC id, show the source id as
                   // a muted prefix so the user can cross-check against
                   // their BOM. Hidden when the BOM already had real MPNs.
@@ -2484,7 +2521,10 @@ export function CreateProjectDialog({
                           )}
                           {mpn}
                         </p>
-                        {mpnFetchUrl && (
+                        {mpnFetchStatus === "failed" && mpnFetchUrls.length > 0 && (
+                          <SuggestedDatasheetLinks urls={mpnFetchUrls} />
+                        )}
+                        {mpnFetchStatus !== "failed" && mpnFetchUrl && (
                           <a
                             href={mpnFetchUrl}
                             target="_blank"
@@ -2631,7 +2671,7 @@ export function CreateProjectDialog({
                         {failedCount} datasheet{failedCount !== 1 ? "s" : ""} couldn&apos;t download automatically.
                       </p>
                       <p className="text-amber-800/80 dark:text-amber-200/80 mt-0.5 leading-snug">
-                        Vendor sites sometimes block automated downloads or return a non-PDF error page. These components are optional, but if you want a full review: click the <ExternalLink className="inline h-3 w-3 -mt-0.5" /> link on a failed row to open the datasheet, save the PDF, then use the <span className="font-medium">PDF</span> upload button on that row.
+                        Vendor sites sometimes block automated downloads or return a non-PDF error page. These components are optional, but if you want a full review: open a link <span className="font-medium">in this browser</span>, save the PDF, then use the <span className="font-medium">PDF</span> upload button.
                       </p>
                     </div>
                   </div>
@@ -2659,6 +2699,8 @@ export function CreateProjectDialog({
                       const sFetchStatus = fetchStatus.get(mpn);
                       const sFetchError = fetchErrors.get(mpn);
                       const sFetchUrl = fetchUrls.get(mpn);
+                      const sFetchUrls = fetchUrlLists.get(mpn)
+                        ?? (sFetchUrl ? [sFetchUrl] : []);
                       const isResolved = rStatus === "resolved";
                       const inProject =
                         !file && !inLibrary && !isResolved && existingDatasheetStems.has(safeMpn(mpn));
@@ -2677,19 +2719,10 @@ export function CreateProjectDialog({
                           <div className="flex-1 min-w-0">
                             <p className="font-mono text-sm font-medium truncate flex items-center gap-1">
                               {mpn}
-                              {sFetchUrl && (
-                                <a
-                                  href={sFetchUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Open datasheet"
-                                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              )}
                             </p>
+                            {sFetchStatus === "failed" && sFetchUrls.length > 0 && (
+                              <SuggestedDatasheetLinks urls={sFetchUrls} />
+                            )}
                             <p className="text-xs text-muted-foreground">
                               {refs.join(", ")}
                             </p>

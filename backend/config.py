@@ -130,6 +130,9 @@ class Settings(BaseSettings):
     digikey_locale_language: str = "en"
     digikey_locale_currency: str = "USD"
 
+    # Mouser Search API (optional — fourth datasheet source)
+    mouser_api_key: str = ""
+
     # Purple Parts API (optional — converts LCSC codes to MPNs before DigiKey)
     purple_parts_url: str = ""
     purple_parts_api_key: str = ""
@@ -193,6 +196,10 @@ class Settings(BaseSettings):
     @property
     def use_digikey(self) -> bool:
         return bool(self.digikey_client_id and self.digikey_client_secret)
+
+    @property
+    def use_mouser(self) -> bool:
+        return bool(self.mouser_api_key)
 
     @property
     def use_purple_parts(self) -> bool:

@@ -755,7 +755,7 @@ async def make_collaborator_owner(
 async def fetch_auto_datasheet(mpn: str, request: Request, lcsc: str | None = None):
     """Fetch a datasheet PDF for the given MPN.
 
-    Tries LCSC (no API key), Texas Instruments direct URLs, then DigiKey
+    Tries LCSC (no API key), manufacturer PDF URLs, optional Mouser, then DigiKey
     if configured. ``/api/digikey/datasheet`` is kept as an alias.
     """
     from backend.services.datasheet_finder import find_datasheet
@@ -767,6 +767,7 @@ async def fetch_auto_datasheet(mpn: str, request: Request, lcsc: str | None = No
             content={
                 "detail": result.error or "Failed to fetch datasheet",
                 "url": result.url,
+                "urls": result.suggested_urls or ([result.url] if result.url else []),
                 "source": result.source,
             },
         )

@@ -934,12 +934,19 @@ export async function resolveLcscPassive(
 
 export class DatasheetFetchError extends Error {
   url: string | null;
+  urls: string[];
   source: string | null;
-  constructor(message: string, url: string | null, source: string | null = null) {
+  constructor(
+    message: string,
+    url: string | null,
+    source: string | null = null,
+    urls: string[] = [],
+  ) {
     super(message);
     this.name = "DatasheetFetchError";
     this.url = url;
     this.source = source;
+    this.urls = urls.length ? urls : url ? [url] : [];
   }
 }
 
@@ -963,6 +970,7 @@ export async function fetchAutoDatasheet(
       err.detail || "Failed to fetch datasheet",
       err.url ?? null,
       err.source ?? null,
+      Array.isArray(err.urls) ? err.urls.filter((u: unknown) => typeof u === "string") : [],
     );
   }
   const url = res.headers.get("X-Datasheet-Url");

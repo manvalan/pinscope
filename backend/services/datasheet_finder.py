@@ -9,10 +9,15 @@ This module tries, in order:
 1. Explicit BOM datasheet URL (``url_hint``).
 2. LCSC product search (no API key) — exact MPN match, then packing-suffix
    variants (``/TR``, ``SPTR``, …).
-3. Direct manufacturer URLs (TI symlink + gpn, Espressif, ST, Analog,
-   NXP, onsemi) with HTML-interstitial follow when the CDN returns a page
-   instead of a PDF.
-4. DigiKey, if ``DIGIKEY_CLIENT_ID`` / ``SECRET`` are configured.
+3. Direct manufacturer URLs (TI, Espressif, ST, Analog, NXP, onsemi,
+   Microchip, Murata, Silicon Labs) with HTML-interstitial follow when the
+   CDN returns a page instead of a PDF.
+4. Mouser, if ``MOUSER_API_KEY`` is configured.
+5. DigiKey, if ``DIGIKEY_CLIENT_ID`` / ``SECRET`` are configured.
+
+On a miss, ``suggested_urls`` lists every catalog/vendor link we found so
+the wizard can open them in the user's browser (datacenter IPs are often
+blocked).
 
 Never raises: every failure is captured on :class:`DatasheetHit`.
 """
@@ -59,8 +64,9 @@ class DatasheetHit:
     pdf_bytes: bytes | None = None
     error: str | None = None
     url: str | None = None
-    source: str | None = None  # "lcsc" | "ti" | "digikey" | ...
+    source: str | None = None  # "lcsc" | "ti" | "mouser" | "digikey" | ...
     catalog_mpn: str | None = None  # orderable code that actually matched
+    suggested_urls: list[str] | None = None  # browser-open links on a miss
 
     @property
     def ok(self) -> bool:
@@ -524,6 +530,80 @@ def _onsemi_urls(mpn: str) -> list[str]:
     return [f"https://www.onsemi.com/pdf/datasheet/{slug}.pdf"]
 
 
+_MICROCHIP_PREFIXES = (
+    "mcp", "pic16", "pic18", "pic24", "pic32", "dspic", "atsam", "atmega",
+    "attiny", "24aa", "24lc", "24fc", "25aa", "25lc", "lan87", "lan74",
+    "ksz", "usb25", "enc28",
+)
+
+
+def _microchip_family(mpn: str) -> str | None:
+    s = mpn.lower()
+    if not any(s.startswith(p) for p in _MICROCHIP_PREFIXES):
+        return None
+    token = re.split(r"[-/,]", s)[0]
+    token = re.sub(r"[^a-z0-9]", "", token)
+    return token or None
+
+
+def _microchip_urls(mpn: str) -> list[str]:
+    fam = _microchip_family(mpn)
+    if not fam:
+        return []
+    compact = re.sub(r"[^A-Za-z0-9]", "", mpn.split("/")[0].split(",")[0])
+    return [
+        f"https://www.microchip.com/en-us/product/{fam}",
+        f"https://ww1.microchip.com/downloads/en/DeviceDoc/{compact}.pdf",
+        f"https://ww1.microchip.com/downloads/en/DeviceDoc/{fam.upper()}.pdf",
+    ]
+
+
+_MURATA_PREFIXES = ("grm", "gqm", "gjm", "lqw", "lqm", "lqg", "blm", "nfm", "dlw", "nfe")
+
+
+def _murata_stem(mpn: str) -> str | None:
+    s = mpn.strip().upper()
+    if not any(s.startswith(p.upper()) for p in _MURATA_PREFIXES):
+        return None
+    stem = re.split(r"[/,]", s)[0]
+    if stem.endswith("D") and len(stem) > 8:
+        stem = stem[:-1]
+    return stem
+
+
+def _murata_urls(mpn: str) -> list[str]:
+    stem = _murata_stem(mpn)
+    if not stem:
+        return []
+    raw = mpn.split("/")[0].split(",")[0].strip()
+    return [
+        f"https://search.murata.co.jp/Ceramy/image/img/A01X/G101/ENG/{stem}-01.pdf",
+        f"https://www.murata.com/en-us/products/productdetail?partno={raw}",
+    ]
+
+
+_SILABS_PREFIXES = ("si4", "si5", "efr32", "cp21", "bgm", "wgm", "efm32")
+
+
+def _silabs_urls(mpn: str) -> list[str]:
+    s = mpn.lower()
+    if not any(s.startswith(p) for p in _SILABS_PREFIXES):
+        return []
+    compact = re.sub(r"[^A-Za-z0-9-]", "", mpn.split("/")[0].split(",")[0])
+    parts = compact.split("-")
+    family = parts[0]
+    urls = [
+        f"https://www.silabs.com/documents/public/data-sheets/{compact}.pdf",
+        f"https://www.silabs.com/documents/public/data-sheets/{family}.pdf",
+    ]
+    if len(parts) >= 2:
+        urls.insert(
+            1,
+            f"https://www.silabs.com/documents/public/data-sheets/{parts[0]}-{parts[1]}.pdf",
+        )
+    return urls
+
+
 def manufacturer_pdf_candidates(mpn: str) -> list[tuple[str, str]]:
     """Stable vendor PDF URLs for this MPN (source, url), first match wins."""
     out: list[tuple[str, str]] = []
@@ -541,11 +621,32 @@ def manufacturer_pdf_candidates(mpn: str) -> list[tuple[str, str]]:
     add("analog", _adi_urls(mpn))
     add("nxp", _nxp_urls(mpn))
     add("onsemi", _onsemi_urls(mpn))
+    add("microchip", _microchip_urls(mpn))
+    add("murata", _murata_urls(mpn))
+    add("silabs", _silabs_urls(mpn))
+    return out
+
+
+def suggested_pdf_urls(mpn: str, *extras: str | None) -> list[str]:
+    """Deduped links the wizard can open in the user's browser."""
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(url: str | None) -> None:
+        url = (url or "").strip()
+        if url.startswith("http") and url not in seen:
+            seen.add(url)
+            out.append(url)
+
+    for extra in extras:
+        add(extra)
+    for _source, url in manufacturer_pdf_candidates(mpn):
+        add(url)
     return out
 
 
 async def _from_manufacturer(mpn: str) -> DatasheetHit | None:
-    """Direct manufacturer datasheet URLs (TI symlink/gpn, ST, ADI, Espressif, …)."""
+    """Direct manufacturer datasheet URLs (TI, ST, ADI, Espressif, Microchip, …)."""
     last_err = None
     last_url = None
     last_source = None
@@ -589,20 +690,36 @@ async def _from_digikey(mpn: str) -> DatasheetHit | None:
     return DatasheetHit(mpn, error=result.error, url=result.url, source="digikey")
 
 
+async def _from_mouser(mpn: str) -> DatasheetHit | None:
+    if not settings.use_mouser:
+        return None
+    from backend.services.mouser import fetch_datasheet
+    result = await fetch_datasheet(mpn)
+    if result.ok:
+        return DatasheetHit(
+            mpn, pdf_bytes=result.pdf_bytes, url=result.url, source="mouser",
+            catalog_mpn=getattr(result, "catalog_mpn", None),
+        )
+    if result.error or result.url:
+        return DatasheetHit(mpn, error=result.error, url=result.url, source="mouser")
+    return None
+
+
 async def find_datasheet(
     mpn: str, lcsc_id: str | None = None, url_hint: str | None = None,
 ) -> DatasheetHit:
     """Find and download a datasheet PDF for ``mpn``.
 
     Tries an explicit BOM URL first, then LCSC, then manufacturer PDF
-    URLs (TI, Espressif, ST, Analog, NXP, onsemi), then DigiKey.
+    URLs, then Mouser, then DigiKey. A miss always includes
+    ``suggested_urls`` for a browser download.
     """
     mpn = (mpn or "").strip()
     if not mpn:
         return DatasheetHit(mpn, error="Empty MPN")
 
     errors: list[str] = []
-    last_url: str | None = None
+    found_urls: list[str] = []
 
     hint = (url_hint or "").strip()
     if hint.startswith("http"):
@@ -612,9 +729,9 @@ async def find_datasheet(
         except Exception as exc:
             log.info("BOM datasheet URL missed %s: %s", mpn, exc)
             errors.append(f"bom: {exc}")
-            last_url = hint
+            found_urls.append(hint)
 
-    for source_fn in (_from_lcsc, _from_ti, _from_digikey):
+    for source_fn in (_from_lcsc, _from_ti, _from_mouser, _from_digikey):
         try:
             if source_fn is _from_lcsc:
                 hit = await _from_lcsc(mpn, lcsc_id)
@@ -631,7 +748,11 @@ async def find_datasheet(
         if hit.error:
             errors.append(f"{hit.source or source_fn.__name__}: {hit.error}")
         if hit.url:
-            last_url = hit.url
+            found_urls.append(hit.url)
 
+    urls = suggested_pdf_urls(mpn, *found_urls)
     detail = "; ".join(errors) if errors else "No datasheet found"
-    return DatasheetHit(mpn, error=detail, url=last_url)
+    return DatasheetHit(
+        mpn, error=detail, url=urls[0] if urls else None,
+        suggested_urls=urls,
+    )

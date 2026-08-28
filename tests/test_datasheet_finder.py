@@ -174,6 +174,42 @@ def test_manufacturer_candidates_ti_gpn_and_espressif():
     assert any("esp32-s31_datasheet_en.pdf" in u for u in urls)
     adi = manufacturer_pdf_candidates("ADAU1467WBCPZ300R")
     assert any(u.endswith("/ADAU1467.pdf") for _, u in adi)
+    mcp = manufacturer_pdf_candidates("MCP23S17-E/ML")
+    urls = [u for _, u in mcp]
+    assert any("microchip.com/en-us/product/mcp23s17" in u for u in urls)
+    murata = manufacturer_pdf_candidates("LQW18AN18NJ00D")
+    urls = [u for _, u in murata]
+    assert any("LQW18AN18NJ00-01.pdf" in u for u in urls)
+    silabs = manufacturer_pdf_candidates("Si4684-A10-GM")
+    urls = [u for _, u in silabs]
+    assert any("Si4684-A10.pdf" in u for u in urls)
+
+
+def test_suggested_urls_on_miss(monkeypatch):
+    async def miss(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("backend.services.datasheet_finder._from_lcsc", miss)
+    monkeypatch.setattr("backend.services.datasheet_finder._from_ti", miss)
+    monkeypatch.setattr("backend.services.datasheet_finder._from_mouser", miss)
+    monkeypatch.setattr("backend.services.datasheet_finder._from_digikey", miss)
+
+    hit = asyncio.run(find_datasheet("MCP23S17-E/ML"))
+    assert not hit.ok
+    assert hit.suggested_urls
+    assert any("microchip.com" in u for u in hit.suggested_urls)
+
+
+def test_pick_mouser_family_orderable():
+    from backend.services.mouser import pick_mouser_product
+
+    products = [
+        {"ManufacturerPartNumber": "LAN8720A-CP-TR", "DataSheetUrl": "http://lan.pdf"},
+        {"ManufacturerPartNumber": "OTHER", "DataSheetUrl": "http://no.pdf"},
+    ]
+    picked = pick_mouser_product("LAN8720A", products)
+    assert picked is not None
+    assert picked["DataSheetUrl"] == "http://lan.pdf"
 
 
 def test_pdf_links_in_html_require_family_match():
