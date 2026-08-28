@@ -455,6 +455,8 @@ export async function reprocessPipeline(
   }
   return res.json();
 }
+
+export async function startPipeline(projectId: string) {
   const res = await authFetch(`${BASE}/api/pipeline/${projectId}/start`, {
     method: "POST",
   });
