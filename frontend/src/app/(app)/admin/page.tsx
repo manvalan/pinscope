@@ -632,7 +632,11 @@ function ComponentsPanel() {
         if (!prev) return prev;
         if (type === "ic") return { ...prev, ics: prev.ics.filter((c) => c.mpn !== name) };
         if (type === "passive") return { ...prev, passives: prev.passives.filter((c) => c.mpn !== name) };
-        return { ...prev, simple: prev.simple.filter((c) => c.mpn !== name) };
+        return {
+          ...prev,
+          simple: prev.simple.filter((c) => c.mpn !== name),
+          passive_parts: (prev.passive_parts ?? []).filter((c) => c.mpn !== name),
+        };
       });
       reload();
     } catch (e) {
@@ -678,6 +682,12 @@ function ComponentsPanel() {
       c.subtype.toLowerCase().includes(lf) ||
       c.description.toLowerCase().includes(lf),
   );
+  const filteredPassiveParts = (data.passive_parts ?? []).filter(
+    (c) =>
+      c.mpn.toLowerCase().includes(lf) ||
+      c.subtype.toLowerCase().includes(lf) ||
+      c.specs_type.toLowerCase().includes(lf),
+  );
   const filteredSimple = (data.simple ?? []).filter(
     (c) =>
       c.mpn.toLowerCase().includes(lf) ||
@@ -699,6 +709,13 @@ function ComponentsPanel() {
           <span className="font-medium">{data.passives.length}</span>
           <span className="text-muted-foreground">Passive Patterns</span>
         </div>
+        {(data.passive_parts?.length ?? 0) > 0 && (
+          <div className="flex items-center gap-1.5 text-sm">
+            <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <span className="font-medium">{data.passive_parts.length}</span>
+            <span className="text-muted-foreground">Passive MPNs</span>
+          </div>
+        )}
         {(data.simple?.length ?? 0) > 0 && (
           <div className="flex items-center gap-1.5 text-sm">
             <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -827,6 +844,57 @@ function ComponentsPanel() {
         </div>
       )}
 
+      {/* Per-MPN passive specs */}
+      {filteredPassiveParts.length > 0 && (
+        <div>
+          <h2 className="text-sm font-medium mb-2">Passive MPNs</h2>
+          <div className="rounded-lg border border-border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground">
+                  <th className="text-left px-3 py-2 font-medium">MPN</th>
+                  <th className="text-left px-3 py-2 font-medium">Type</th>
+                  <th className="text-left px-3 py-2 font-medium">Subtype</th>
+                  <th className="text-center px-3 py-2 font-medium">Params</th>
+                  <th className="w-10 px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredPassiveParts.map((s) => (
+                  <tr key={s.mpn} className="hover:bg-muted/30 cursor-pointer" onClick={() => handleRowClick("simple", s.mpn)}>
+                    <td className="px-3 py-2 font-mono text-xs">{s.mpn}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant="secondary">{s.specs_type || "passive"}</Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      {s.subtype ? (
+                        <Badge variant="outline">{s.subtype}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center font-mono">{s.param_count}</td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete("simple", s.mpn); }}
+                        disabled={deleting === s.mpn}
+                        className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                      >
+                        {deleting === s.mpn ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Simple component specs table */}
       {filteredSimple.length > 0 && (
         <div>
@@ -878,7 +946,7 @@ function ComponentsPanel() {
         </div>
       )}
 
-      {filteredICs.length === 0 && filteredPassives.length === 0 && filteredSimple.length === 0 && (
+      {filteredICs.length === 0 && filteredPassives.length === 0 && filteredPassiveParts.length === 0 && filteredSimple.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Package className="h-8 w-8 mb-2" />
           <p className="text-sm">

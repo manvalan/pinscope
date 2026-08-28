@@ -389,6 +389,15 @@ export interface LibraryPassive {
   regex: string;
 }
 
+export interface LibraryPassivePart {
+  mpn: string;
+  type: "passive_part";
+  specs_type: string;
+  subtype: string;
+  param_count: number;
+  has_datasheet: boolean;
+}
+
 export interface LibrarySimple {
   mpn: string;
   type: "simple";
@@ -408,6 +417,7 @@ export interface LibraryDatasheet {
 export interface LibraryCatalog {
   ics: LibraryIC[];
   passives: LibraryPassive[];
+  passive_parts?: LibraryPassivePart[];
   simple: LibrarySimple[];
   datasheets: LibraryDatasheet[];
 }
@@ -606,6 +616,7 @@ export interface AdminSimple {
 export interface AdminComponents {
   ics: AdminIC[];
   passives: AdminPassive[];
+  passive_parts?: AdminSimple[];
   simple: AdminSimple[];
 }
 

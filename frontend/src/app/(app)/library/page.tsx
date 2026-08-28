@@ -55,6 +55,17 @@ export default function LibraryPage() {
       ),
     [data, lf],
   );
+  const passiveParts = useMemo(
+    () =>
+      (data?.passive_parts ?? []).filter(
+        (c) =>
+          !lf ||
+          c.mpn.toLowerCase().includes(lf) ||
+          c.subtype.toLowerCase().includes(lf) ||
+          c.specs_type.toLowerCase().includes(lf),
+      ),
+    [data, lf],
+  );
   const simple = useMemo(
     () =>
       (data?.simple ?? []).filter(
@@ -108,6 +119,7 @@ export default function LibraryPage() {
     !data ||
     (data.ics.length === 0 &&
       data.passives.length === 0 &&
+      (data.passive_parts ?? []).length === 0 &&
       data.simple.length === 0 &&
       data.datasheets.length === 0);
 
@@ -143,8 +155,15 @@ export default function LibraryPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="font-medium">
+                  {(data.passive_parts ?? []).length}
+                </span>
+                <span className="text-muted-foreground">passives</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Zap className="h-4 w-4 text-amber-600/70 dark:text-amber-400/70" />
                 <span className="font-medium">{data.passives.length}</span>
-                <span className="text-muted-foreground">passive series</span>
+                <span className="text-muted-foreground">series</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -169,7 +188,7 @@ export default function LibraryPage() {
             <TabsList>
               <TabsTrigger value="ics">ICs ({ics.length})</TabsTrigger>
               <TabsTrigger value="passives">
-                Passives ({passives.length})
+                Passives ({passiveParts.length + passives.length})
               </TabsTrigger>
               <TabsTrigger value="simple">
                 Discrete ({simple.length})
@@ -225,40 +244,109 @@ export default function LibraryPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="passives" className="pt-4">
-              {passives.length === 0 ? (
-                <EmptyFilter label="passive series" />
+            <TabsContent value="passives" className="pt-4 space-y-6">
+              {passiveParts.length === 0 && passives.length === 0 ? (
+                <EmptyFilter label="passives" />
               ) : (
-                <div className="rounded-lg border border-border overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-muted/50 text-muted-foreground">
-                        <th className="text-left px-3 py-2 font-medium">Series</th>
-                        <th className="text-left px-3 py-2 font-medium">Type</th>
-                        <th className="text-left px-3 py-2 font-medium">
-                          Description
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {passives.map((p) => (
-                        <tr key={p.mpn} className="hover:bg-muted/30">
-                          <td className="px-3 py-2 font-mono text-xs">{p.mpn}</td>
-                          <td className="px-3 py-2">
-                            {p.subtype ? (
-                              <Badge variant="secondary">{p.subtype}</Badge>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">
-                            {p.description || "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {passiveParts.length > 0 && (
+                    <div className="rounded-lg border border-border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50 text-muted-foreground">
+                            <th className="text-left px-3 py-2 font-medium">
+                              MPN
+                            </th>
+                            <th className="text-left px-3 py-2 font-medium">
+                              Type
+                            </th>
+                            <th className="text-center px-3 py-2 font-medium">
+                              Params
+                            </th>
+                            <th className="text-left px-3 py-2 font-medium">
+                              PDF
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {passiveParts.map((p) => (
+                            <tr key={p.mpn} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 font-mono text-xs">
+                                {p.mpn}
+                              </td>
+                              <td className="px-3 py-2">
+                                <Badge variant="secondary">
+                                  {p.subtype || p.specs_type || "passive"}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {p.param_count}
+                              </td>
+                              <td className="px-3 py-2">
+                                {p.has_datasheet ? (
+                                  <DatasheetLink
+                                    mpn={p.mpn}
+                                    opening={opening}
+                                    onOpen={openDatasheet}
+                                  />
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    —
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {passives.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Series patterns — one regex covers cousin MPNs
+                      </p>
+                      <div className="rounded-lg border border-border overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-muted/50 text-muted-foreground">
+                              <th className="text-left px-3 py-2 font-medium">
+                                Series
+                              </th>
+                              <th className="text-left px-3 py-2 font-medium">
+                                Type
+                              </th>
+                              <th className="text-left px-3 py-2 font-medium">
+                                Description
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {passives.map((p) => (
+                              <tr key={p.mpn} className="hover:bg-muted/30">
+                                <td className="px-3 py-2 font-mono text-xs">
+                                  {p.mpn}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {p.subtype ? (
+                                    <Badge variant="secondary">{p.subtype}</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground">
+                                      —
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground">
+                                  {p.description || "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
 

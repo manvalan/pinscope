@@ -775,6 +775,31 @@ def save_to_library(
     return dst_key
 
 
+def _specs_param_count(specs: dict) -> int:
+    if not isinstance(specs, dict):
+        return 0
+    values = specs.get("values")
+    if isinstance(values, dict):
+        return sum(1 for v in values.values() if v not in (None, "", []))
+    skip = {"specs_type", "component_subtype"}
+    return sum(
+        1 for k, v in specs.items()
+        if k not in skip and v not in (None, "", [])
+    )
+
+
+def _catalog_model_row(data: dict, key: str, *, row_type: str) -> dict:
+    mpn = data.get("mpn", "") or key.rsplit("/", 1)[-1].replace(".json", "")
+    specs = data.get("specs", {}) or {}
+    return {
+        "mpn": mpn,
+        "type": row_type,
+        "specs_type": specs.get("specs_type", ""),
+        "subtype": specs.get("component_subtype", ""),
+        "param_count": _specs_param_count(specs),
+    }
+
+
 def list_library_catalog(storage: StorageBackend) -> dict:
     """List ICs, passive patterns, discrete specs, and datasheet refs.
 
@@ -826,26 +851,24 @@ def list_library_catalog(storage: StorageBackend) -> dict:
             continue
 
     simple_models: list[dict] = []
+    passive_parts: list[dict] = []
     seen_model_mpns: set[str] = set()
-    for prefix in ("library/models/", "library/passives/"):
+    for prefix, row_type, dest in (
+        ("library/passives/", "passive_part", passive_parts),
+        ("library/models/", "simple", simple_models),
+    ):
         for key in storage.list_prefix(prefix):
             if not key.endswith(".json"):
                 continue
             try:
                 data = storage.read_json(key)
-                mpn = data.get("mpn", "") or key.rsplit("/", 1)[-1].replace(".json", "")
+                row = _catalog_model_row(data, key, row_type=row_type)
+                mpn = row["mpn"]
                 if mpn in seen_model_mpns:
                     continue
                 seen_model_mpns.add(mpn)
-                specs = data.get("specs", {}) or {}
-                simple_models.append({
-                    "mpn": mpn,
-                    "type": "simple",
-                    "specs_type": specs.get("specs_type", ""),
-                    "subtype": specs.get("component_subtype", ""),
-                    "param_count": len(specs.get("values", {}) or {}),
-                    "has_datasheet": bool(resolve_datasheet(storage, mpn)),
-                })
+                row["has_datasheet"] = bool(resolve_datasheet(storage, mpn))
+                dest.append(row)
             except Exception:
                 continue
 
@@ -871,11 +894,13 @@ def list_library_catalog(storage: StorageBackend) -> dict:
 
     ics.sort(key=lambda r: r["mpn"].lower())
     passives.sort(key=lambda r: r["mpn"].lower())
+    passive_parts.sort(key=lambda r: r["mpn"].lower())
     simple_models.sort(key=lambda r: r["mpn"].lower())
     datasheets.sort(key=lambda r: r["mpn"].lower())
     return {
         "ics": ics,
         "passives": passives,
+        "passive_parts": passive_parts,
         "simple": simple_models,
         "datasheets": datasheets,
     }

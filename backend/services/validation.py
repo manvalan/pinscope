@@ -571,27 +571,29 @@ def _find_pdf(
     """Find the datasheet PDF for an MPN.  Checks local dir first,
     then tries to download from the library.
     """
-    from backend.services.datasheet_finder import mpn_query_variants
+    from backend.services.datasheet_finder import find_local_pdf
     from backend.pinscopex.utils import safe_mpn as _safe
 
-    names = mpn_query_variants(mpn) or [mpn]
-    for name in names:
-        local = pdf_dir / f"{_safe(name)}.pdf"
-        if local.is_file():
-            wanted = pdf_dir / f"{_safe(mpn)}.pdf"
-            if local != wanted and not wanted.is_file():
-                wanted.write_bytes(local.read_bytes())
-                return wanted
-            return local
+    mpn = (mpn or "").strip()
+    if not mpn:
+        return None
+
+    local = find_local_pdf(pdf_dir, mpn)
+    if local is not None and local.is_file():
+        wanted = pdf_dir / f"{_safe(mpn)}.pdf"
+        if local.resolve() != wanted.resolve() and not wanted.is_file():
+            wanted.write_bytes(local.read_bytes())
+            return wanted
+        return local
 
     if storage:
         from backend.services import projects as proj_svc
         lib_key = proj_svc.library_has_datasheet(storage, mpn)
         if lib_key:
-            local = pdf_dir / f"{_safe(mpn)}.pdf"
-            storage.download_to_local(lib_key, local)
-            if local.is_file():
-                return local
+            wanted = pdf_dir / f"{_safe(mpn)}.pdf"
+            storage.download_to_local(lib_key, wanted)
+            if wanted.is_file():
+                return wanted
 
     return None
 
@@ -665,7 +667,12 @@ async def validate_design_async(
     for ref, comp in sorted(graph.components.items()):
         if comp.component_type != ComponentType.IC:
             continue
-        mpn = comp.mpn or comp.value
+        mpn = (comp.mpn or "").strip() or (comp.value or "").strip()
+        if not mpn:
+            not_reviewed.append({"designator": ref, "reason": "no MPN in BOM"})
+            if on_progress:
+                await on_progress(ref, 0, "skipped", "no MPN in BOM")
+            continue
         pdf = _find_pdf(mpn, pdf_dir_path, storage=storage)
         if pdf:
             ic_tasks.append((ref, str(pdf)))

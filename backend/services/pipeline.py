@@ -681,15 +681,16 @@ async def _ensure_local_datasheet(
     """
     if pdf_path.is_file():
         return True
-    from backend.services.datasheet_finder import find_datasheet, mpn_query_variants
+    from backend.services.datasheet_finder import find_datasheet, find_local_pdf, mpn_query_variants
+
+    alt = find_local_pdf(pdf_path.parent, mpn)
+    if alt is not None and alt.is_file():
+        if alt.resolve() != pdf_path.resolve():
+            pdf_path.parent.mkdir(parents=True, exist_ok=True)
+            pdf_path.write_bytes(alt.read_bytes())
+        return True
 
     for name in mpn_query_variants(mpn) or [mpn]:
-        alt = pdf_path.parent / f"{safe_mpn(name)}.pdf"
-        if alt.is_file():
-            if alt.resolve() != pdf_path.resolve():
-                pdf_path.parent.mkdir(parents=True, exist_ok=True)
-                pdf_path.write_bytes(alt.read_bytes())
-            return True
         lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, name)
         if lib_ds_key:
             ctx.storage.download_to_local(lib_ds_key, pdf_path)
@@ -1117,6 +1118,16 @@ async def _catalog_resolve_unresolved_passives(
                         first_error = str(e)
 
                 if model is None:
+                    from backend.services.passive_from_mpn import specs_from_mpn
+                    model = specs_from_mpn(mpn)
+                    if model is not None:
+                        resolved_via = "mpn"
+                        broker.publish(ctx.project_id, "step_update",
+                                       {"stage": "passive_extraction",
+                                        "substep": mpn, "status": "running",
+                                        "detail": "decoded from MPN"})
+
+                if model is None:
                     bom_value = ctx.passive_values.get(mpn, "").strip()
                     refs = ctx.passive_mpns.get(mpn, [])
                     pref_match = re.match(r"^[A-Za-z]+", refs[0]) if refs else None
@@ -1152,7 +1163,7 @@ async def _catalog_resolve_unresolved_passives(
                 model_path.write_text(model.model_dump_json(indent=2) + "\n")
                 model_key = f"{ctx.ws.prefix}/models/{safe}.json"
                 ctx.storage.upload_from_local(model_path, model_key)
-                if resolved_via in ("digikey", "lcsc"):
+                if resolved_via in ("digikey", "lcsc", "mpn"):
                     proj_svc.save_to_library(
                         ctx.storage, model_key, "passives", f"{safe}.json",
                     )
@@ -1161,6 +1172,7 @@ async def _catalog_resolve_unresolved_passives(
                 detail = {
                     "lcsc": "auto-resolved via LCSC",
                     "digikey": "auto-resolved via DigiKey",
+                    "mpn": "decoded from MPN (saved to library)",
                     "value": "resolved from BOM value (not saved to library)",
                 }.get(resolved_via, "resolved")
                 broker.publish(ctx.project_id, "step_update",
@@ -1502,14 +1514,16 @@ async def _stage_validation(ctx: PipelineContext) -> None:
 
     # Snapshot the full review queue so pause checkpoints can show what's left.
     # Mirrors the filter in validate_design_async: ICs with a PDF available.
+    from backend.services.datasheet_finder import find_local_pdf
+
     planned_refs: list[str] = []
     for ref, comp in ctx.graph.components.items():
         if comp.component_type != ComponentType.IC:
             continue
-        mpn = comp.mpn or comp.value
+        mpn = (comp.mpn or "").strip() or (comp.value or "").strip()
         if not mpn:
             continue
-        if (ds_dir / f"{safe_mpn(mpn)}.pdf").is_file():
+        if find_local_pdf(ds_dir, mpn) is not None:
             planned_refs.append(ref)
     ctx.all_review_refs = sorted(planned_refs, key=natural_sort_key)
 

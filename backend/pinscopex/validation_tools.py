@@ -317,18 +317,24 @@ def _resolve_neighbor_pdf(
     Mirrors validation._find_pdf's local-then-library lookup so neighbor
     datasheets follow the same resolution rules as the IC under review.
     """
-    safe = safe_mpn(mpn)
-    local = state.pdf_dir / f"{safe}.pdf"
-    if local.is_file():
+    from backend.services.datasheet_finder import find_local_pdf
+
+    local = find_local_pdf(state.pdf_dir, mpn)
+    if local is not None and local.is_file():
+        wanted = state.pdf_dir / f"{safe_mpn(mpn)}.pdf"
+        if local.resolve() != wanted.resolve() and not wanted.is_file():
+            wanted.write_bytes(local.read_bytes())
+            return wanted
         return local
     if state.storage is not None:
         try:
             from backend.services import projects as proj_svc
             lib_key = proj_svc.library_has_datasheet(state.storage, mpn)
             if lib_key:
-                state.storage.download_to_local(lib_key, local)
-                if local.is_file():
-                    return local
+                wanted = state.pdf_dir / f"{safe_mpn(mpn)}.pdf"
+                state.storage.download_to_local(lib_key, wanted)
+                if wanted.is_file():
+                    return wanted
         except Exception:
             log.exception("excerpt: library lookup failed for %s", mpn)
     return None

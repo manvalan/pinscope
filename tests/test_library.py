@@ -78,7 +78,9 @@ def test_library_catalog_lists_ics_passives_and_pdfs(storage):
     assert cat["ics"][0]["pin_count"] == 2
     assert cat["ics"][0]["has_datasheet"] is True
     assert cat["passives"][0]["mpn"] == "Samsung CL10"
-    assert cat["simple"][0]["mpn"] == "CL10B474KA8NNNC"
+    assert cat["passive_parts"][0]["mpn"] == "CL10B474KA8NNNC"
+    assert cat["passive_parts"][0]["param_count"] >= 1
+    assert cat["simple"] == []
     assert any(d["mpn"] == "CH340E" and d["has_extraction"] for d in cat["datasheets"])
 
 

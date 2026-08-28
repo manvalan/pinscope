@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -136,6 +137,34 @@ def mpn_catalog_match(query: str, candidate: str) -> bool:
     if len(q) < _MIN_FAMILY_LEN or not c:
         return False
     return c.startswith(q) and len(c) > len(q)
+
+
+def find_local_pdf(pdf_dir: Path, mpn: str) -> Path | None:
+    """Find a datasheet PDF whose filename is this MPN or a catalog alias.
+
+    ``ESP32-S31-WROOM-3`` matches ``ESP32-S31-WROOM-3-N16R16V.pdf`` and the
+    reverse — packing / flash-size suffixes, not sibling dies (CH340 vs CH340E).
+    """
+    from backend.pinscopex.utils import safe_mpn
+
+    if not mpn or not pdf_dir.is_dir():
+        return None
+    for name in mpn_query_variants(mpn) or [mpn]:
+        hit = pdf_dir / f"{safe_mpn(name)}.pdf"
+        if hit.is_file():
+            return hit
+    want = _alnum(mpn)
+    if len(want) < _MIN_FAMILY_LEN:
+        return None
+    family_hit: Path | None = None
+    for hit in pdf_dir.glob("*.pdf"):
+        stem = hit.stem
+        if mpn_matches(mpn, stem) or mpn_catalog_match(mpn, stem) or mpn_catalog_match(stem, mpn):
+            got = _alnum(stem)
+            if got == want or mpn_matches(mpn, stem):
+                return hit
+            family_hit = family_hit or hit
+    return family_hit
 
 
 def _pick_lcsc_product(mpn: str, products: list[dict]) -> dict | None:
