@@ -883,6 +883,22 @@ async def auto_resolve_specs(
     """
     tax_dir = taxonomy_dir or settings.taxonomy_dir
 
+    from backend.services.passive_from_distributor import specs_from_distributor
+
+    if component_type == "passive":
+        direct = specs_from_distributor(
+            mpn=mpn,
+            params=digikey_params,
+            category=digikey_category,
+            description=digikey_description,
+        )
+        if direct is not None:
+            import logging as _logging
+            _logging.getLogger(__name__).info(
+                "Auto-resolved %s from distributor params (no LLM)", mpn,
+            )
+            return direct
+
     # Auto-generate type-level specs if none exist
     if not has_specs(component_type, tax_dir):
         try:

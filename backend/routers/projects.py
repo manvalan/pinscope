@@ -776,7 +776,9 @@ async def fetch_auto_datasheet(mpn: str, request: Request, lcsc: str | None = No
     if result.source:
         headers["X-Datasheet-Source"] = result.source
     try:
-        proj_svc.remember_datasheet(get_storage(request), mpn, result.pdf_bytes)
+        proj_svc.remember_datasheet(
+            get_storage(request), mpn, result.pdf_bytes, extra_mpns=result.alias_mpns,
+        )
     except Exception:
         pass
     return Response(content=result.pdf_bytes, media_type="application/pdf", headers=headers)

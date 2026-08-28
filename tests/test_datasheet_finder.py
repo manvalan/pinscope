@@ -92,6 +92,14 @@ def test_ti_slugs_include_family():
     assert "mspm0g3507s" not in slugs
 
 
+def test_ti_slugs_from_orderable_code():
+    slugs = _ti_slugs("INA228AQDGSRQ1")
+    assert "ina228-q1" in slugs
+    assert "ina228" in slugs
+    slugs = _ti_slugs("SN74AXC1T45DBVR")
+    assert "sn74axc1t45" in slugs
+
+
 def test_find_datasheet_uses_lcsc_then_skips_empty(monkeypatch):
     async def fake_lcsc(mpn, lcsc_id=None):
         return DatasheetHit(

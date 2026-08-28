@@ -21,6 +21,7 @@ from backend.services.storage import StorageBackend
 
 BLOB_PREFIX = "library/datasheets/blobs/"
 REF_PREFIX = "library/datasheets/refs/"
+ALIAS_KEY = "library/datasheets/aliases.json"
 
 
 # ---------------------------------------------------------------------------
@@ -81,28 +82,96 @@ def store_datasheet_bytes(
     storage: StorageBackend,
     data: bytes,
     mpn: str,
+    extra_mpns: list[str] | None = None,
 ) -> str:
-    """Same as :func:`store_datasheet` but from in-memory bytes."""
+    """Same as :func:`store_datasheet` but from in-memory bytes.
+
+    ``extra_mpns`` are additional catalog/orderable codes that should point
+    at the same blob (family MPN vs ``…-N16R16V``).
+    """
     md5 = compute_md5_from_bytes(data)
     bk = blob_key(md5)
     if not storage.exists(bk):
         storage.write_bytes(bk, data)
-    storage.write_json(ref_key(mpn), {"hash": md5, "blob_key": bk, "mpn": mpn})
+    names = [mpn, *(extra_mpns or [])]
+    seen: set[str] = set()
+    for name in names:
+        name = (name or "").strip()
+        if not name:
+            continue
+        key = name.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        storage.write_json(ref_key(name), {"hash": md5, "blob_key": bk, "mpn": name})
+    _record_aliases(storage, mpn, extra_mpns or [])
     return bk
+
+
+def _record_aliases(storage: StorageBackend, mpn: str, extra_mpns: list[str]) -> None:
+    from backend.services.datasheet_finder import _alnum, _MIN_FAMILY_LEN
+
+    names = [mpn, *extra_mpns]
+    compact = {n: _alnum(n) for n in names if n and n.strip()}
+    if len(set(compact.values())) < 2 and not extra_mpns:
+        return
+    table: dict[str, str] = {}
+    if storage.exists(ALIAS_KEY):
+        raw = storage.read_json(ALIAS_KEY)
+        table = dict(raw.get("aliases") or {})
+    canonical = extra_mpns[0].strip() if extra_mpns else mpn
+    for name, key in compact.items():
+        if len(key) >= _MIN_FAMILY_LEN:
+            table[key] = canonical
+    storage.write_json(ALIAS_KEY, {"aliases": table})
 
 
 def resolve_datasheet(storage: StorageBackend, mpn: str) -> str | None:
     """Look up the blob key for an MPN via its ref file.
 
-    Returns the blob key if the ref exists *and* the blob exists, else None.
+    Tries spelling variants, then the shared alias table (family MPN →
+    orderable code stored in the library).
     """
-    rk = ref_key(mpn)
-    if not storage.exists(rk):
+    from backend.services.datasheet_finder import (
+        _MIN_FAMILY_LEN,
+        _alnum,
+        mpn_query_variants,
+    )
+
+    def _from_ref(name: str) -> str | None:
+        rk = ref_key(name)
+        if not storage.exists(rk):
+            return None
+        ref = storage.read_json(rk)
+        bk = ref.get("blob_key")
+        if bk and storage.exists(bk):
+            return bk
         return None
-    ref = storage.read_json(rk)
-    bk = ref.get("blob_key")
-    if bk and storage.exists(bk):
-        return bk
+
+    for name in mpn_query_variants(mpn) or [mpn]:
+        hit = _from_ref(name)
+        if hit:
+            return hit
+
+    if not storage.exists(ALIAS_KEY):
+        return None
+    table = (storage.read_json(ALIAS_KEY) or {}).get("aliases") or {}
+    want = _alnum(mpn)
+    if not want:
+        return None
+    target = table.get(want)
+    if target:
+        hit = _from_ref(target)
+        if hit:
+            return hit
+    if len(want) >= _MIN_FAMILY_LEN:
+        for key, target in table.items():
+            if key.startswith(want) or (
+                want.startswith(key) and len(key) >= _MIN_FAMILY_LEN
+            ):
+                hit = _from_ref(target)
+                if hit:
+                    return hit
     return None
 
 

@@ -704,7 +704,9 @@ async def _ensure_local_datasheet(
     except Exception:
         logger.exception("Failed to persist auto-fetched datasheet for %s", mpn)
     try:
-        store_datasheet_bytes(ctx.storage, hit.pdf_bytes, mpn)
+        store_datasheet_bytes(
+            ctx.storage, hit.pdf_bytes, mpn, extra_mpns=hit.alias_mpns,
+        )
     except Exception:
         logger.exception("Failed to library-store auto-fetched datasheet for %s", mpn)
     logger.info(

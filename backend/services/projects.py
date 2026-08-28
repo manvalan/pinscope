@@ -636,12 +636,14 @@ def save_datasheet(
     return key
 
 
-def remember_datasheet(storage: StorageBackend, mpn: str, data: bytes) -> None:
+def remember_datasheet(
+    storage: StorageBackend, mpn: str, data: bytes, extra_mpns: list[str] | None = None,
+) -> None:
     """Write a datasheet into the shared library without failing the caller."""
     try:
         from backend.services.datasheet_store import store_datasheet_bytes
 
-        store_datasheet_bytes(storage, data, mpn)
+        store_datasheet_bytes(storage, data, mpn, extra_mpns=extra_mpns)
     except Exception:
         log.exception("Failed to store datasheet for %s in the shared library", mpn)
 

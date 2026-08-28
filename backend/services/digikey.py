@@ -145,8 +145,8 @@ def _find_product_one(mpn: str, products: list[dict]) -> dict | None:
     return exact or loose or family
 
 
-async def _search_mpn(mpn: str) -> str | None:
-    """Search DigiKey for an MPN and return the primary datasheet URL, or None."""
+async def _search_mpn(mpn: str) -> tuple[str | None, str | None]:
+    """Search DigiKey; return (datasheet_url, catalog_mpn)."""
     tried: set[str] = set()
     for keyword in mpn_query_variants(mpn):
         key = keyword.upper()
@@ -159,8 +159,8 @@ async def _search_mpn(mpn: str) -> str | None:
             continue
         url = _get_ds_url(product)
         if url:
-            return url
-    return None
+            return url, _get_mpn(product) or None
+    return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -205,11 +205,13 @@ class DatasheetFetchResult:
         pdf_bytes: bytes | None = None,
         error: str | None = None,
         url: str | None = None,
+        catalog_mpn: str | None = None,
     ):
         self.mpn = mpn
         self.pdf_bytes = pdf_bytes
         self.error = error
-        self.url = url  # DigiKey datasheet URL (present even when PDF download fails)
+        self.url = url
+        self.catalog_mpn = catalog_mpn
 
     @property
     def ok(self) -> bool:
@@ -228,7 +230,7 @@ async def fetch_datasheet(mpn: str) -> DatasheetFetchResult:
         return DatasheetFetchResult(mpn, error="DigiKey API not configured")
 
     try:
-        url = await _search_mpn(mpn)
+        url, catalog_mpn = await _search_mpn(mpn)
     except httpx.HTTPStatusError as e:
         logger.warning("DigiKey search failed for %s: %s", mpn, e)
         return DatasheetFetchResult(mpn, error=f"DigiKey search failed ({e.response.status_code})")
@@ -244,20 +246,27 @@ async def fetch_datasheet(mpn: str) -> DatasheetFetchResult:
         pdf_bytes = await _download_pdf(url)
     except httpx.HTTPStatusError as e:
         logger.warning("Datasheet download blocked for %s (%s): %s", mpn, url, e)
-        return DatasheetFetchResult(mpn, error=f"Download blocked ({e.response.status_code})", url=url)
+        return DatasheetFetchResult(
+            mpn, error=f"Download blocked ({e.response.status_code})", url=url,
+            catalog_mpn=catalog_mpn,
+        )
     except ValueError as e:
         logger.warning("Invalid PDF for %s (%s): %s", mpn, url, e)
-        return DatasheetFetchResult(mpn, error=str(e), url=url)
+        return DatasheetFetchResult(mpn, error=str(e), url=url, catalog_mpn=catalog_mpn)
     except httpx.TimeoutException:
         logger.warning("Datasheet download timed out for %s (%s)", mpn, url)
-        return DatasheetFetchResult(mpn, error="Download timed out", url=url)
+        return DatasheetFetchResult(mpn, error="Download timed out", url=url, catalog_mpn=catalog_mpn)
     except Exception as e:
         msg = str(e) or type(e).__name__
         logger.warning("Datasheet download failed for %s (%s): %s", mpn, url, msg)
-        return DatasheetFetchResult(mpn, error=f"Download failed: {msg}", url=url)
+        return DatasheetFetchResult(
+            mpn, error=f"Download failed: {msg}", url=url, catalog_mpn=catalog_mpn,
+        )
 
     logger.info("Fetched datasheet for %s (%d KB)", mpn, len(pdf_bytes) // 1024)
-    return DatasheetFetchResult(mpn, pdf_bytes=pdf_bytes, url=url)
+    return DatasheetFetchResult(
+        mpn, pdf_bytes=pdf_bytes, url=url, catalog_mpn=catalog_mpn,
+    )
 
 
 # ---------------------------------------------------------------------------

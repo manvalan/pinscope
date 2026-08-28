@@ -56,10 +56,18 @@ class DatasheetHit:
     error: str | None = None
     url: str | None = None
     source: str | None = None  # "lcsc" | "ti" | "digikey" | ...
+    catalog_mpn: str | None = None  # orderable code that actually matched
 
     @property
     def ok(self) -> bool:
         return self.pdf_bytes is not None
+
+    @property
+    def alias_mpns(self) -> list[str]:
+        extra = (self.catalog_mpn or "").strip()
+        if extra and extra.upper() != (self.mpn or "").upper():
+            return [extra]
+        return []
 
 
 def _alnum(mpn: str) -> str:
@@ -242,8 +250,16 @@ async def _from_lcsc(mpn: str, lcsc_id: str | None) -> DatasheetHit | None:
     except Exception as exc:
         log.info("LCSC PDF download failed for %s (%s): %s", mpn, url, exc)
         return DatasheetHit(mpn, error=f"LCSC download failed: {exc}", url=url, source="lcsc")
+    catalog = (
+        product.get("productModel")
+        or product.get("productName")
+        or ""
+    )
     log.info("Fetched datasheet for %s via LCSC (%d KB)", mpn, len(pdf) // 1024)
-    return DatasheetHit(mpn, pdf_bytes=pdf, url=url, source="lcsc")
+    return DatasheetHit(
+        mpn, pdf_bytes=pdf, url=url, source="lcsc",
+        catalog_mpn=str(catalog) or None,
+    )
 
 
 def _strip_packing_alnum(mpn: str) -> str | None:
@@ -255,17 +271,46 @@ def _strip_packing_alnum(mpn: str) -> str | None:
     return None
 
 
+_TI_PACKAGE_SUFFIXES = (
+    "dbvr", "dbvt", "dbv", "pwr", "pwt", "pw", "rger", "rget", "rge",
+    "dgsr", "dgsk", "dgs", "ydtr", "ydt", "dcnr", "dcnt", "dcn",
+    "rgtr", "rgtt", "rgt", "runr", "runt", "dckr", "dckt", "dck",
+)
+
+
 def _ti_slugs(mpn: str) -> list[str]:
     """Candidate TI datasheet slugs, most specific first."""
     raw = mpn.lower().replace("/", "-").strip("-")
-    slugs = [raw]
-    # Longest packing / orderable suffixes first so "sptr" is not clipped to "sp".
+    slugs: list[str] = []
+
+    def add(value: str) -> None:
+        value = value.strip("-")
+        if value and value not in slugs:
+            slugs.append(value)
+
+    add(raw)
     for suffix in ("-t/r", "/tr", "-tr", "-reel", "sptr", "ptr", "mtr", "tr"):
         if raw.endswith(suffix) and len(raw) > len(suffix) + 3:
-            base = raw[: -len(suffix)].rstrip("-")
-            if base and base not in slugs:
-                slugs.append(base)
+            add(raw[: -len(suffix)].rstrip("-"))
             break
+    for pkg in _TI_PACKAGE_SUFFIXES:
+        if raw.endswith(pkg) and len(raw) > len(pkg) + 4:
+            add(raw[: -len(pkg)])
+            break
+    # Orderable INA228AQDGSRQ1 → datasheet ina228-q1 / ina228
+    prefixes = sorted(_TI_PREFIXES, key=len, reverse=True)
+    for prefix in prefixes:
+        if not raw.startswith(prefix):
+            continue
+        rest = raw[len(prefix):]
+        m = re.match(r"(\d{2,})", rest)
+        if not m:
+            break
+        family = f"{prefix}{m.group(1)}"
+        add(family)
+        if "q1" in raw:
+            add(f"{family}-q1")
+        break
     return slugs
 
 
@@ -303,6 +348,7 @@ async def _from_digikey(mpn: str) -> DatasheetHit | None:
     if result.ok:
         return DatasheetHit(
             mpn, pdf_bytes=result.pdf_bytes, url=result.url, source="digikey",
+            catalog_mpn=getattr(result, "catalog_mpn", None),
         )
     return DatasheetHit(mpn, error=result.error, url=result.url, source="digikey")
 

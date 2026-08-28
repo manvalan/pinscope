@@ -19,6 +19,18 @@ def _client(tmp_path) -> TestClient:
     return TestClient(app)
 
 
+def test_library_alias_resolves_family_mpn(storage):
+    from backend.services.datasheet_store import resolve_datasheet, store_datasheet_bytes
+
+    store_datasheet_bytes(
+        storage, PDF, "ESP32-S31-WROOM-3",
+        extra_mpns=["ESP32-S31-WROOM-3-N16R16V"],
+    )
+    assert resolve_datasheet(storage, "ESP32-S31-WROOM-3")
+    assert resolve_datasheet(storage, "ESP32-S31-WROOM-3-N16R16V")
+    assert proj_svc.library_has_datasheet(storage, "ESP32-S31-WROOM-3")
+
+
 def test_save_datasheet_also_stores_in_library(storage):
     meta = proj_svc.create_project(storage, "local", "board")
     key = proj_svc.save_datasheet(storage, "local", meta.id, "CH340E", PDF)
