@@ -30,6 +30,9 @@ Rules for pin extraction:
 - For multiplexed pins, put the primary name in `name` and alternates in `functions`
 - If the datasheet has separate tables for different packages, extract for the package matching the MPN
 - Pay careful attention to pin numbering — off-by-one errors here break everything downstream
+- **Modules vs bare die (critical).** MPNs containing `WROOM`, `WROVER`, `MODULE`, `MOD-`, or `SIP` are *modules*. Extract the **module landing-pad table** (connector pins the schematic uses). Do **not** extract the SoC/QFN ball map from a nested chip chapter or a sibling chip-only PDF.
+  - Espressif WROOM: pin 1 is GND (often a group of GND pads). Pin 1 named `ANT`, `CHIP_PU`, or `XTAL_*` means you grabbed the bare ESP32 die table — that will mark every module GND as “antenna shorted” and is invalid.
+  - Crystal, RF antenna, and flash on a WROOM module are **inside the can**; they must not appear as schematic pin numbers.
 
 ### 3. Extract package info
 

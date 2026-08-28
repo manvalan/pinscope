@@ -212,6 +212,7 @@ def test_local_skills_load():
     validate = load_skill_validator("extract-pintable")
     assert validate is not None
     errors = validate({
+        "mpn": "MSPM0G3507SPTR",
         "component_subtype": "ic.mcu",
         "component_subtype_description": "MCU",
         "package_info": {"base_family": "MSPM0", "package": "LQFP-48", "pin_count": 2},
@@ -221,6 +222,23 @@ def test_local_skills_load():
         ],
     })
     assert errors == []
+
+
+def test_wroom_rejects_bare_soc_pin1_ant():
+    from backend.services.llm.local_skill import load_skill_validator
+    validate = load_skill_validator("extract-pintable")
+    errors = validate({
+        "mpn": "ESP32-S31-WROOM-3",
+        "component_subtype": "ic.mcu",
+        "package_info": {"base_family": "ESP32-S31", "package": "module", "pin_count": 2},
+        "pintable": [
+            {"number": 1, "name": "ANT"},
+            {"number": 2, "name": "CHIP_PU"},
+            {"number": 78, "name": "XTAL_N"},
+            {"number": 79, "name": "XTAL_P"},
+        ],
+    })
+    assert any("module" in e.lower() or "pad" in e.lower() or "SoC" in e or "WROOM" in e for e in errors)
 
 
 def test_factory_routes_deepseek(monkeypatch):

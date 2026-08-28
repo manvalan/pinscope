@@ -2,6 +2,7 @@
 """Validate extraction output against the pintable schema."""
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -46,6 +47,24 @@ def validate(data: dict) -> list[str]:
             dupes = [n for n in set(numbers) if numbers.count(n) > 1]
             if dupes:
                 errors.append(f"Duplicate pin numbers: {dupes}")
+
+            names = {
+                str(p.get("number")): str(p.get("name") or "").upper()
+                for p in pins if "number" in p
+            }
+            pin1 = names.get("1", "")
+            looks_like_rf_die = bool(
+                re.search(r"\bANT\b|^CHIP_PU$|^XTAL", pin1)
+                and any("XTAL" in n for n in names.values())
+            )
+            mpn = str(data.get("mpn") or "")
+            is_module_mpn = bool(re.search(r"WROOM|WROVER|\bMODULE\b|\bSIP\b", mpn, re.I))
+            if looks_like_rf_die and is_module_mpn:
+                errors.append(
+                    "Pin 1 looks like a bare RF SoC ball (ANT/CHIP_PU) with XTAL "
+                    "pins in the table. Module footprints (WROOM) use pad 1 = GND; "
+                    "extract the module landing-pad table, not the die map."
+                )
 
     if "absolute_maximum_ratings" in data:
         ratings = data["absolute_maximum_ratings"]

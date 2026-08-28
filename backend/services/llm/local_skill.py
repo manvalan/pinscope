@@ -148,8 +148,12 @@ async def run_skill_locally(
 
             errors: list[str] = []
             if validator is not None:
+                check = dict(payload)
+                mpn_hint = re.search(r"MPN:\s*(\S+)", user_text or "", re.I)
+                if mpn_hint and "mpn" not in check:
+                    check["mpn"] = mpn_hint.group(1).rstrip(".,;")
                 try:
-                    errors = list(validator(payload) or [])
+                    errors = list(validator(check) or [])
                 except Exception as exc:
                     log.warning(
                         "Skill %s validate.py raised: %s", skill_name, exc,
