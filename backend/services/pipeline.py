@@ -1004,6 +1004,184 @@ async def _stage_simple_extraction(ctx: PipelineContext) -> None:
                    {"stage": "simple_extraction", "status": "complete"})
 
 
+async def _catalog_resolve_unresolved_passives(
+    ctx: PipelineContext, still_unresolved: list[str], models_dir: Path,
+) -> None:
+    """Resolve passives from LCSC / DigiKey / BOM value — no datasheet PDF."""
+    if not still_unresolved:
+        return
+
+    from backend.services.digikey import fetch_params
+
+    _need_lcsc = [m for m in still_unresolved if m not in ctx.lcsc_data]
+    if _need_lcsc and settings.use_purple_parts:
+        try:
+            from backend.services.purple_parts import lookup_mpn_batch
+            _parts = await lookup_mpn_batch(_need_lcsc)
+            for _m, _part in _parts.items():
+                if _part and _part.get("description"):
+                    ctx.lcsc_data.setdefault(_m, _part)
+        except Exception:
+            logger.warning("purple-parts by-mpn backstop failed", exc_info=True)
+
+    sem = asyncio.Semaphore(settings.ic_concurrency)
+
+    async def _resolve_one(mpn: str) -> None:
+        async with sem:
+            if ctx.paused:
+                return
+            safe = safe_mpn(mpn)
+            model_path = models_dir / f"{safe}.json"
+
+            lib_key = proj_svc.library_has_passive_model(ctx.storage, mpn)
+            if lib_key:
+                ctx.storage.download_to_local(lib_key, model_path)
+                broker.publish(ctx.project_id, "step_update",
+                               {"stage": "passive_extraction",
+                                "substep": mpn, "status": "complete",
+                                "detail": "specs from library"})
+                return
+
+            if not _check_credit_gate(ctx, "passive_extraction", mpn,
+                                      estimate_stage_cost_usd("digikey_resolve")):
+                await _paused_stage_publish(ctx, "passive_extraction", "out of credits")
+                return
+
+            private = ApiLogger(free=ctx.api_logger.free)
+            model = None
+            resolved_via: str | None = None
+            first_error: str | None = None
+            try:
+                lcsc = ctx.lcsc_data.get(mpn)
+                if lcsc and lcsc.get("description"):
+                    try:
+                        broker.publish(ctx.project_id, "step_update",
+                                       {"stage": "passive_extraction",
+                                        "substep": mpn, "status": "running",
+                                        "detail": "auto-resolving via LCSC"})
+                        synth_category = " / ".join(
+                            p for p in (lcsc.get("category"), lcsc.get("subcategory")) if p
+                        )
+                        synth_params: list[dict[str, str]] = []
+                        if lcsc.get("package"):
+                            synth_params.append(
+                                {"name": "Package / Case", "value": lcsc["package"]},
+                            )
+                        if lcsc.get("manufacturer"):
+                            synth_params.append(
+                                {"name": "Manufacturer", "value": lcsc["manufacturer"]},
+                            )
+                        model = await extraction.auto_resolve_specs(
+                            mpn=mpn,
+                            digikey_params=synth_params,
+                            digikey_category=synth_category or "",
+                            digikey_description=lcsc["description"],
+                            component_type="passive",
+                            taxonomy_dir=ctx.ws.taxonomy_dir,
+                            api_logger=private,
+                        )
+                        if model is not None:
+                            resolved_via = "lcsc"
+                    except Exception as e:
+                        first_error = str(e)
+
+                if model is None and settings.use_digikey:
+                    try:
+                        broker.publish(ctx.project_id, "step_update",
+                                       {"stage": "passive_extraction",
+                                        "substep": mpn, "status": "running",
+                                        "detail": "auto-resolving via DigiKey"})
+                        result = await fetch_params(mpn)
+                        if result.ok and result.params:
+                            model = await extraction.auto_resolve_specs(
+                                mpn=mpn,
+                                digikey_params=result.params.parameters,
+                                digikey_category=result.params.category,
+                                digikey_description=result.params.description,
+                                component_type="passive",
+                                taxonomy_dir=ctx.ws.taxonomy_dir,
+                                api_logger=private,
+                            )
+                            resolved_via = "digikey"
+                        else:
+                            first_error = result.error or "no DigiKey parameters"
+                    except Exception as e:
+                        first_error = str(e)
+
+                if model is None:
+                    bom_value = ctx.passive_values.get(mpn, "").strip()
+                    refs = ctx.passive_mpns.get(mpn, [])
+                    pref_match = re.match(r"^[A-Za-z]+", refs[0]) if refs else None
+                    ref_prefix = pref_match.group(0).upper() if pref_match else ""
+                    if bom_value and ref_prefix in {"C", "R", "L", "FB"}:
+                        try:
+                            broker.publish(ctx.project_id, "step_update",
+                                           {"stage": "passive_extraction",
+                                            "substep": mpn, "status": "running",
+                                            "detail": f"resolving from BOM value {bom_value!r}"})
+                            model = await extraction.resolve_from_value(
+                                mpn=mpn, value=bom_value,
+                                ref_prefix=ref_prefix,
+                                component_type="passive",
+                                taxonomy_dir=ctx.ws.taxonomy_dir,
+                                api_logger=private,
+                            )
+                            resolved_via = "value"
+                        except Exception as e:
+                            first_error = first_error or str(e)
+
+                if model is None:
+                    err = first_error or "no LCSC/DigiKey hit and no usable BOM value"
+                    if private.entries:
+                        ctx.api_logger.entries.extend(private.entries)
+                    ctx.skipped.append(SkippedItem(mpn, "passive_resolve", err))
+                    broker.publish(ctx.project_id, "step_update",
+                                   {"stage": "passive_extraction",
+                                    "substep": mpn, "status": "failed",
+                                    "error": err})
+                    return
+
+                model_path.write_text(model.model_dump_json(indent=2) + "\n")
+                model_key = f"{ctx.ws.prefix}/models/{safe}.json"
+                ctx.storage.upload_from_local(model_path, model_key)
+                if resolved_via in ("digikey", "lcsc"):
+                    proj_svc.save_to_library(
+                        ctx.storage, model_key, "passives", f"{safe}.json",
+                    )
+                _charge_private_logger(ctx, private)
+                ctx.pause_last_completed = f"Resolved {mpn}"
+                detail = {
+                    "lcsc": "auto-resolved via LCSC",
+                    "digikey": "auto-resolved via DigiKey",
+                    "value": "resolved from BOM value (not saved to library)",
+                }.get(resolved_via, "resolved")
+                broker.publish(ctx.project_id, "step_update",
+                               {"stage": "passive_extraction",
+                                "substep": mpn, "status": "complete",
+                                "detail": detail})
+
+            except CancelRequested:
+                if private.entries:
+                    ctx.api_logger.entries.extend(private.entries)
+                raise
+            except Exception as e:
+                if private.entries:
+                    ctx.api_logger.entries.extend(private.entries)
+                ctx.skipped.append(SkippedItem(mpn, "passive_resolve", str(e)))
+                broker.publish(ctx.project_id, "step_update",
+                               {"stage": "passive_extraction",
+                                "substep": mpn, "status": "failed",
+                                "error": str(e)})
+
+    results = await asyncio.gather(
+        *(_resolve_one(m) for m in still_unresolved),
+        return_exceptions=True,
+    )
+    for r in results:
+        if isinstance(r, (asyncio.CancelledError, CancelRequested)):
+            raise r
+
+
 async def _stage_passive_extraction(ctx: PipelineContext) -> None:
     """Stage 3 — Extract passive patterns; DigiKey fallback for unresolved."""
     broker.publish(ctx.project_id, "step_update",
@@ -1053,6 +1231,19 @@ async def _stage_passive_extraction(ctx: PipelineContext) -> None:
         broker.publish(ctx.project_id, "step_update",
                        {"stage": "passive_extraction", "status": "complete",
                         "detail": "all passives already resolved"})
+        return
+
+    # LCSC / DigiKey / BOM value first — a Yageo series PDF can stall
+    # extract_pattern for minutes on DeepSeek vision.
+    await _catalog_resolve_unresolved_passives(ctx, list(unresolved), models_dir)
+    unresolved = {
+        m: r for m, r in unresolved.items()
+        if not (models_dir / f"{safe_mpn(m)}.json").is_file()
+    }
+    if not unresolved:
+        broker.publish(ctx.project_id, "step_update",
+                       {"stage": "passive_extraction", "status": "complete",
+                        "detail": "all passives resolved from catalog"})
         return
 
     ds_dir = ctx.ws.local_path("uploads/datasheets")
@@ -1140,12 +1331,27 @@ async def _stage_passive_extraction(ctx: PipelineContext) -> None:
                             "detail": "extracting pattern"})
 
             before_count = len(ctx.api_logger.entries)
-            out = await extraction.extract_pattern(
-                str(pdf_path), mpn_list, patterns_dir,
-                trigger_mpn=_trigger_mpn,
-                taxonomy_dir=ctx.ws.taxonomy_dir,
-                api_logger=ctx.api_logger,
-            )
+            try:
+                out = await asyncio.wait_for(
+                    extraction.extract_pattern(
+                        str(pdf_path), mpn_list, patterns_dir,
+                        trigger_mpn=_trigger_mpn,
+                        taxonomy_dir=ctx.ws.taxonomy_dir,
+                        api_logger=ctx.api_logger,
+                    ),
+                    timeout=90,
+                )
+            except asyncio.TimeoutError:
+                ctx.skipped.append(SkippedItem(
+                    pdf_path.stem, "passive_extraction",
+                    "pattern extraction timed out (90s)",
+                ))
+                broker.publish(ctx.project_id, "step_update",
+                               {"stage": "passive_extraction",
+                                "substep": pdf_path.stem,
+                                "status": "failed",
+                                "error": "pattern extraction timed out"})
+                continue
 
             if out:
                 # Upload source datasheet PDF to library (content-addressed)
@@ -1187,220 +1393,11 @@ async def _stage_passive_extraction(ctx: PipelineContext) -> None:
                             "substep": pdf_path.stem,
                             "status": "failed", "error": str(e)})
 
-    # Fallback for still-unresolved passives: DigiKey exact-MPN lookup first,
-    # then a Haiku-powered value resolver for BOMs where the MPN column holds a
-    # value token (e.g. "10uF"). Value-based results are per-project only and
-    # are never written to the shared library.
-    if unresolved:
-        still_unresolved = [
-            mpn for mpn in unresolved
-            if not (models_dir / f"{safe_mpn(mpn)}.json").is_file()
-        ]
-        if still_unresolved:
-            from backend.services.digikey import fetch_params
-
-            # By-MPN backstop: passives with no cached LCSC payload (real-MPN
-            # BOMs not pre-resolved at upload/wizard time, or wizard gaps like
-            # skipped / errored / out-of-credits) get a reverse catalogue lookup
-            # so the LCSC branch below can fire for them too. Fail-soft — misses
-            # simply fall through to the DigiKey path.
-            _need_lcsc = [m for m in still_unresolved if m not in ctx.lcsc_data]
-            if _need_lcsc and settings.use_purple_parts:
-                try:
-                    from backend.services.purple_parts import lookup_mpn_batch
-                    _parts = await lookup_mpn_batch(_need_lcsc)
-                    for _m, _part in _parts.items():
-                        if _part and _part.get("description"):
-                            ctx.lcsc_data.setdefault(_m, _part)
-                except Exception:
-                    logger.warning("purple-parts by-mpn backstop failed", exc_info=True)
-
-            # Resolve each passive concurrently (bounded by ic_concurrency),
-            # mirroring _stage_ic_extraction: each in-flight unit uses a private
-            # ApiLogger so concurrent API entries don't interleave, and
-            # _charge_private_logger bills exactly that unit's calls atomically.
-            sem = asyncio.Semaphore(settings.ic_concurrency)
-
-            async def _resolve_one(mpn: str) -> None:
-                async with sem:
-                    # Soft gate: once the balance is exhausted, don't *start* new
-                    # units; in-flight ones finish + charge (bounded overdraft).
-                    if ctx.paused:
-                        return
-                    safe = safe_mpn(mpn)
-                    model_path = models_dir / f"{safe}.json"
-
-                    # Check library first — free, no charge, no gate.
-                    lib_key = proj_svc.library_has_passive_model(ctx.storage, mpn)
-                    if lib_key:
-                        ctx.storage.download_to_local(lib_key, model_path)
-                        broker.publish(ctx.project_id, "step_update",
-                                       {"stage": "passive_extraction",
-                                        "substep": mpn, "status": "complete",
-                                        "detail": "specs from library"})
-                        return
-
-                    if not _check_credit_gate(ctx, "passive_extraction", mpn,
-                                              estimate_stage_cost_usd("digikey_resolve")):
-                        await _paused_stage_publish(ctx, "passive_extraction", "out of credits")
-                        return
-
-                    # Private logger so concurrent resolves don't interleave their
-                    # API entries — charging slices exactly this passive's calls.
-                    private = ApiLogger(free=ctx.api_logger.free)
-                    model = None
-                    resolved_via: str | None = None
-                    first_error: str | None = None
-                    try:
-                        # --- LCSC (purple-parts) first: the description carries
-                        # value/voltage/dielectric/tolerance/package for typical
-                        # passives. Synthesize a DigiKey-shaped payload and reuse
-                        # auto_resolve_specs.
-                        lcsc = ctx.lcsc_data.get(mpn)
-                        if lcsc and lcsc.get("description"):
-                            try:
-                                broker.publish(ctx.project_id, "step_update",
-                                               {"stage": "passive_extraction",
-                                                "substep": mpn, "status": "running",
-                                                "detail": "auto-resolving via LCSC"})
-                                synth_category = " / ".join(
-                                    p for p in (lcsc.get("category"), lcsc.get("subcategory")) if p
-                                )
-                                synth_params: dict[str, str] = {}
-                                if lcsc.get("package"):
-                                    synth_params["Package / Case"] = lcsc["package"]
-                                if lcsc.get("manufacturer"):
-                                    synth_params["Manufacturer"] = lcsc["manufacturer"]
-                                model = await extraction.auto_resolve_specs(
-                                    mpn=mpn,
-                                    digikey_params=synth_params,
-                                    digikey_category=synth_category or None,
-                                    digikey_description=lcsc["description"],
-                                    component_type="passive",
-                                    taxonomy_dir=ctx.ws.taxonomy_dir,
-                                    api_logger=private,
-                                )
-                                if model is not None:
-                                    resolved_via = "lcsc"
-                            except Exception as e:
-                                first_error = str(e)
-
-                        # --- DigiKey: only trusted on an exact MPN hit ----------
-                        if model is None and settings.use_digikey:
-                            try:
-                                broker.publish(ctx.project_id, "step_update",
-                                               {"stage": "passive_extraction",
-                                                "substep": mpn, "status": "running",
-                                                "detail": "auto-resolving via DigiKey"})
-                                result = await fetch_params(mpn)
-                                if result.ok and result.params:
-                                    model = await extraction.auto_resolve_specs(
-                                        mpn=mpn,
-                                        digikey_params=result.params.parameters,
-                                        digikey_category=result.params.category,
-                                        digikey_description=result.params.description,
-                                        component_type="passive",
-                                        taxonomy_dir=ctx.ws.taxonomy_dir,
-                                        api_logger=private,
-                                    )
-                                    resolved_via = "digikey"
-                                else:
-                                    first_error = result.error or "no DigiKey parameters"
-                            except Exception as e:
-                                first_error = str(e)
-
-                        # --- Value fallback: parse the BOM value via Haiku ------
-                        if model is None:
-                            bom_value = ctx.passive_values.get(mpn, "").strip()
-                            refs = ctx.passive_mpns.get(mpn, [])
-                            pref_match = re.match(r"^[A-Za-z]+", refs[0]) if refs else None
-                            ref_prefix = pref_match.group(0).upper() if pref_match else ""
-                            if bom_value and ref_prefix in {"C", "R", "L", "FB"}:
-                                try:
-                                    broker.publish(ctx.project_id, "step_update",
-                                                   {"stage": "passive_extraction",
-                                                    "substep": mpn, "status": "running",
-                                                    "detail": f"resolving from BOM value {bom_value!r}"})
-                                    model = await extraction.resolve_from_value(
-                                        mpn=mpn, value=bom_value,
-                                        ref_prefix=ref_prefix,
-                                        component_type="passive",
-                                        taxonomy_dir=ctx.ws.taxonomy_dir,
-                                        api_logger=private,
-                                    )
-                                    resolved_via = "value"
-                                except Exception as e:
-                                    first_error = first_error or str(e)
-
-                        if model is None:
-                            err = first_error or "no LCSC/DigiKey hit and no usable BOM value"
-                            # Preserve any logged-but-failed calls (not charged).
-                            if private.entries:
-                                ctx.api_logger.entries.extend(private.entries)
-                            ctx.skipped.append(SkippedItem(mpn, "passive_resolve", err))
-                            broker.publish(ctx.project_id, "step_update",
-                                           {"stage": "passive_extraction",
-                                            "substep": mpn, "status": "failed",
-                                            "error": err})
-                            return
-
-                        model_path.write_text(model.model_dump_json(indent=2) + "\n")
-
-                        # Always upload to the project's own storage so graph build picks it up
-                        model_key = f"{ctx.ws.prefix}/models/{safe}.json"
-                        ctx.storage.upload_from_local(model_path, model_key)
-
-                        # Share to the global library when the resolution is backed
-                        # by a real MPN (DigiKey or LCSC). Value-based tokens like
-                        # "10uF" are not real MPNs and would poison lookups for
-                        # every future project.
-                        if resolved_via in ("digikey", "lcsc"):
-                            proj_svc.save_to_library(
-                                ctx.storage, model_key, "passives", f"{safe}.json",
-                            )
-
-                        # Merge this passive's API entries into the shared log and
-                        # charge — post-save so a crash before the writes above
-                        # would not have charged the user.
-                        _charge_private_logger(ctx, private)
-                        ctx.pause_last_completed = f"Resolved {mpn}"
-
-                        detail = {
-                            "lcsc": "auto-resolved via LCSC",
-                            "digikey": "auto-resolved via DigiKey",
-                            "value": "resolved from BOM value (not saved to library)",
-                        }.get(resolved_via, "resolved")
-                        broker.publish(ctx.project_id, "step_update",
-                                       {"stage": "passive_extraction",
-                                        "substep": mpn, "status": "complete",
-                                        "detail": detail})
-
-                    except CancelRequested:
-                        # Cancel aborts the whole run. Preserve billing data for
-                        # any completed calls, then propagate so gather surfaces it.
-                        if private.entries:
-                            ctx.api_logger.entries.extend(private.entries)
-                        raise
-                    except Exception as e:
-                        # Per-passive isolation. Preserve billing data for any
-                        # calls that did complete (logged but not charged on failure).
-                        if private.entries:
-                            ctx.api_logger.entries.extend(private.entries)
-                        ctx.skipped.append(SkippedItem(mpn, "passive_resolve", str(e)))
-                        broker.publish(ctx.project_id, "step_update",
-                                       {"stage": "passive_extraction",
-                                        "substep": mpn, "status": "failed",
-                                        "error": str(e)})
-
-            results = await asyncio.gather(
-                *(_resolve_one(m) for m in still_unresolved),
-                return_exceptions=True,
-            )
-            # Surface cancellation so the top-level run handler cleans up. Per-
-            # passive failures stay isolated (captured as skipped above).
-            for r in results:
-                if isinstance(r, (asyncio.CancelledError, CancelRequested)):
-                    raise r
+    leftover = [
+        mpn for mpn in unresolved
+        if not (models_dir / f"{safe_mpn(mpn)}.json").is_file()
+    ]
+    await _catalog_resolve_unresolved_passives(ctx, leftover, models_dir)
 
     broker.publish(ctx.project_id, "step_update",
                    {"stage": "passive_extraction", "status": "complete"})

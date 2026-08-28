@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # Per-stage DeepSeek model overrides (fall back to deepseek_model)
     model_pintable_deepseek: str = "deepseek-v4-flash-vision-exp"
-    model_pattern_deepseek: str = "deepseek-v4-flash-vision-exp"
+    model_pattern_deepseek: str = "deepseek-v4-flash"
     model_specs_deepseek: str = "deepseek-v4-flash-vision-exp"
     model_validation_deepseek: str = "deepseek-v4-pro"
     model_auto_resolve_deepseek: str = "deepseek-v4-flash"
