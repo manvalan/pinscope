@@ -6,10 +6,13 @@ fails when the manufacturer CDN blocks the download.
 
 This module tries, in order:
 
-1. LCSC product search (no API key) — exact MPN match, then packing-suffix
+1. Explicit BOM datasheet URL (``url_hint``).
+2. LCSC product search (no API key) — exact MPN match, then packing-suffix
    variants (``/TR``, ``SPTR``, …).
-2. Direct manufacturer URLs for vendors with stable datasheet paths (TI).
-3. DigiKey, if ``DIGIKEY_CLIENT_ID`` / ``SECRET`` are configured.
+3. Direct manufacturer URLs (TI symlink + gpn, Espressif, ST, Analog,
+   NXP, onsemi) with HTML-interstitial follow when the CDN returns a page
+   instead of a PDF.
+4. DigiKey, if ``DIGIKEY_CLIENT_ID`` / ``SECRET`` are configured.
 
 Never raises: every failure is captured on :class:`DatasheetHit`.
 """
@@ -192,18 +195,115 @@ def _pick_lcsc_product(mpn: str, products: list[dict]) -> dict | None:
     return exact or loose or family
 
 
-async def _download_pdf(url: str) -> bytes:
+def _referer_for(url: str) -> str:
+    from urllib.parse import urlparse
+
+    p = urlparse(url)
+    if not p.scheme or not p.netloc:
+        return "https://www.google.com/"
+    return f"{p.scheme}://{p.netloc}/"
+
+
+def _looks_like_html(data: bytes) -> bool:
+    head = data.lstrip()[:400].lower()
+    return (
+        head.startswith(b"<!doctype html")
+        or head.startswith(b"<html")
+        or b"<head" in head
+        or b"<title" in head
+    )
+
+
+_PDF_HREF_RE = re.compile(
+    r"""(?:href|src|content)\s*=\s*["']([^"']+\.pdf(?:\?[^"']*)?)["']""",
+    re.IGNORECASE,
+)
+
+
+def _pdf_links_in_html(html: str, base_url: str, mpn: str) -> list[str]:
+    """PDF hrefs on a landing page that still look like this MPN's datasheet."""
+    from urllib.parse import urljoin, urlparse
+    from pathlib import PurePosixPath
+
+    want = _alnum(mpn)
+    if len(want) < 5:
+        return []
+    stem_prefix = want[: min(6, len(want))]
+    out: list[str] = []
+    seen: set[str] = set()
+    for match in _PDF_HREF_RE.finditer(html):
+        href = match.group(1).strip()
+        abs_url = urljoin(base_url, href)
+        key = abs_url.split("#", 1)[0]
+        if key in seen:
+            continue
+        seen.add(key)
+        stem = PurePosixPath(urlparse(abs_url).path).stem
+        blob = _alnum(stem) + _alnum(abs_url)
+        if mpn_catalog_match(mpn, stem) or mpn_matches(mpn, stem) or stem_prefix in blob:
+            out.append(key)
+        if len(out) >= 3:
+            break
+    return out
+
+
+async def _http_get(url: str) -> bytes:
+    headers = {
+        "User-Agent": _UA,
+        "Accept": "application/pdf,application/octet-stream;q=0.9,text/html;q=0.8,*/*;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": _referer_for(url),
+    }
     async with httpx.AsyncClient(
-        timeout=25, follow_redirects=True, headers={"User-Agent": _UA, "Accept": "*/*"},
+        timeout=25, follow_redirects=True, headers=headers,
     ) as client:
         resp = await client.get(url)
         resp.raise_for_status()
-        data = resp.content
+        return resp.content
+
+
+def _as_pdf_bytes(data: bytes) -> bytes:
     if not data.startswith(_PDF_MAGIC):
         raise ValueError("Downloaded file is not a valid PDF")
     if len(data) < _MIN_PDF_SIZE:
         raise ValueError(f"PDF too small ({len(data)} bytes)")
     return data
+
+
+async def _download_pdf(url: str, *, mpn: str | None = None, _hops: int = 0) -> bytes:
+    """GET a URL and return PDF bytes.
+
+    Vendor CDNs often 200 an HTML interstitial (captcha, cookie wall). If the
+    body is HTML, follow at most one in-page ``.pdf`` link that still matches
+    ``mpn``. ``http://`` is retried as ``https://``.
+    """
+    candidates = [url]
+    if url.startswith("http://"):
+        candidates.append("https://" + url[len("http://"):])
+    last_err: Exception | None = None
+    for candidate in candidates:
+        try:
+            data = await _http_get(candidate)
+        except Exception as exc:
+            last_err = exc
+            continue
+        try:
+            return _as_pdf_bytes(data)
+        except ValueError as exc:
+            last_err = exc
+            if _hops >= 1 or not mpn or not _looks_like_html(data):
+                continue
+            try:
+                html = data.decode("utf-8", errors="ignore")
+            except Exception:
+                continue
+            for href in _pdf_links_in_html(html, candidate, mpn):
+                try:
+                    return await _download_pdf(href, mpn=mpn, _hops=_hops + 1)
+                except Exception as hop_exc:
+                    last_err = hop_exc
+                    continue
+    raise last_err or ValueError("Download failed")
 
 
 async def _lcsc_search(keyword: str) -> list[dict]:
@@ -275,7 +375,7 @@ async def _from_lcsc(mpn: str, lcsc_id: str | None) -> DatasheetHit | None:
     if not url:
         return None
     try:
-        pdf = await _download_pdf(url)
+        pdf = await _download_pdf(url, mpn=mpn)
     except Exception as exc:
         log.info("LCSC PDF download failed for %s (%s): %s", mpn, url, exc)
         return DatasheetHit(mpn, error=f"LCSC download failed: {exc}", url=url, source="lcsc")
@@ -348,25 +448,132 @@ def _looks_like_ti(mpn: str) -> bool:
     return any(s.startswith(p) for p in _TI_PREFIXES)
 
 
-async def _from_ti(mpn: str) -> DatasheetHit | None:
+def _ti_urls(mpn: str) -> list[str]:
     if not _looks_like_ti(mpn):
-        return None
+        return []
+    urls: list[str] = []
+    for slug in _ti_slugs(mpn):
+        urls.append(f"https://www.ti.com/lit/ds/symlink/{slug}.pdf")
+        urls.append(f"https://www.ti.com/lit/gpn/{slug}.pdf")
+    return urls
+
+
+def _espressif_urls(mpn: str) -> list[str]:
+    s = mpn.strip().lower().replace("_", "-")
+    if not s.startswith("esp"):
+        return []
+    s = re.sub(r"-n\d+r\d+v?$", "", s)
+    slugs: list[str] = []
+    for val in (s, re.split(r"-wroom|-wrover|-pico", s)[0]):
+        val = val.strip("-")
+        if val and val not in slugs:
+            slugs.append(val)
+    base = "https://www.espressif.com/sites/default/files/documentation"
+    return [f"{base}/{slug}_datasheet_en.pdf" for slug in slugs]
+
+
+_ST_PREFIXES = (
+    "stm32", "stm8", "stusb", "stspin", "usblc", "esda", "sm6t", "stth",
+    "l78", "ld1117", "m24c", "vl53", "lsm6",
+)
+
+
+def _st_urls(mpn: str) -> list[str]:
+    s = mpn.lower()
+    if not any(s.startswith(p) for p in _ST_PREFIXES):
+        return []
+    compact = re.sub(r"[^a-z0-9-]", "", s.replace("/", "-"))
+    return [f"https://www.st.com/resource/en/datasheet/{compact}.pdf"]
+
+
+def _adi_family(mpn: str) -> str | None:
+    s = re.sub(r"[^A-Z0-9]", "", mpn.upper())
+    m = re.match(r"^((?:AD|LT|OP|ADP|LTC)[A-Z]*\d+)", s)
+    return m.group(1) if m else None
+
+
+def _adi_urls(mpn: str) -> list[str]:
+    fam = _adi_family(mpn)
+    if not fam:
+        return []
+    root = "https://www.analog.com/media/en/technical-documentation/data-sheets"
+    return [f"{root}/{fam}.pdf", f"{root}/{fam.lower()}.pdf"]
+
+
+_NXP_PREFIXES = ("pca", "pcf", "lpc", "imx", "tja", "pn5", "pn7", "kw4")
+
+
+def _nxp_urls(mpn: str) -> list[str]:
+    s = mpn.lower()
+    if not any(s.startswith(p) for p in _NXP_PREFIXES):
+        return []
+    token = re.sub(r"[^A-Z0-9-]", "", mpn.split("/")[0].split(",")[0].strip().upper())
+    if not token:
+        return []
+    return [f"https://www.nxp.com/docs/en/data-sheet/{token}.pdf"]
+
+
+_ONSEMI_PREFIXES = ("ncp", "ncv", "ntd", "fdc", "cat24", "fusb")
+
+
+def _onsemi_urls(mpn: str) -> list[str]:
+    s = mpn.lower()
+    if not any(s.startswith(p) for p in _ONSEMI_PREFIXES):
+        return []
+    slug = re.sub(r"[^a-z0-9]", "", s)
+    return [f"https://www.onsemi.com/pdf/datasheet/{slug}.pdf"]
+
+
+def manufacturer_pdf_candidates(mpn: str) -> list[tuple[str, str]]:
+    """Stable vendor PDF URLs for this MPN (source, url), first match wins."""
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    def add(source: str, urls: list[str]) -> None:
+        for url in urls:
+            if url not in seen:
+                seen.add(url)
+                out.append((source, url))
+
+    add("ti", _ti_urls(mpn))
+    add("espressif", _espressif_urls(mpn))
+    add("st", _st_urls(mpn))
+    add("analog", _adi_urls(mpn))
+    add("nxp", _nxp_urls(mpn))
+    add("onsemi", _onsemi_urls(mpn))
+    return out
+
+
+async def _from_manufacturer(mpn: str) -> DatasheetHit | None:
+    """Direct manufacturer datasheet URLs (TI symlink/gpn, ST, ADI, Espressif, …)."""
     last_err = None
     last_url = None
-    for slug in _ti_slugs(mpn):
-        url = f"https://www.ti.com/lit/ds/symlink/{slug}.pdf"
+    last_source = None
+    for source, url in manufacturer_pdf_candidates(mpn):
         last_url = url
+        last_source = source
         try:
-            pdf = await _download_pdf(url)
+            pdf = await _download_pdf(url, mpn=mpn)
         except Exception as exc:
             last_err = exc
             continue
-        log.info("Fetched datasheet for %s via TI (%s, %d KB)", mpn, slug, len(pdf) // 1024)
-        return DatasheetHit(mpn, pdf_bytes=pdf, url=url, source="ti")
+        log.info(
+            "Fetched datasheet for %s via %s (%s, %d KB)",
+            mpn, source, url, len(pdf) // 1024,
+        )
+        return DatasheetHit(mpn, pdf_bytes=pdf, url=url, source=source)
     if last_err:
-        log.info("TI lookup missed %s: %s", mpn, last_err)
-        return DatasheetHit(mpn, error=f"TI download failed: {last_err}", url=last_url, source="ti")
+        log.info("Manufacturer lookup missed %s: %s", mpn, last_err)
+        return DatasheetHit(
+            mpn, error=f"{last_source} download failed: {last_err}",
+            url=last_url, source=last_source,
+        )
     return None
+
+
+async def _from_ti(mpn: str) -> DatasheetHit | None:
+    """Historical name — manufacturer URL table (TI plus other stable vendors)."""
+    return await _from_manufacturer(mpn)
 
 
 async def _from_digikey(mpn: str) -> DatasheetHit | None:
@@ -387,8 +594,8 @@ async def find_datasheet(
 ) -> DatasheetHit:
     """Find and download a datasheet PDF for ``mpn``.
 
-    Tries an explicit BOM URL first, then LCSC, then TI (when the MPN
-    looks like a TI part), then DigiKey.
+    Tries an explicit BOM URL first, then LCSC, then manufacturer PDF
+    URLs (TI, Espressif, ST, Analog, NXP, onsemi), then DigiKey.
     """
     mpn = (mpn or "").strip()
     if not mpn:
@@ -400,7 +607,7 @@ async def find_datasheet(
     hint = (url_hint or "").strip()
     if hint.startswith("http"):
         try:
-            pdf = await _download_pdf(hint)
+            pdf = await _download_pdf(hint, mpn=mpn)
             return DatasheetHit(mpn, pdf_bytes=pdf, url=hint, source="bom")
         except Exception as exc:
             log.info("BOM datasheet URL missed %s: %s", mpn, exc)

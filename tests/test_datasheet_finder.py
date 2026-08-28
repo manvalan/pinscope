@@ -6,12 +6,15 @@ import asyncio
 
 from backend.services.datasheet_finder import (
     DatasheetHit,
+    _pdf_links_in_html,
     _pick_lcsc_product,
     _ti_slugs,
     find_datasheet,
+    manufacturer_pdf_candidates,
     mpn_catalog_match,
     mpn_matches,
     mpn_query_variants,
+    _download_pdf,
 )
 
 
@@ -158,3 +161,40 @@ def test_find_datasheet_all_miss(monkeypatch):
     hit = asyncio.run(find_datasheet("NOTAREALPART123"))
     assert not hit.ok
     assert "No datasheet found" in (hit.error or "")
+
+
+def test_manufacturer_candidates_ti_gpn_and_espressif():
+    ti = manufacturer_pdf_candidates("INA228AQDGSRQ1")
+    urls = [u for _, u in ti]
+    assert any("/lit/ds/symlink/ina228-q1.pdf" in u for u in urls)
+    assert any("/lit/gpn/ina228" in u for u in urls)
+    esp = manufacturer_pdf_candidates("ESP32-S31-WROOM-3-N16R16V")
+    urls = [u for _, u in esp]
+    assert any("esp32-s31-wroom-3_datasheet_en.pdf" in u for u in urls)
+    assert any("esp32-s31_datasheet_en.pdf" in u for u in urls)
+    adi = manufacturer_pdf_candidates("ADAU1467WBCPZ300R")
+    assert any(u.endswith("/ADAU1467.pdf") for _, u in adi)
+
+
+def test_pdf_links_in_html_require_family_match():
+    html = '''<a href="/lit/ds/symlink/ina228-q1.pdf">ds</a>
+              <a href="https://evil.example/unrelated.pdf">no</a>'''
+    links = _pdf_links_in_html(html, "https://www.ti.com/product/INA228", "INA228AQDGSRQ1")
+    assert links == ["https://www.ti.com/lit/ds/symlink/ina228-q1.pdf"]
+
+
+def test_download_pdf_follows_html_interstitial(monkeypatch):
+    pdf = b"%PDF-" + b"x" * 8000
+
+    async def fake_get(url: str) -> bytes:
+        if url.endswith(".pdf"):
+            return pdf
+        return (
+            b'<html><a href="https://www.ti.com/lit/ds/symlink/tpd2e007.pdf">'
+            b"datasheet</a></html>"
+        )
+
+    monkeypatch.setattr("backend.services.datasheet_finder._http_get", fake_get)
+    data = asyncio.run(_download_pdf("https://www.ti.com/product/TPD2E007", mpn="TPD2E007DCKR"))
+    assert data.startswith(b"%PDF-")
+
