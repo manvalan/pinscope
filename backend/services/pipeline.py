@@ -397,6 +397,10 @@ class PipelineContext:
     # API call is still made (and the USD cost is still recorded in logs),
     # but nothing is charged to the user's balance.
     free: bool = False
+    # Reprocess of failed reviews / credit resume: do not re-extract
+    # pintables (vision can stall for many minutes) and do not block the
+    # review stage on LCSC/DigiKey lookups for ICs that already missed.
+    resume: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -725,8 +729,20 @@ async def _ensure_local_datasheet(
     return True
 
 
+def _prior_extract_ready(ctx: PipelineContext) -> bool:
+    graph = ctx.ws.local_path("design_graph.json")
+    extracted = ctx.ws.local_path("extracted")
+    return graph.is_file() and extracted.is_dir() and any(extracted.glob("*.json"))
+
+
 async def _stage_ic_extraction(ctx: PipelineContext) -> None:
     """Stage 2 — Extract IC pin tables from datasheets."""
+    if ctx.resume and _prior_extract_ready(ctx):
+        broker.publish(ctx.project_id, "step_update",
+                       {"stage": "ic_extraction", "status": "complete",
+                        "detail": "reusing previous extraction"})
+        return
+
     extracted_dir = ctx.ws.local_path("extracted")
 
     # Pre-categorize: workspace cache, library cache, or needs extraction
@@ -861,6 +877,11 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
 async def _stage_simple_extraction(ctx: PipelineContext) -> None:
     """Stage 2.5 — Extract specs for discrete/simple components."""
     if not ctx.simple_mpns:
+        return
+    if ctx.resume and _prior_extract_ready(ctx):
+        broker.publish(ctx.project_id, "step_update",
+                       {"stage": "simple_extraction", "status": "complete",
+                        "detail": "reusing previous extraction"})
         return
 
     models_dir = ctx.ws.local_path("models")
@@ -1220,6 +1241,12 @@ async def _stage_passive_extraction(ctx: PipelineContext) -> None:
 
     ctx.patterns = load_patterns(str(patterns_dir)) if patterns_dir.is_dir() else []
 
+    if ctx.resume:
+        broker.publish(ctx.project_id, "step_update",
+                       {"stage": "passive_extraction", "status": "complete",
+                        "detail": "reusing previous extraction"})
+        return
+
     unresolved: dict[str, list[str]] = {}
     for mpn, refs in ctx.passive_mpns.items():
         if resolve_mpn(mpn, ctx.patterns) is not None:
@@ -1491,11 +1518,11 @@ async def _stage_validation(ctx: PipelineContext) -> None:
     derating_path = ctx.ws.local_path("derating.json")
     derating_path.write_text(json.dumps(derating_rows, indent=2) + "\n")
 
-    # Ensure all IC datasheet PDFs are available locally for review.
+    # Ensure IC datasheet PDFs are available locally for review.
     # Cached ICs skipped pintable extraction, so their PDFs may not
     # have been downloaded yet. Auto-fetch fills remaining gaps.
-    # Ensure PDFs for BOM ICs and any extra U* the netlist classified as IC.
-    seen_mpn: set[str] = set()
+    # On resume, skip the network lookup — LCSC/DigiKey for ICs that
+    # already missed can stall the review stage for many minutes.
     mpns_to_place = list(ctx.ic_mpns)
     for comp in ctx.graph.components.values():
         if comp.component_type != ComponentType.IC:
@@ -1503,14 +1530,43 @@ async def _stage_validation(ctx: PipelineContext) -> None:
         extra = (comp.mpn or "").strip()
         if extra:
             mpns_to_place.append(extra)
+
+    unique_mpns: list[str] = []
+    seen_mpn: set[str] = set()
     for mpn in mpns_to_place:
         if mpn in seen_mpn:
             continue
         seen_mpn.add(mpn)
+        unique_mpns.append(mpn)
+
+    async def _place(mpn: str) -> None:
         safe = safe_mpn(mpn)
         pdf_path = ds_dir / f"{safe}.pdf"
-        if not pdf_path.is_file():
-            await _ensure_local_datasheet(ctx, mpn, pdf_path, stage="review")
+        if pdf_path.is_file():
+            return
+        if ctx.resume:
+            from backend.services.datasheet_finder import find_local_pdf, mpn_query_variants
+            alt = find_local_pdf(ds_dir, mpn)
+            if alt is not None and alt.is_file() and alt.resolve() != pdf_path.resolve():
+                pdf_path.write_bytes(alt.read_bytes())
+                return
+            for name in mpn_query_variants(mpn) or [mpn]:
+                lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, name)
+                if lib_ds_key:
+                    ctx.storage.download_to_local(lib_ds_key, pdf_path)
+                    return
+            return
+        try:
+            await asyncio.wait_for(
+                _ensure_local_datasheet(ctx, mpn, pdf_path, stage="review"),
+                timeout=45,
+            )
+        except TimeoutError:
+            logger.warning("Datasheet lookup timed out for %s; reviewing without it", mpn)
+        except Exception:
+            logger.exception("Datasheet lookup failed for %s", mpn)
+
+    await asyncio.gather(*(_place(m) for m in unique_mpns))
 
     # Snapshot the full review queue so pause checkpoints can show what's left.
     # Mirrors the filter in validate_design_async: ICs with a PDF available.
@@ -1701,6 +1757,7 @@ async def run_pipeline(
                 meta=meta,
                 min_ver=min_ver,
                 free=free,
+                resume=resume,
             )
 
             # On resume: carry over prior per-IC review completion so

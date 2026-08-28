@@ -198,6 +198,34 @@ def pdf_to_openai_content(
     max_images: int = _DEFAULT_MAX_IMAGES,
 ) -> list[dict]:
     """OpenAI-style content parts for one PDF: text, plus images if vision."""
+    pdf_path = Path(path)
+    try:
+        mtime = pdf_path.stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    key = (str(pdf_path.resolve()), mtime, vision, max_chars, max_images)
+    cached = _PDF_CONTENT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    parts = _pdf_to_openai_content_uncached(
+        pdf_path, vision=vision, max_chars=max_chars, max_images=max_images,
+    )
+    if len(_PDF_CONTENT_CACHE) > 32:
+        _PDF_CONTENT_CACHE.clear()
+    _PDF_CONTENT_CACHE[key] = parts
+    return parts
+
+
+_PDF_CONTENT_CACHE: dict[tuple, list[dict]] = {}
+
+
+def _pdf_to_openai_content_uncached(
+    path: Path,
+    *,
+    vision: bool,
+    max_chars: int,
+    max_images: int,
+) -> list[dict]:
     text = extract_pdf_text(path, max_chars=max_chars)
     parts: list[dict] = [{"type": "text", "text": text}]
     if not vision:
@@ -209,7 +237,7 @@ def pdf_to_openai_content(
         "type": "text",
         "text": (
             f"The following {len(images)} image(s) are rendered pages of "
-            f"{Path(path).name} (pin tables, abs-max, electrical, and "
+            f"{path.name} (pin tables, abs-max, electrical, and "
             f"application sections preferred over the front matter). "
             f"Use them for diagrams and tables that text extraction may have missed."
         ),

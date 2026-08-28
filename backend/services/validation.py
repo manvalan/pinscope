@@ -379,6 +379,12 @@ async def review_ic_async(
                         tools = _ALL_TOOL_SCHEMAS
                         tool_choice = "auto"
 
+                    if on_progress:
+                        await on_progress(
+                            ic_ref, turn, "waiting",
+                            f"model turn {turn + 1}/{_MAX_REVIEW_TURNS}",
+                        )
+
                     completion = await session.complete(
                         messages=messages,
                         tools=tools,

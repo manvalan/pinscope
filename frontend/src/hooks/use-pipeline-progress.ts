@@ -14,6 +14,7 @@ const CACHED_DETAILS = new Set([
   "specs from library",
   "already resolved",
   "all passives already resolved",
+  "reusing previous extraction",
 ]);
 
 // Single source of truth for stage order and display metadata.

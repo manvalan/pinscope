@@ -17,6 +17,7 @@ import logging
 from typing import Any
 
 from openai import APIStatusError, AsyncOpenAI
+import httpx
 
 from backend.config import settings
 from backend.services.llm.base import LLMProvider, LLMSession
@@ -358,6 +359,8 @@ class DeepSeekProvider(LLMProvider):
         self._client = AsyncOpenAI(
             api_key=api_key,
             base_url=settings.deepseek_base_url,
+            timeout=httpx.Timeout(420.0, connect=20.0),
+            max_retries=1,
         )
 
     async def create_session(
