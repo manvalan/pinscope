@@ -39,10 +39,6 @@ from backend.services.llm.types import (
 log = logging.getLogger(__name__)
 
 _VISION_HINT = "vision"
-# DeepSeek 400s when an assistant turn has reasoning only: content=null
-# and no tool_calls. Empty string is also treated as unset, so replay a
-# non-empty placeholder (the official SDK sample would send content=None).
-_EMPTY_ASSISTANT_CONTENT = " "
 
 
 def _is_vision_model(model: str) -> bool:
@@ -103,20 +99,23 @@ def _user_content_parts(blocks: list[ContentBlock], *, vision: bool) -> list[dic
 
 
 def _repair_assistant_messages(messages: list[dict]) -> list[dict]:
-    """Ensure every assistant turn has content or tool_calls (DeepSeek 400)."""
+    """Ensure every assistant turn has a string ``content`` (DeepSeek 400).
+
+    ``content: null`` / omitted content is rejected even when ``tool_calls``
+    is present. Empty string is accepted.
+    """
     out: list[dict] = []
     changed = False
     for m in messages:
         if m.get("role") != "assistant":
             out.append(m)
             continue
-        tools = m.get("tool_calls") or []
         content = m.get("content")
-        if tools or (isinstance(content, str) and content != ""):
+        if isinstance(content, str):
             out.append(m)
             continue
         fixed = dict(m)
-        fixed["content"] = _EMPTY_ASSISTANT_CONTENT
+        fixed["content"] = content if isinstance(content, str) else ""
         out.append(fixed)
         changed = True
     return out if changed else messages
@@ -136,8 +135,10 @@ def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
             tool_calls = [b for b in m.content if isinstance(b, ToolCall)]
             msg: dict[str, Any] = {"role": "assistant"}
             text = "".join(text_parts)
+            # DeepSeek rejects content=null and a missing content key, even
+            # when tool_calls is set. Empty string is accepted.
+            msg["content"] = text
             if tool_calls:
-                msg["content"] = text if text else None
                 msg["tool_calls"] = [
                     {
                         "id": tc.id,
@@ -149,8 +150,6 @@ def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
                     }
                     for tc in tool_calls
                 ]
-            else:
-                msg["content"] = text or _EMPTY_ASSISTANT_CONTENT
             reasoning = _reasoning_from_blocks(m.content)
             if reasoning:
                 msg["reasoning_content"] = reasoning

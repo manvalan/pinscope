@@ -12,6 +12,7 @@ from backend.config import settings
 from backend.services.llm.pdf_ingest import extract_pdf_text, make_text_pdf
 from backend.services.llm.deepseek_provider import (
     _is_vision_model,
+    _repair_assistant_messages,
     _to_openai_tool,
     _to_openai_tool_choice,
     completion_from_openai,
@@ -72,10 +73,8 @@ def test_messages_to_openai_pdf_becomes_text(sample_pdf: Path):
     assert "Extract the pin table" in blob
 
 
-def test_thinking_only_assistant_sends_placeholder_content():
-    """Empty string is treated as unset; replay a non-empty placeholder."""
-    from backend.services.llm.deepseek_provider import _EMPTY_ASSISTANT_CONTENT
-
+def test_thinking_only_assistant_sends_empty_string_content():
+    """DeepSeek accepts content=\"\" and rejects content=null / omitted."""
     out = messages_to_openai(
         [Message("assistant", [
             TextBlock("", reasoning_content="Need to inspect pin 3 first."),
@@ -83,20 +82,18 @@ def test_thinking_only_assistant_sends_placeholder_content():
         vision=False,
     )
     assert out[0]["role"] == "assistant"
-    assert out[0]["content"] == _EMPTY_ASSISTANT_CONTENT
-    assert out[0]["content"]
+    assert out[0]["content"] == ""
+    assert "content" in out[0]
     assert out[0]["reasoning_content"] == "Need to inspect pin 3 first."
     assert "tool_calls" not in out[0]
 
 
 def test_empty_assistant_blocks_still_set_content():
-    from backend.services.llm.deepseek_provider import _EMPTY_ASSISTANT_CONTENT
-
     out = messages_to_openai([Message("assistant", [])], vision=False)
-    assert out[0]["content"] == _EMPTY_ASSISTANT_CONTENT
+    assert out[0]["content"] == ""
 
 
-def test_tool_call_assistant_may_have_null_content():
+def test_tool_call_assistant_sends_empty_string_content():
     out = messages_to_openai(
         [Message("assistant", [
             ToolCall(id="c1", name="get_pintable", input={"ref": "U2"},
@@ -104,9 +101,18 @@ def test_tool_call_assistant_may_have_null_content():
         ])],
         vision=False,
     )
-    assert out[0]["content"] is None
+    assert out[0]["content"] == ""
     assert out[0]["tool_calls"][0]["function"]["name"] == "get_pintable"
     assert out[0]["reasoning_content"] == "look up pins"
+
+
+def test_repair_null_content_even_when_tool_calls_present():
+    repaired = _repair_assistant_messages([
+        {"role": "assistant", "content": None, "tool_calls": [{"id": "c1"}]},
+        {"role": "user", "content": "ok"},
+    ])
+    assert repaired[0]["content"] == ""
+    assert repaired[0]["tool_calls"][0]["id"] == "c1"
 
 
 def test_messages_to_openai_tool_roundtrip():
