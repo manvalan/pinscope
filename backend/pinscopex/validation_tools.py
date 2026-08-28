@@ -645,11 +645,10 @@ SUBMIT_REVIEW_SCHEMA = {
                         "source_quote": {
                             "type": "string",
                             "description": (
-                                "The exact verbatim text from the datasheet that "
-                                "states this requirement — copy it "
-                                "character-for-character (max ~200 chars). Omit "
-                                "if the evidence is only in a figure or a "
-                                "rasterized table with no selectable text."
+                                "Required for ERROR and WARNING. Exact verbatim "
+                                "datasheet text (max ~200 chars). Pinscope "
+                                "checks it against the PDF page. Omit only if "
+                                "the evidence is a figure/scan with no text."
                             ),
                         },
                         "source_designator": {

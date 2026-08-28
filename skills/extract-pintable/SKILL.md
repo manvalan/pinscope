@@ -53,7 +53,12 @@ Copy the **Absolute Maximum Ratings** table (not Recommended Operating Condition
 - `unit` (str) — `V`, `mA`, `°C`, …
 - `source_page` (int) — 1-based datasheet page of that row
 
-Include supply voltages, pin/input voltages, input current, and temperature. Skip ESD human-body-model rows unless they are the only voltage limit given. Do not invent numbers; if the table is a raster with no readable values, return an empty array.
+Include supply voltages, pin/input voltages, input current, and temperature. Skip ESD *human-body-model / IEC contact-discharge kV* rows unless they are the only voltage limit given. Do not invent numbers; if the table is a raster with no readable values, return an empty array.
+
+**ESD / TVS / protection ICs (`ic.protection.esd` and similar):** also copy from Electrical Characteristics (not only abs-max):
+
+- Working / reverse working voltage **Vrwm** (or V_RWM / "operating voltage") as a **signed** min/max in volts — e.g. bidirectional ±13 V is `min: -13`, `max: 13`, `unit: "V"`.
+- One extra row whose `parameter` states polarity/topology as printed (`bidirectional`, `unidirectional`, `back-to-back`), `unit: "—"`, min/max omitted. Do **not** infer unidirectional from "IO" pins that list GND as the reference pin.
 
 ### 5. Assign component subtype (taxonomy)
 

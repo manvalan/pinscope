@@ -101,8 +101,11 @@ PINTABLE_TOOL = {
                 "type": "array",
                 "description": (
                     "Rows from the Absolute Maximum Ratings table: supplies, "
-                    "pin voltages, current, temperature. Omit recommended-"
-                    "operating values. Empty array if the table is unreadable."
+                    "pin voltages, current, temperature. For ESD/TVS ICs also "
+                    "include Electrical Characteristics Vrwm (signed min/max) "
+                    "and a polarity/topology row (bidirectional vs "
+                    "unidirectional / back-to-back). Skip IEC/HBM kV rows. "
+                    "Empty array if the table is unreadable."
                 ),
                 "items": {
                     "type": "object",

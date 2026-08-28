@@ -33,6 +33,7 @@
     },
     "absolute_maximum_ratings": {
       "type": "array",
+      "description": "Abs-max rows, plus Vrwm and polarity/topology for ESD/TVS ICs.",
       "items": {
         "type": "object",
         "properties": {

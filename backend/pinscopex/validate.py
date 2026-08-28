@@ -29,6 +29,7 @@ from backend.pinscopex.models import (
     ValidationReport,
 )
 from backend.pinscopex.pin_function_tokens import parse_net_token
+from backend.pinscopex.quote_verify import verify_finding_citations
 from backend.pinscopex.validation_tools import (
     ALL_TOOLS,
     SUBMIT_REVIEW_SCHEMA,
@@ -135,8 +136,12 @@ INFO (worth noting but unlikely to cause problems).
 - **source_quote**: The exact verbatim sentence or clause from the datasheet \
 that states the requirement. Copy it precisely, character-for-character (a \
 short span, ~200 chars max) so it can be located and highlighted in the PDF. \
-Omit this field when the requirement is shown only in a figure or a \
-rasterized table with no selectable text — do not paraphrase or invent a quote.
+ERROR and WARNING findings **must** include this field. Pinscope checks the \
+quote against the extracted text of the cited page (±1); invented or \
+paraphrased quotes are demoted to Unverified WARNING. Omit the field only \
+when the requirement is shown solely in a figure or a rasterized table with \
+no selectable text — then status is WARNING at most and `why` must start \
+with `Unverified:`.
 - **source_designator**: Leave unset when `source_page`/`source_quote` come \
 from THIS component's datasheet (the default). Set it to a connected \
 component's designator (e.g. `U3`) only when the page/quote come from that \
@@ -354,6 +359,27 @@ alternate-function list shown for peripheral-named-net pins is taken \
 verbatim from the datasheet pin table and is reliable even when the short \
 `(NAME)` label is not — prefer it when judging what a pin can be muxed to.
 
+### ESD / TVS arrays — do not invent the diode topology
+An IO pin whose neighbor is GND (or whose pin name is IO/I/O) does NOT \
+mean a single steering diode from IO to GND that conducts at ~0.7 V. \
+Many 2-channel ESD arrays (audio, RS-232, RS-485) are *bidirectional \
+back-to-back* with a signed working voltage (Vrwm, often ±12 V or \
+±13 V). In that topology a 1 Vrms AC-coupled audio swing is inside the \
+standoff range and is not clipped.
+
+Before claiming clipping, forward conduction, or "unidirectional clamp":
+1. Quote the datasheet topology (block diagram or "bidirectional" / \
+"unidirectional" / "back-to-back" wording) in `source_quote`.
+2. Quote Vrwm (or equivalent working-voltage row) with sign. Use that \
+number as the standoff, not a generic silicon Vf.
+3. If the block diagram or electrical table is unreadable, status is \
+WARNING at most and `why` must start with `Unverified:` — never ERROR \
+from "typical for this part" or from pin names alone.
+
+A replacement recommendation must name a part whose topology matches \
+the signal (do not suggest a unidirectional array for a bipolar \
+AC-coupled audio net).
+
 ### Direction-control and transceiver function tables
 Bidirectional transceivers, level shifters, mux/demux, bus switches, and \
 analog switches (74xx245, 74xx125, 74xx157, TS3A-family, etc.) often \
@@ -458,7 +484,7 @@ def build_component_context(
         pi = constraints.package_info
         lines.append(f"Package: {pi.package}, {pi.pin_count} pins")
     if constraints and constraints.absolute_maximum_ratings:
-        lines.append("Absolute maximum ratings (extracted; confirm page if used as ERROR):")
+        lines.append("Extracted ratings (abs-max, plus Vrwm/polarity for ESD):")
         for r in constraints.absolute_maximum_ratings:
             bits = []
             if r.min is not None:
@@ -785,7 +811,13 @@ def review_component(
         # Check for submit_review
         for block in response.content:
             if block.type == "tool_use" and block.name == "submit_review":
-                return _parse_review(block.input, ic_ref, mpn)
+                result = _parse_review(block.input, ic_ref, mpn)
+                verify_finding_citations(
+                    result.findings,
+                    default_pdf=Path(pdf_path),
+                    default_mpn=mpn,
+                )
+                return result
 
         # Process graph tool calls
         tool_results = []
@@ -874,13 +906,24 @@ def _parse_review(
             else:
                 src_designator = None
                 src_mpn = mpn
+            status = item["status"]
+            why = str(item.get("why") or "")
+            quote = str(item.get("source_quote") or "").strip()
+            # ERROR/WARNING with no verbatim quote: demote before PDF check.
+            if status in ("ERROR", "WARNING") and not quote:
+                if status == "ERROR":
+                    status = "WARNING"
+                if not why.startswith("Unverified:"):
+                    why = (
+                        "Unverified: no verbatim datasheet quote. " + why
+                    ).strip()
             findings.append(Finding(
                 designator=ic_ref,
                 mpn=mpn,
                 source_designator=src_designator,
                 finding=item["finding"],
-                why=item.get("why", ""),
-                status=item["status"],
+                why=why,
+                status=status,
                 source_page=page,
                 source_quote=item.get("source_quote", ""),
                 recommendation=item.get("recommendation", ""),

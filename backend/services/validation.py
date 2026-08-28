@@ -40,6 +40,7 @@ from backend.pinscopex.validate import (
     build_component_context,
     _parse_review,
 )
+from backend.pinscopex.quote_verify import verify_finding_citations
 from backend.pinscopex.utils import safe_mpn
 from backend.pinscopex.pin_mux_check import check_pin_mux_feasibility
 from backend.pinscopex.led_current_check import check_led_current
@@ -421,6 +422,13 @@ async def review_ic_async(
                                 tc.input, ic_ref, mpn,
                                 mpn_by_designator=mpn_by_designator,
                                 connected=connected_designators,
+                            )
+                            verify_finding_citations(
+                                result.findings,
+                                default_pdf=Path(pdf_path),
+                                default_mpn=mpn,
+                                pdf_dir=excerpt_state.pdf_dir,
+                                mpn_by_designator=mpn_by_designator,
                             )
                             turn_record["tool_calls"].append({
                                 "name": "submit_review",
