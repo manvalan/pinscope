@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import threading
+from pathlib import Path
 from typing import Literal
 
 from backend.config import settings
@@ -71,9 +72,9 @@ def _spawn_local_subprocess(
     proc = subprocess.Popen(
         [sys.executable, "-m", "backend.pipeline_worker"],
         env=env,
-        # Inherit stdout/stderr so logs appear in the dev terminal
         stdin=subprocess.DEVNULL,
     )
+    _write_pid(project_id, proc.pid)
     with _local_procs_lock:
         # Reap any old proc for the same project before tracking the new one.
         prior = _local_procs.pop(project_id, None)
@@ -87,20 +88,51 @@ def _spawn_local_subprocess(
     return name
 
 
+def _pid_path(project_id: str) -> Path:
+    return settings.data_dir / "workers" / f"{project_id}.pid"
+
+
+def _write_pid(project_id: str, pid: int) -> None:
+    path = _pid_path(project_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(str(pid))
+
+
+def _pid_alive(project_id: str) -> bool | None:
+    """True/False if a pid file exists; None if there is no file."""
+    path = _pid_path(project_id)
+    if not path.is_file():
+        return None
+    try:
+        pid = int(path.read_text().strip())
+    except ValueError:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
 def _local_state(project_id: str) -> ExecutionState:
     with _local_procs_lock:
         proc = _local_procs.get(project_id)
-    if proc is None:
-        return "unknown"
-    rc = proc.poll()
-    if rc is None:
+    if proc is not None:
+        rc = proc.poll()
+        if rc is None:
+            return "running"
+        if rc == 0:
+            return "succeeded"
+        if rc < 0:
+            # Negative return = terminated by signal
+            return "cancelled"
+        return "failed"
+    alive = _pid_alive(project_id)
+    if alive is True:
         return "running"
-    if rc == 0:
-        return "succeeded"
-    if rc < 0:
-        # Negative return = terminated by signal
-        return "cancelled"
-    return "failed"
+    if alive is False:
+        return "failed"
+    return "unknown"
 
 
 def _local_cancel(project_id: str) -> None:

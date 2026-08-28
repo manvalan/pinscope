@@ -471,7 +471,15 @@ async def events(project_id: str, request: Request):
             except (asyncio.CancelledError, Exception):
                 pass
 
-    return EventSourceResponse(event_generator())
+    return EventSourceResponse(
+        event_generator(),
+        ping=15,
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.get("/pipeline/{project_id}/status")
