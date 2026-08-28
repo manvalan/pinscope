@@ -571,15 +571,24 @@ def _find_pdf(
     """Find the datasheet PDF for an MPN.  Checks local dir first,
     then tries to download from the library.
     """
-    safe = safe_mpn(mpn)
-    local = pdf_dir / f"{safe}.pdf"
-    if local.is_file():
-        return local
+    from backend.services.datasheet_finder import mpn_query_variants
+    from backend.pinscopex.utils import safe_mpn as _safe
+
+    names = mpn_query_variants(mpn) or [mpn]
+    for name in names:
+        local = pdf_dir / f"{_safe(name)}.pdf"
+        if local.is_file():
+            wanted = pdf_dir / f"{_safe(mpn)}.pdf"
+            if local != wanted and not wanted.is_file():
+                wanted.write_bytes(local.read_bytes())
+                return wanted
+            return local
 
     if storage:
         from backend.services import projects as proj_svc
         lib_key = proj_svc.library_has_datasheet(storage, mpn)
         if lib_key:
+            local = pdf_dir / f"{_safe(mpn)}.pdf"
             storage.download_to_local(lib_key, local)
             if local.is_file():
                 return local

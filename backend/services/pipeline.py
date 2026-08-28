@@ -681,11 +681,19 @@ async def _ensure_local_datasheet(
     """
     if pdf_path.is_file():
         return True
-    lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, mpn)
-    if lib_ds_key:
-        ctx.storage.download_to_local(lib_ds_key, pdf_path)
-        return True
-    from backend.services.datasheet_finder import find_datasheet
+    from backend.services.datasheet_finder import find_datasheet, mpn_query_variants
+
+    for name in mpn_query_variants(mpn) or [mpn]:
+        alt = pdf_path.parent / f"{safe_mpn(name)}.pdf"
+        if alt.is_file():
+            if alt.resolve() != pdf_path.resolve():
+                pdf_path.parent.mkdir(parents=True, exist_ok=True)
+                pdf_path.write_bytes(alt.read_bytes())
+            return True
+        lib_ds_key = proj_svc.library_has_datasheet(ctx.storage, name)
+        if lib_ds_key:
+            ctx.storage.download_to_local(lib_ds_key, pdf_path)
+            return True
 
     broker.publish(
         ctx.project_id, "step_update",
@@ -1474,7 +1482,19 @@ async def _stage_validation(ctx: PipelineContext) -> None:
     # Ensure all IC datasheet PDFs are available locally for review.
     # Cached ICs skipped pintable extraction, so their PDFs may not
     # have been downloaded yet. Auto-fetch fills remaining gaps.
-    for mpn in ctx.ic_mpns:
+    # Ensure PDFs for BOM ICs and any extra U* the netlist classified as IC.
+    seen_mpn: set[str] = set()
+    mpns_to_place = list(ctx.ic_mpns)
+    for comp in ctx.graph.components.values():
+        if comp.component_type != ComponentType.IC:
+            continue
+        extra = (comp.mpn or "").strip()
+        if extra:
+            mpns_to_place.append(extra)
+    for mpn in mpns_to_place:
+        if mpn in seen_mpn:
+            continue
+        seen_mpn.add(mpn)
         safe = safe_mpn(mpn)
         pdf_path = ds_dir / f"{safe}.pdf"
         if not pdf_path.is_file():
