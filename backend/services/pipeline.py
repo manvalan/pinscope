@@ -369,6 +369,9 @@ class PipelineContext:
     # the primary numeric value from here without saving to the shared library.
     passive_values: dict[str, str] = field(default_factory=dict)
     simple_mpns: dict[str, list[str]] = field(default_factory=dict)
+    # Taxonomy type per simple MPN (crystal, discrete, connector, …) — used
+    # by specs extraction / DigiKey auto-resolve.
+    simple_mpn_types: dict[str, str] = field(default_factory=dict)
     datasheet_urls: dict[str, str] = field(default_factory=dict)
     # Cached purple-parts payload (description, category, subcategory, manufacturer,
     # package, ...) keyed by *resolved* MPN. Populated by _resolve_lcsc_codes during
