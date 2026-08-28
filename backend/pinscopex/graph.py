@@ -301,7 +301,9 @@ def build_graph(
     for ref, footprint in parts.items():
         bom_entry = bom.get(ref, {})
         value = bom_entry.get("value", "")
-        mpn = bom_entry.get("mpn")
+        mpn = bom_entry.get("mpn") or None
+        if not mpn and _classify_component(ref, footprint) == ComponentType.IC:
+            mpn = (value or "").strip() or None
 
         components[ref] = Component(
             reference=ref,

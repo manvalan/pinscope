@@ -382,10 +382,13 @@ async def _from_digikey(mpn: str) -> DatasheetHit | None:
     return DatasheetHit(mpn, error=result.error, url=result.url, source="digikey")
 
 
-async def find_datasheet(mpn: str, lcsc_id: str | None = None) -> DatasheetHit:
+async def find_datasheet(
+    mpn: str, lcsc_id: str | None = None, url_hint: str | None = None,
+) -> DatasheetHit:
     """Find and download a datasheet PDF for ``mpn``.
 
-    Tries LCSC, then TI (when the MPN looks like a TI part), then DigiKey.
+    Tries an explicit BOM URL first, then LCSC, then TI (when the MPN
+    looks like a TI part), then DigiKey.
     """
     mpn = (mpn or "").strip()
     if not mpn:
@@ -393,6 +396,16 @@ async def find_datasheet(mpn: str, lcsc_id: str | None = None) -> DatasheetHit:
 
     errors: list[str] = []
     last_url: str | None = None
+
+    hint = (url_hint or "").strip()
+    if hint.startswith("http"):
+        try:
+            pdf = await _download_pdf(hint)
+            return DatasheetHit(mpn, pdf_bytes=pdf, url=hint, source="bom")
+        except Exception as exc:
+            log.info("BOM datasheet URL missed %s: %s", mpn, exc)
+            errors.append(f"bom: {exc}")
+            last_url = hint
 
     for source_fn in (_from_lcsc, _from_ti, _from_digikey):
         try:

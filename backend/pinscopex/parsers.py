@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -264,17 +265,27 @@ def parse_bom(
         refs_raw = row.get(reference_col, "")
         value = row.get("Value", "") or row.get("Comment", "")
         footprint = row.get("Footprint", "")
-        mpn = row.get(mpn_col, "") or None
+        mpn = (row.get(mpn_col, "") or "").strip() or None
         lcsc = row.get("LCSC", "") or None
+        datasheet_url = (row.get("Datasheet", "") or "").strip() or None
 
         # Expand grouped references: "C1,C2,C5" -> ["C1", "C2", "C5"]
-        for ref in (r.strip() for r in refs_raw.split(",")):
-            if ref:
-                result[ref] = {
-                    "value": value,
-                    "footprint": footprint,
-                    "mpn": mpn,
-                    "lcsc": lcsc,
-                }
+        refs = [r.strip() for r in refs_raw.split(",") if r.strip()]
+        # KiCad exports often leave Manufacturer Part Number empty and put
+        # the orderable code in Value (or PNM). Without this, U* never
+        # enter ic_mpns and review reports "no datasheet PDF".
+        if not mpn:
+            mpn = (row.get("PNM", "") or "").strip() or None
+        if not mpn and any(re.match(r"^U\d", r, re.I) for r in refs):
+            mpn = (value or "").strip() or None
+
+        for ref in refs:
+            result[ref] = {
+                "value": value,
+                "footprint": footprint,
+                "mpn": mpn,
+                "lcsc": lcsc,
+                "datasheet_url": datasheet_url,
+            }
 
     return result

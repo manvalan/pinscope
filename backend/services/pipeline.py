@@ -369,7 +369,7 @@ class PipelineContext:
     # the primary numeric value from here without saving to the shared library.
     passive_values: dict[str, str] = field(default_factory=dict)
     simple_mpns: dict[str, list[str]] = field(default_factory=dict)
-    simple_mpn_types: dict[str, str] = field(default_factory=dict)
+    datasheet_urls: dict[str, str] = field(default_factory=dict)
     # Cached purple-parts payload (description, category, subcategory, manufacturer,
     # package, ...) keyed by *resolved* MPN. Populated by _resolve_lcsc_codes during
     # BOM parse; consumed by passive extraction as a first-pass auto-resolve source
@@ -605,6 +605,9 @@ async def _stage_bom_parse(ctx: PipelineContext) -> None:
 
     for ref, info in sorted(bom.items()):
         mpn = info.get("mpn")
+        url = (info.get("datasheet_url") or "").strip()
+        if mpn and url and mpn not in ctx.datasheet_urls:
+            ctx.datasheet_urls[mpn] = url
         if not mpn:
             continue
         typ = type_for_ref(ref)
@@ -705,7 +708,11 @@ async def _ensure_local_datasheet(
         {"stage": stage, "substep": mpn,
          "status": "running", "detail": "finding datasheet"},
     )
-    hit = await find_datasheet(mpn, lcsc_id=_lcsc_id_for_mpn(ctx, mpn))
+    hit = await find_datasheet(
+        mpn,
+        lcsc_id=_lcsc_id_for_mpn(ctx, mpn),
+        url_hint=ctx.datasheet_urls.get(mpn),
+    )
     if not hit.ok or not hit.pdf_bytes:
         return False
     pdf_path.parent.mkdir(parents=True, exist_ok=True)

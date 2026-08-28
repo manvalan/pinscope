@@ -231,11 +231,14 @@ function classifyBom(
 
   for (const row of rows) {
     const refsRaw = row[refCol] || "";
-    const mpn = row[mpnCol] || "";
+    const value = (row.Value || row.Comment || "").trim();
+    const mpnFromCol = (row[mpnCol] || "").trim();
     const refs = refsRaw
       .split(",")
       .map((r) => r.trim())
       .filter(Boolean);
+    const hasIc = refs.some((r) => /^U\d/i.test(r));
+    const mpn = mpnFromCol || (hasIc ? value : "");
 
     for (const ref of refs) {
       totalRefs++;
