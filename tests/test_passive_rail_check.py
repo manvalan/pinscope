@@ -199,3 +199,58 @@ def test_reset_floating_is_warning():
     assert len(findings) == 1
     assert findings[0].source == "reset_pullup_check"
     assert findings[0].status == "WARNING"
+
+
+def test_enable_strapped_to_rail_is_not_decoupling():
+    cons = {
+        "UTEST": ComponentConstraints(
+            mpn="UTEST",
+            pintable=[
+                Pin(number=1, name="EN"),
+                Pin(number=2, name="GND"),
+            ],
+            absolute_maximum_ratings=[], rules=[],
+        )
+    }
+    g = _graph(
+        {"U1": _ic("U1", {"1": "3V3", "2": "GND"})},
+        {
+            "3V3": (NetType.POWER, [("U1", "1")]),
+            "GND": (NetType.GROUND, [("U1", "2")]),
+        },
+    )
+    assert check_supply_decoupling(g, cons) == []
+
+
+def test_i2c_from_slash_alias_in_pin_name():
+    cons = {
+        "UTEST": ComponentConstraints(
+            mpn="UTEST",
+            pintable=[Pin(number=12, name="GPIO12/I2C1_SDA")],
+            absolute_maximum_ratings=[], rules=[],
+        )
+    }
+    g = _graph(
+        {"U1": _ic("U1", {"12": "NET-U1-12"})},
+        {"NET-U1-12": (NetType.SIGNAL, [("U1", "12")])},
+    )
+    findings = check_i2c_pullups(g, cons)
+    assert len(findings) == 1
+    assert findings[0].source == "i2c_pullup_check"
+
+
+def test_nc_supply_net_is_skipped():
+    g = _graph(
+        {"U1": _ic("U1", {"1": "NC"})},
+        {"NC": (NetType.POWER, [("U1", "1")])},
+    )
+    assert check_supply_decoupling(g, _cmap_vdd()) == []
+
+
+def test_fb_and_rn_prefixes():
+    from backend.pinscopex.graph import _classify_component
+    from backend.pinscopex.models import ComponentType
+
+    assert _classify_component("FB1", "") == ComponentType.INDUCTOR
+    assert _classify_component("RN4", "") == ComponentType.RESISTOR
+    assert _classify_component("F1", "") == ComponentType.FUSE

@@ -31,8 +31,10 @@ from backend.pinscopex.resolve_passives import SkippedItem, resolve_bom, resolve
 
 _PREFIX_TYPE: dict[str, ComponentType] = {
     "R": ComponentType.RESISTOR,
+    "RN": ComponentType.RESISTOR,
     "C": ComponentType.CAPACITOR,
     "L": ComponentType.INDUCTOR,
+    "FB": ComponentType.INDUCTOR,
     "U": ComponentType.IC,
     "IC": ComponentType.IC,
     "J": ComponentType.CONNECTOR,

@@ -1,7 +1,8 @@
 """Deterministic supply decoupling and I2C/reset pull-up checks.
 
-These only fire when the graph already shows a power pin, an I2C net, or a
-reset pin — they do not guess capacitor values or datasheet µF minima.
+These only fire when the graph already shows a pintable supply pin, an I2C
+net/pin name, or a reset pin — they do not guess capacitor values, mux
+alt-functions, or datasheet µF minima.
 """
 
 from __future__ import annotations
@@ -22,13 +23,19 @@ _SUPPLY_PIN_RE = re.compile(
     r"VIN|VBAT|VBUS|VCORE)(?:$|[_/\d])",
     re.IGNORECASE,
 )
+_RAIL_PIN_RE = re.compile(r"^(?:\+?\d+V\d*)$", re.IGNORECASE)
 _NOT_SUPPLY_RE = re.compile(
     r"\b(VSS|GND|VEE|VOUT|VREF|SW|LX|FB|BOOT|NC|VPP)\b",
     re.IGNORECASE,
 )
-_I2C_RE = re.compile(r"\b(SDA|SCL)(\d+)?\b", re.IGNORECASE)
+_I2C_RE = re.compile(r"(?:^|[^A-Za-z0-9])(SDA|SCL)(\d+)?(?:$|[^A-Za-z0-9])", re.IGNORECASE)
+_SPI_NAME_RE = re.compile(r"(?i)\b(MISO|MOSI|SCLK|SCK)\b")
 _RESET_RE = re.compile(
     r"\b(N?RST(?:N|B)?|NRST|RESET(?:_?N|_?B)?|NRESET|CHIP_PU)\b",
+    re.IGNORECASE,
+)
+_NC_NET_RE = re.compile(
+    r"^(?:n/?c|n\.c\.|nc|unconnected|no[_-]?connect|not[_-]?connected)$",
     re.IGNORECASE,
 )
 
@@ -46,6 +53,8 @@ def check_supply_decoupling(
         cons = _match_constraints(comp.mpn or comp.value, constraints_map)
         for pin_num, net_name in sorted(comp.pins.items(), key=lambda x: str(x[0])):
             if net_name in seen_nets:
+                continue
+            if _is_nc_net(net_name):
                 continue
             if not _is_ic_supply_pin(graph, cons, pin_num, net_name):
                 continue
@@ -92,6 +101,8 @@ def check_i2c_pullups(
         cons = _match_constraints(comp.mpn or comp.value, constraints_map)
         for pin_num, net_name in sorted(comp.pins.items(), key=lambda x: str(x[0])):
             if net_name in seen_nets:
+                continue
+            if _is_nc_net(net_name):
                 continue
             if not _is_i2c_pin(graph, cons, pin_num, net_name):
                 continue
@@ -140,6 +151,8 @@ def check_reset_pullups(
         for pin_num, net_name in sorted(comp.pins.items(), key=lambda x: str(x[0])):
             if net_name in seen_nets:
                 continue
+            if _is_nc_net(net_name):
+                continue
             if not _is_reset_pin(graph, cons, pin_num, net_name):
                 continue
             seen_nets.add(net_name)
@@ -183,17 +196,27 @@ def _pin_label(cons: ComponentConstraints | None, pin_num: str, net_name: str) -
     return str(pin_num)
 
 
-def _pin_blob(
-    cons: ComponentConstraints | None, pin_num: str, net_name: str,
-) -> str:
-    parts = [net_name or ""]
-    if cons:
-        pin = cons.pin_by_number(pin_num)
-        if pin:
-            parts.append(pin.name or "")
-            if pin.functions:
-                parts.extend(pin.functions)
-    return " ".join(parts)
+def _is_nc_net(name: str) -> bool:
+    return bool(_NC_NET_RE.match((name or "").strip()))
+
+
+def _pin_name_tokens(cons: ComponentConstraints | None, pin_num: str) -> list[str]:
+    """Slash-separated pin *name* tokens only — not the mux alt-function table."""
+    if not cons:
+        return []
+    pin = cons.pin_by_number(pin_num)
+    if not pin or not pin.name:
+        return []
+    return [t.strip() for t in re.split(r"[/,]", pin.name) if t.strip()]
+
+
+def _looks_like_supply(text: str) -> bool:
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _NOT_SUPPLY_RE.search(t) and not _SUPPLY_PIN_RE.search(t):
+        return False
+    return bool(_SUPPLY_PIN_RE.search(t) or _RAIL_PIN_RE.match(t))
 
 
 def _is_ic_supply_pin(
@@ -202,10 +225,11 @@ def _is_ic_supply_pin(
     pin_num: str,
     net_name: str,
 ) -> bool:
-    blob = _pin_blob(cons, pin_num, net_name)
-    if _NOT_SUPPLY_RE.search(blob) and not _SUPPLY_PIN_RE.search(blob):
-        return False
-    if _SUPPLY_PIN_RE.search(blob):
+    tokens = _pin_name_tokens(cons, pin_num)
+    if tokens:
+        return any(_looks_like_supply(t) for t in tokens)
+    # No pintable row: fall back to net name / POWER type.
+    if _looks_like_supply(net_name or ""):
         return True
     net = graph.nets.get(net_name)
     return bool(net and net.net_type == NetType.POWER)
@@ -222,18 +246,12 @@ def _is_i2c_pin(
         r"(?i)\bSPI[_-]?(CLK|SCK|MOSI|MISO|CS|SS)\b", net,
     ):
         return False
-    primary = ""
-    if cons:
-        pin = cons.pin_by_number(pin_num)
-        if pin and pin.name:
-            primary = pin.name.split("/")[0].strip()
-    if re.search(r"(?i)\b(MISO|MOSI|SCLK|SCK)\b", primary):
+    tokens = _pin_name_tokens(cons, pin_num)
+    if any(_SPI_NAME_RE.search(t) for t in tokens):
         return False
     if _I2C_RE.search(net):
         return True
-    if _I2C_RE.search(primary):
-        return True
-    return False
+    return any(_I2C_RE.search(t) for t in tokens)
 
 
 def _is_reset_pin(
@@ -242,7 +260,9 @@ def _is_reset_pin(
     pin_num: str,
     net_name: str,
 ) -> bool:
-    return bool(_RESET_RE.search(_pin_blob(cons, pin_num, net_name)))
+    if _RESET_RE.search(net_name or ""):
+        return True
+    return any(_RESET_RE.search(t) for t in _pin_name_tokens(cons, pin_num))
 
 
 def _is_ground_net(graph: DesignGraph, name: str) -> bool:

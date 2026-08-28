@@ -13,7 +13,7 @@ export interface Finding {
   status: FindingStatus;
   recommendation?: string;
   reference: string;
-  source?: string | null; // "pin_mux_check"/"led_current_check" = deterministic; null/"review" = LLM
+  source?: string | null; // pin_mux_check / led_current_check / supply_decoupling_check / i2c_pullup_check / reset_pullup_check = deterministic; null/"review" = LLM
 }
 
 export interface FindingComment {
