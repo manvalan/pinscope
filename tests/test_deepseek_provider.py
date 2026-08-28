@@ -72,8 +72,10 @@ def test_messages_to_openai_pdf_becomes_text(sample_pdf: Path):
     assert "Extract the pin table" in blob
 
 
-def test_thinking_only_assistant_sends_empty_content():
-    """Thinking with no visible text and no tools must still set content."""
+def test_thinking_only_assistant_sends_placeholder_content():
+    """Empty string is treated as unset; replay a non-empty placeholder."""
+    from backend.services.llm.deepseek_provider import _EMPTY_ASSISTANT_CONTENT
+
     out = messages_to_openai(
         [Message("assistant", [
             TextBlock("", reasoning_content="Need to inspect pin 3 first."),
@@ -81,9 +83,17 @@ def test_thinking_only_assistant_sends_empty_content():
         vision=False,
     )
     assert out[0]["role"] == "assistant"
-    assert out[0]["content"] == ""
+    assert out[0]["content"] == _EMPTY_ASSISTANT_CONTENT
+    assert out[0]["content"]
     assert out[0]["reasoning_content"] == "Need to inspect pin 3 first."
     assert "tool_calls" not in out[0]
+
+
+def test_empty_assistant_blocks_still_set_content():
+    from backend.services.llm.deepseek_provider import _EMPTY_ASSISTANT_CONTENT
+
+    out = messages_to_openai([Message("assistant", [])], vision=False)
+    assert out[0]["content"] == _EMPTY_ASSISTANT_CONTENT
 
 
 def test_tool_call_assistant_may_have_null_content():
@@ -163,6 +173,66 @@ def test_forced_tool_choice_disables_thinking():
     assert captured["extra_body"]["thinking"]["type"] == "disabled"
     assert "reasoning_effort" not in captured["extra_body"]
     assert captured["tool_choice"]["function"]["name"] == "save_resolved_specs"
+
+
+def test_thinking_only_retries_with_thinking_disabled():
+    calls: list[dict] = []
+
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            calls.append({
+                "thinking": kwargs["extra_body"]["thinking"]["type"],
+            })
+            usage = SimpleNamespace(
+                prompt_tokens=10, completion_tokens=5,
+                prompt_cache_hit_tokens=0, prompt_tokens_details=None,
+            )
+            if kwargs["extra_body"]["thinking"]["type"] == "enabled":
+                msg = SimpleNamespace(
+                    content=None,
+                    reasoning_content="pondering the schematic",
+                    tool_calls=None,
+                )
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=msg, finish_reason="stop")],
+                    usage=usage,
+                )
+            fn = SimpleNamespace(name="get_pintable", arguments='{"ref":"U19"}')
+            tc = SimpleNamespace(id="c1", function=fn)
+            msg = SimpleNamespace(content=None, reasoning_content=None, tool_calls=[tc])
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=msg, finish_reason="tool_calls")],
+                usage=usage,
+            )
+
+    class FakeClient:
+        def __init__(self):
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    from backend.services.llm.deepseek_provider import DeepSeekSession
+    from backend.services.llm.types import Message, TextBlock, ToolSchema
+    import asyncio
+
+    session = DeepSeekSession(
+        client=FakeClient(),
+        model="deepseek-v4-pro",
+        system="sys",
+        max_tokens=256,
+        thinking=True,
+        reasoning_effort="medium",
+    )
+    completion = asyncio.run(session.complete(
+        messages=[Message("user", [TextBlock("review U19")])],
+        tools=[ToolSchema(
+            name="get_pintable", description="x",
+            input_schema={"type": "object"},
+        )],
+        tool_choice="auto",
+    ))
+    assert len(calls) == 2
+    assert calls[0]["thinking"] == "enabled"
+    assert calls[1]["thinking"] == "disabled"
+    assert completion.tool_calls[0].name == "get_pintable"
 
 
 def test_tool_schema_and_choice():

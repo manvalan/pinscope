@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import APIStatusError, AsyncOpenAI
 
 from backend.config import settings
 from backend.services.llm.base import LLMProvider, LLMSession
@@ -38,6 +38,10 @@ from backend.services.llm.types import (
 log = logging.getLogger(__name__)
 
 _VISION_HINT = "vision"
+# DeepSeek 400s when an assistant turn has reasoning only: content=null
+# and no tool_calls. Empty string is also treated as unset, so replay a
+# non-empty placeholder (the official SDK sample would send content=None).
+_EMPTY_ASSISTANT_CONTENT = " "
 
 
 def _is_vision_model(model: str) -> bool:
@@ -97,6 +101,26 @@ def _user_content_parts(blocks: list[ContentBlock], *, vision: bool) -> list[dic
     return parts
 
 
+def _repair_assistant_messages(messages: list[dict]) -> list[dict]:
+    """Ensure every assistant turn has content or tool_calls (DeepSeek 400)."""
+    out: list[dict] = []
+    changed = False
+    for m in messages:
+        if m.get("role") != "assistant":
+            out.append(m)
+            continue
+        tools = m.get("tool_calls") or []
+        content = m.get("content")
+        if tools or (isinstance(content, str) and content != ""):
+            out.append(m)
+            continue
+        fixed = dict(m)
+        fixed["content"] = _EMPTY_ASSISTANT_CONTENT
+        out.append(fixed)
+        changed = True
+    return out if changed else messages
+
+
 def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
     """Convert unified messages into DeepSeek/OpenAI chat messages.
 
@@ -111,9 +135,6 @@ def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
             tool_calls = [b for b in m.content if isinstance(b, ToolCall)]
             msg: dict[str, Any] = {"role": "assistant"}
             text = "".join(text_parts)
-            # DeepSeek 400s with "content or tool_calls must be set" when
-            # thinking-mode returns reasoning only (content=null, no tools).
-            # Tool turns may keep content=null; text-only turns need "".
             if tool_calls:
                 msg["content"] = text if text else None
                 msg["tool_calls"] = [
@@ -128,7 +149,7 @@ def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
                     for tc in tool_calls
                 ]
             else:
-                msg["content"] = text
+                msg["content"] = text or _EMPTY_ASSISTANT_CONTENT
             reasoning = _reasoning_from_blocks(m.content)
             if reasoning:
                 msg["reasoning_content"] = reasoning
@@ -281,8 +302,44 @@ class DeepSeekSession(LLMSession):
             kwargs["tools"] = [_to_openai_tool(t) for t in tools]
             kwargs["tool_choice"] = _to_openai_tool_choice(tool_choice)
 
-        resp = await self._client.chat.completions.create(**kwargs)
-        return completion_from_openai(resp)
+        resp = await self._create(kwargs)
+        completion = completion_from_openai(resp)
+        # Thinking-only (no visible text, no tools) cannot be replayed on the
+        # next turn. Retry once with thinking off so the review loop gets a
+        # real content/tool_calls message instead of a 400 on the follow-up.
+        if (
+            thinking
+            and not (completion.text or "").strip()
+            and not completion.tool_calls
+        ):
+            log.warning(
+                "DeepSeek thinking-only turn (no content/tool_calls); "
+                "retrying with thinking disabled"
+            )
+            extra_body = {
+                "thinking": {"type": "disabled"},
+            }
+            kwargs = {**kwargs, "extra_body": extra_body}
+            resp = await self._create(kwargs)
+            completion = completion_from_openai(resp)
+        return completion
+
+    async def _create(self, kwargs: dict[str, Any]) -> Any:
+        try:
+            return await self._client.chat.completions.create(**kwargs)
+        except APIStatusError as exc:
+            body = str(exc)
+            if exc.status_code != 400 or "content or tool_calls" not in body:
+                raise
+            repaired = _repair_assistant_messages(list(kwargs["messages"]))
+            if repaired == kwargs["messages"]:
+                raise
+            log.warning(
+                "DeepSeek 400 (empty assistant content); retrying with "
+                "placeholder content"
+            )
+            kwargs = {**kwargs, "messages": repaired}
+            return await self._client.chat.completions.create(**kwargs)
 
     async def close(self) -> None:
         return None
