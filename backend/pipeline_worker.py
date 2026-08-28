@@ -81,11 +81,13 @@ async def _run() -> None:
     # are visible to any API instance tailing the event log.
     pipeline_svc.set_broker(event_bridge.GCSEventBroker(storage, user_id))
 
-    # Fresh runs wipe the prior event log so the SSE consumer doesn't
-    # mix old events into the new run. Resume keeps the prior log so
-    # users see the full history.
-    if not resume:
-        pipeline_svc.broker.clear_history(project_id)
+    # Always wipe the prior event log. Reprocess uses resume=True, and
+    # the old log still contains ``pipeline_complete``; the SSE tail
+    # would stop there and the UI would show a finished run with no live
+    # log while the worker is still reviewing. Pause-resume also hits a
+    # terminal ``pipeline_paused``. A fresh seq from 0 is the only safe
+    # option — completed_review_refs still skip paid ICs.
+    pipeline_svc.broker.clear_history(project_id)
 
     if mode == "run":
         await pipeline_svc.run_pipeline(
