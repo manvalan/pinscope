@@ -712,7 +712,7 @@ function ComponentsPanel() {
         {(data.passive_parts?.length ?? 0) > 0 && (
           <div className="flex items-center gap-1.5 text-sm">
             <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <span className="font-medium">{data.passive_parts.length}</span>
+            <span className="font-medium">{data.passive_parts?.length}</span>
             <span className="text-muted-foreground">Passive MPNs</span>
           </div>
         )}
