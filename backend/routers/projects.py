@@ -808,12 +808,10 @@ async def auto_resolve(req: AutoResolveRequest, request: Request):
     import asyncio
 
     from backend.services.digikey import fetch_params
-    from backend.services.extraction import auto_resolve_specs
+    from backend.services.extraction import CatalogResolveMiss, auto_resolve_specs
 
     if not settings.use_digikey:
         raise HTTPException(400, "DigiKey API not configured")
-    if not settings.has_llm_credentials():
-        raise HTTPException(400, "LLM API key not configured")
 
     storage = get_storage(request)
     sem = asyncio.Semaphore(10)
@@ -840,14 +838,18 @@ async def auto_resolve(req: AutoResolveRequest, request: Request):
                 if not result.ok or not result.params:
                     return {"mpn": item.mpn, "status": "failed", "error": result.error or "No parameters"}
 
-                # Map params to taxonomy via Haiku
-                model = await auto_resolve_specs(
-                    mpn=item.mpn,
-                    digikey_params=result.params.parameters,
-                    digikey_category=result.params.category,
-                    digikey_description=result.params.description,
-                    component_type=item.component_type,
-                )
+                # Map params: catalog parse first, LLM only if needed.
+                try:
+                    model = await auto_resolve_specs(
+                        mpn=item.mpn,
+                        digikey_params=result.params.parameters,
+                        digikey_category=result.params.category,
+                        digikey_description=result.params.description,
+                        component_type=item.component_type,
+                        use_llm=settings.has_llm_credentials(),
+                    )
+                except CatalogResolveMiss as e:
+                    return {"mpn": item.mpn, "status": "failed", "error": str(e)}
 
                 # Save to library
                 storage.write_json(lib_key, model.model_dump())
@@ -962,6 +964,24 @@ async def lcsc_resolve_passive(
             f"Cached LCSC payload for {req.lcsc_id!r} has no description — "
             "cannot auto-resolve",
         )
+
+    from backend.services.passive_from_distributor import specs_from_lcsc_payload
+
+    catalog_model = specs_from_lcsc_payload(mpn, payload)
+    if catalog_model is not None:
+        storage.write_json(project_model_key, catalog_model.model_dump())
+        proj_svc.save_to_library(
+            storage, project_model_key, "passives", f"{safe}.json",
+        )
+        return {
+            "mpn": mpn,
+            "safe_mpn": safe,
+            "model": catalog_model.model_dump(),
+            "cached": False,
+            "lcsc_id": req.lcsc_id,
+        }
+
+    # Catalog miss (ferrite, odd text): LLM path, charged if the logger has tokens.
 
     # Download taxonomy to a temp dir so auto_resolve_specs can read/write it.
     # Mirrors the PipelineWorkspace pattern: pinscopex operates on local paths.

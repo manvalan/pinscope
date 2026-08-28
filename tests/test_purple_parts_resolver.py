@@ -447,9 +447,8 @@ def test_lcsc_resolve_passive_404_when_lcsc_id_missing(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_lcsc_resolve_passive_success_and_cached(tmp_path, monkeypatch):
-    """First call resolves via auto_resolve_specs (mocked) and writes the
-    project model + library copy. Second call short-circuits with cached=True
-    and does not invoke auto_resolve_specs again."""
+    """First call parses the LCSC description without the LLM. Second call
+    short-circuits with cached=True and does not invoke auto_resolve_specs."""
     from backend.config import settings
     from backend.pinscopex.models import CapacitorSpecs, ComponentModel
     from backend.services import purple_parts
@@ -526,7 +525,7 @@ async def test_lcsc_resolve_passive_success_and_cached(tmp_path, monkeypatch):
     )
     assert resp.status_code == 200, resp.text
 
-    # First call: resolves via mocked auto_resolve_specs.
+    # First call: catalog parse, no LLM.
     resp = client.post(
         f"/api/projects/{project_id}/lcsc/resolve-passive",
         json={"lcsc_id": "C15850"},
@@ -537,7 +536,7 @@ async def test_lcsc_resolve_passive_success_and_cached(tmp_path, monkeypatch):
     assert body["lcsc_id"] == "C15850"
     assert body["cached"] is False
     assert body["model"]["mpn"] == "CL21A106KAYNNNE"
-    assert call_count["n"] == 1
+    assert call_count["n"] == 0
 
     # Library copy should exist for cross-project reuse.
     from backend.pinscopex.utils import safe_mpn
@@ -553,7 +552,7 @@ async def test_lcsc_resolve_passive_success_and_cached(tmp_path, monkeypatch):
     body = resp.json()
     assert body["cached"] is True
     assert body["model"]["mpn"] == "CL21A106KAYNNNE"
-    assert call_count["n"] == 1  # not invoked again
+    assert call_count["n"] == 0  # still no LLM
 
 
 # ---------------------------------------------------------------------------

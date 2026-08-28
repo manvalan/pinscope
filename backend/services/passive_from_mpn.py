@@ -1,4 +1,4 @@
-"""Decode common chip R/C MPNs into typed specs without an LLM.
+"""Decode common chip R/C/L MPNs into typed specs without an LLM.
 
 Only encodings that carry package + value (and voltage for capacitors when
 the manufacturer puts it in the code) are accepted. Incomplete BOM-value
@@ -51,6 +51,22 @@ _CHIP_R = re.compile(
     rf"^(?:FRC)?({_SIZE})(?:W\d)?([{''.join('FJKG')}])(\d{{4}})",
     re.IGNORECASE,
 )
+# Murata LQW18AN: 0603 wirewound. Inductance is three chars (12N, 2N2, R10)
+# then EIA tolerance, then a two-digit spec (00/10) and packing.
+_LQW18AN = re.compile(
+    r"^LQW18AN(?P<l>[0-9]N[0-9]|[0-9]{2}N|R[0-9]{2})(?P<tol>[BCSGHJKD])\d{2}",
+    re.IGNORECASE,
+)
+_LQW_TOL = {
+    "B": "±0.1nH",
+    "C": "±0.2nH",
+    "S": "±0.3nH",
+    "D": "±0.5nH",
+    "G": "±2%",
+    "H": "±3%",
+    "J": "±5%",
+    "K": "±10%",
+}
 
 
 def _eia3_pf(digits: str) -> float:
@@ -72,6 +88,17 @@ def _eia3_volts(code: str) -> str | None:
 
 def _eia4_ohm(digits: str) -> float:
     return float(int(digits[:3]) * (10 ** int(digits[3])))
+
+
+def _lqw_nh(code: str) -> float | None:
+    c = code.upper()
+    if re.fullmatch(r"[0-9]N[0-9]", c):
+        return float(f"{c[0]}.{c[2]}")
+    if re.fullmatch(r"[0-9]{2}N", c):
+        return float(c[:2])
+    if re.fullmatch(r"R[0-9]{2}", c):
+        return float(f"0.{c[1:]}") * 1000.0
+    return None
 
 
 def _model(mpn: str, subtype: str, values: dict[str, str]) -> ComponentModel | None:
@@ -135,5 +162,18 @@ def specs_from_mpn(mpn: str) -> ComponentModel | None:
             "tolerance": _TOL[tol.upper()],
         }
         return _model(raw, "passive.resistor.thick_film", values)
+
+    m = _LQW18AN.match(raw)
+    if m:
+        nh = _lqw_nh(m.group("l"))
+        if nh is not None:
+            henries = _spice(str(nh), "n", "H")
+            values = {
+                "value_henries": henries,
+                "value_formatted": henries,
+                "package": "0603",
+                "tolerance": _LQW_TOL[m.group("tol").upper()],
+            }
+            return _model(raw, "passive.inductor", values)
 
     return None

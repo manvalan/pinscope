@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Discriminator, Field, Tag, field_validator
+from pydantic import BaseModel, Discriminator, Field, Tag, field_validator, model_validator
 
 
 class Pin(BaseModel):
@@ -131,19 +131,30 @@ class CapacitorSpecs(BaseModel):
 
 
 class InductorSpecs(BaseModel):
-    """Standardised inductor parameters. Value always in henries."""
+    """Standardised inductor / ferrite-bead parameters."""
     specs_type: Literal["inductor"] = "inductor"
     component_subtype: str | None = None  # e.g. "passive.inductor" or "passive.ferrite_bead"
-    value_henries: float
+    value_henries: float | None = None
     value_formatted: str
     tolerance: str | None = None  # "±5%" or "±0.1uH"
     package: str | None = None
     current_rating_a: str | None = None
     dcr_ohms: float | None = None
+    impedance_ohm: float | None = None  # ferrite beads: Z at test frequency
 
     _validate_subtype = field_validator("component_subtype", mode="before")(
         staticmethod(_check_subtype)
     )
+
+    @model_validator(mode="after")
+    def _require_primary_value(self) -> InductorSpecs:
+        if self.component_subtype == "passive.ferrite_bead":
+            if self.impedance_ohm is None:
+                raise ValueError("ferrite bead requires impedance_ohm")
+            return self
+        if self.value_henries is None:
+            raise ValueError("inductor requires value_henries")
+        return self
 
 
 class SimpleComponentSpecs(BaseModel):

@@ -45,7 +45,7 @@ def build_bom_summary(
                 # Drop None values and internal numeric fields
                 raw = {
                     k: v for k, v in raw.items()
-                    if v is not None and k not in ("value_ohms", "value_farads", "value_henries")
+                    if v is not None and k not in ("value_ohms", "value_farads", "value_henries", "impedance_ohm")
                 }
             specs_dict = raw if raw else None
 

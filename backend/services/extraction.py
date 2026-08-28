@@ -871,6 +871,10 @@ Call save_resolved_specs with the mapped values.\
 """
 
 
+class CatalogResolveMiss(RuntimeError):
+    """Distributor params did not parse and ``use_llm`` was false."""
+
+
 async def auto_resolve_specs(
     mpn: str,
     digikey_params: list[dict[str, str]],
@@ -879,10 +883,13 @@ async def auto_resolve_specs(
     component_type: str,
     taxonomy_dir: Path | None = None,
     api_logger: ApiLogger | None = None,
+    *,
+    use_llm: bool = True,
 ) -> ComponentModel:
-    """Map DigiKey product parameters to taxonomy specs using a lightweight model.
+    """Map DigiKey/LCSC product parameters to taxonomy specs.
 
-    Returns a ComponentModel ready to persist. Raises on failure.
+    Passives with a parseable value skip the model. ``use_llm=False`` returns
+    only that catalog parse or raises :class:`CatalogResolveMiss`.
     """
     tax_dir = taxonomy_dir or settings.taxonomy_dir
 
@@ -901,6 +908,9 @@ async def auto_resolve_specs(
                 "Auto-resolved %s from distributor params (no LLM)", mpn,
             )
             return direct
+
+    if not use_llm:
+        raise CatalogResolveMiss(f"No catalog specs for {mpn}")
 
     # Auto-generate type-level specs if none exist
     if not has_specs(component_type, tax_dir):
@@ -1020,7 +1030,7 @@ _PASSIVE_PREFIX_HINT: dict[str, str] = {
     "C": "capacitor — populate value_farads",
     "R": "resistor — populate value_ohms",
     "L": "inductor — populate value_henries",
-    "FB": "ferrite bead — populate value_ohms (impedance)",
+    "FB": "ferrite bead — populate impedance_ohm (Z at test frequency, not henries)",
 }
 
 _VALUE_RESOLVE_SYSTEM = """\
@@ -1041,8 +1051,9 @@ CRITICAL RULES:
   dielectric, package, or power rating. Never invent these.
 - Populate EXACTLY TWO fields: ``value_formatted`` (a normalized human-readable
   string) and the matching primary numeric field
-  (``value_farads`` / ``value_ohms`` / ``value_henries``). Leave every other
-  parameter out (do not include a null entry — omit the key entirely).
+  (``value_farads`` / ``value_ohms`` / ``value_henries`` / ``impedance_ohm``
+  for ferrite beads). Leave every other parameter out (do not include a null
+  entry — omit the key entirely). Never invent henries for a ferrite bead.
 - Express numeric values with SPICE multiplier prefixes and units
   (u=1e-6, n=1e-9, p=1e-12, k=1e3, M=1e6). Examples: ``10uF``, ``4.7kohm``, ``100nH``.
 - Pick the GENERIC parent subtype — e.g. ``passive.capacitor``, ``passive.resistor``,
@@ -1075,6 +1086,20 @@ async def resolve_from_value(
     to the shared library because the ``mpn`` is not a real part number.
     """
     tax_dir = taxonomy_dir or settings.taxonomy_dir
+
+    from backend.services.passive_from_value import (
+        is_placeholder_value,
+        specs_from_bom_value,
+    )
+
+    parsed = specs_from_bom_value(mpn, value, ref_prefix)
+    if parsed is not None:
+        logging.getLogger(__name__).info(
+            "Resolved from value %s=%r without LLM", mpn, value,
+        )
+        return parsed
+    if is_placeholder_value(value):
+        raise ValueError(f"Placeholder BOM value {value!r} for {mpn}")
 
     if not has_specs(component_type, tax_dir):
         try:

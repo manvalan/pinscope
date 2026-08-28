@@ -304,7 +304,29 @@ def simple_to_typed_passive_specs(simple: SimpleComponentSpecs) -> ComponentSpec
             dielectric=dielectric,
         )
 
-    if subtype.startswith("passive.inductor") or subtype == "passive.ferrite_bead":
+    if subtype == "passive.ferrite_bead":
+        raw = vals.get("impedance_ohm") or vals.get("value_ohms")
+        if raw is None:
+            raise ValueError("Missing impedance_ohm in auto-resolved ferrite bead specs")
+        impedance_ohm = _parse_spice_value(str(raw)) if isinstance(raw, str) else float(raw)
+        current_rating_a = str(vals.get("current_rating_a")) if vals.get("current_rating_a") else None
+        dcr_raw = vals.get("dcr_ohms")
+        dcr_ohms: float | None = None
+        if dcr_raw is not None:
+            dcr_ohms = _parse_spice_value(str(dcr_raw)) if isinstance(dcr_raw, str) else float(dcr_raw)
+        formatted = value_formatted or _format_value(impedance_ohm, "ohm")
+        return InductorSpecs(
+            component_subtype=subtype_for_specs,
+            value_henries=None,
+            value_formatted=formatted,
+            tolerance=tolerance,
+            package=package,
+            current_rating_a=current_rating_a,
+            dcr_ohms=dcr_ohms,
+            impedance_ohm=impedance_ohm,
+        )
+
+    if subtype.startswith("passive.inductor"):
         raw = vals.get("value_henries")
         if raw is None:
             raise ValueError(f"Missing value_henries in auto-resolved inductor specs")

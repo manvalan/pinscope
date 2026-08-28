@@ -25,6 +25,7 @@ _TOL = re.compile(r"±\s*(?P<num>\d+(?:\.\d+)?)\s*%")
 _VOLT = re.compile(r"(?P<num>\d+(?:\.\d+)?)\s*V\b")
 _PKG = re.compile(r"\b(?P<pkg>0201|0402|0603|0805|1206|1210|1812|2220|2512)\b")
 _DIEL = re.compile(r"\b(?P<diel>C0G|NP0|X5R|X6S|X7R|X7S|X8R|Y5V|Z5U)\b", re.I)
+_IMP_FREQ = re.compile(r"@\s*\d+(?:\.\d+)?\s*(?:kHz|MHz|GHz|Hz)", re.I)
 
 _MUL = {
     "p": 1e-12, "n": 1e-9, "u": 1e-6, "μ": 1e-6, "µ": 1e-6,
@@ -77,8 +78,8 @@ def _first(pmap: dict[str, str], *needles: str) -> str | None:
 
 def _classify(category: str, description: str, pmap: dict[str, str]) -> str | None:
     blob = f"{category} {description} {' '.join(pmap.values())}".lower()
-    if "ferrite" in blob or "bead" in blob:
-        return None  # typed model wants henries; leave to the LLM
+    if "ferrite" in blob or re.search(r"\bbead\b", blob):
+        return "passive.ferrite_bead"
     if "capacitor" in blob or "mlcc" in blob or "ceramic" in blob:
         diel = _DIEL.search(description) or _DIEL.search(" ".join(pmap.values()))
         if diel or "ceramic" in blob or "mlcc" in blob:
@@ -162,6 +163,21 @@ def specs_from_distributor(
         power = _first(pmap, "power")
         if power:
             values["power_rating_w"] = power
+    elif subtype == "passive.ferrite_bead":
+        imp_src = _first(pmap, "impedance") or text
+        m = _RES.search(imp_src) or _RES.search(text)
+        if not m:
+            return None
+        z = _spice(m.group("num"), m.group("mul"), "ohm")
+        values["impedance_ohm"] = z
+        freq = _IMP_FREQ.search(imp_src) or _IMP_FREQ.search(text)
+        values["value_formatted"] = f"{z}@{freq.group(0)[1:].strip()}" if freq else z
+        cur = _first(pmap, "current rating", "rated current")
+        if cur:
+            values["current_rating_a"] = cur
+        dcr = _first(pmap, "dc resistance", "dcr")
+        if dcr:
+            values["dcr_ohms"] = dcr
     elif subtype.startswith("passive.inductor"):
         if not ind:
             return None
@@ -197,3 +213,25 @@ def specs_from_distributor(
     except (ValueError, TypeError):
         return None
     return ComponentModel(mpn=mpn, specs=typed)
+
+
+def lcsc_payload_args(payload: dict) -> tuple[list[dict[str, str]], str, str]:
+    """Turn a cached LCSC product dict into distributor mapper arguments."""
+    category = " / ".join(
+        p for p in (payload.get("category"), payload.get("subcategory")) if p
+    )
+    params: list[dict[str, str]] = []
+    if payload.get("package"):
+        params.append({"name": "Package / Case", "value": str(payload["package"])})
+    if payload.get("manufacturer"):
+        params.append({"name": "Manufacturer", "value": str(payload["manufacturer"])})
+    return params, category, str(payload.get("description") or "")
+
+
+def specs_from_lcsc_payload(mpn: str, payload: dict) -> ComponentModel | None:
+    params, category, description = lcsc_payload_args(payload)
+    if not description:
+        return None
+    return specs_from_distributor(
+        mpn=mpn, params=params, category=category, description=description,
+    )

@@ -1082,67 +1082,65 @@ async def _catalog_resolve_unresolved_passives(
                                 "detail": "specs from library"})
                 return
 
-            if not _check_credit_gate(ctx, "passive_extraction", mpn,
-                                      estimate_stage_cost_usd("digikey_resolve")):
-                await _paused_stage_publish(ctx, "passive_extraction", "out of credits")
-                return
-
             private = ApiLogger(free=ctx.api_logger.free)
             model = None
             resolved_via: str | None = None
             first_error: str | None = None
+            llm_args: tuple[list[dict[str, str]], str, str, str] | None = None
             try:
+                from backend.services.passive_from_distributor import (
+                    specs_from_distributor,
+                    specs_from_lcsc_payload,
+                    lcsc_payload_args,
+                )
+
+                async def _gate_llm() -> bool:
+                    if not _check_credit_gate(
+                        ctx, "passive_extraction", mpn,
+                        estimate_stage_cost_usd("digikey_resolve"),
+                    ):
+                        await _paused_stage_publish(
+                            ctx, "passive_extraction", "out of credits",
+                        )
+                        return False
+                    return True
+
                 lcsc = ctx.lcsc_data.get(mpn)
                 if lcsc and lcsc.get("description"):
-                    try:
-                        broker.publish(ctx.project_id, "step_update",
-                                       {"stage": "passive_extraction",
-                                        "substep": mpn, "status": "running",
-                                        "detail": "auto-resolving via LCSC"})
-                        synth_category = " / ".join(
-                            p for p in (lcsc.get("category"), lcsc.get("subcategory")) if p
-                        )
-                        synth_params: list[dict[str, str]] = []
-                        if lcsc.get("package"):
-                            synth_params.append(
-                                {"name": "Package / Case", "value": lcsc["package"]},
-                            )
-                        if lcsc.get("manufacturer"):
-                            synth_params.append(
-                                {"name": "Manufacturer", "value": lcsc["manufacturer"]},
-                            )
-                        model = await extraction.auto_resolve_specs(
-                            mpn=mpn,
-                            digikey_params=synth_params,
-                            digikey_category=synth_category or "",
-                            digikey_description=lcsc["description"],
-                            component_type="passive",
-                            taxonomy_dir=ctx.ws.taxonomy_dir,
-                            api_logger=private,
-                        )
-                        if model is not None:
-                            resolved_via = "lcsc"
-                    except Exception as e:
-                        first_error = str(e)
+                    broker.publish(ctx.project_id, "step_update",
+                                   {"stage": "passive_extraction",
+                                    "substep": mpn, "status": "running",
+                                    "detail": "resolving from LCSC catalog"})
+                    model = specs_from_lcsc_payload(mpn, lcsc)
+                    if model is not None:
+                        resolved_via = "lcsc"
+                    else:
+                        params, category, description = lcsc_payload_args(lcsc)
+                        llm_args = (params, category, description, "lcsc")
 
                 if model is None and settings.use_digikey:
                     try:
                         broker.publish(ctx.project_id, "step_update",
                                        {"stage": "passive_extraction",
                                         "substep": mpn, "status": "running",
-                                        "detail": "auto-resolving via DigiKey"})
+                                        "detail": "resolving from DigiKey catalog"})
                         result = await fetch_params(mpn)
                         if result.ok and result.params:
-                            model = await extraction.auto_resolve_specs(
+                            model = specs_from_distributor(
                                 mpn=mpn,
-                                digikey_params=result.params.parameters,
-                                digikey_category=result.params.category,
-                                digikey_description=result.params.description,
-                                component_type="passive",
-                                taxonomy_dir=ctx.ws.taxonomy_dir,
-                                api_logger=private,
+                                params=result.params.parameters,
+                                category=result.params.category,
+                                description=result.params.description,
                             )
-                            resolved_via = "digikey"
+                            if model is not None:
+                                resolved_via = "digikey"
+                            else:
+                                llm_args = (
+                                    result.params.parameters,
+                                    result.params.category,
+                                    result.params.description,
+                                    "digikey",
+                                )
                         else:
                             first_error = result.error or "no DigiKey parameters"
                     except Exception as e:
@@ -1158,27 +1156,64 @@ async def _catalog_resolve_unresolved_passives(
                                         "substep": mpn, "status": "running",
                                         "detail": "decoded from MPN"})
 
+                if model is None and llm_args is not None:
+                    if not await _gate_llm():
+                        return
+                    params, category, description, via = llm_args
+                    try:
+                        broker.publish(ctx.project_id, "step_update",
+                                       {"stage": "passive_extraction",
+                                        "substep": mpn, "status": "running",
+                                        "detail": f"auto-resolving via {via} (LLM)"})
+                        model = await extraction.auto_resolve_specs(
+                            mpn=mpn,
+                            digikey_params=params,
+                            digikey_category=category,
+                            digikey_description=description,
+                            component_type="passive",
+                            taxonomy_dir=ctx.ws.taxonomy_dir,
+                            api_logger=private,
+                        )
+                        if model is not None:
+                            resolved_via = via
+                    except Exception as e:
+                        first_error = str(e)
+
                 if model is None:
+                    from backend.services.passive_from_value import (
+                        is_placeholder_value,
+                        specs_from_bom_value,
+                    )
                     bom_value = ctx.passive_values.get(mpn, "").strip()
                     refs = ctx.passive_mpns.get(mpn, [])
                     pref_match = re.match(r"^[A-Za-z]+", refs[0]) if refs else None
                     ref_prefix = pref_match.group(0).upper() if pref_match else ""
                     if bom_value and ref_prefix in {"C", "R", "L", "FB"}:
-                        try:
+                        model = specs_from_bom_value(mpn, bom_value, ref_prefix)
+                        if model is not None:
+                            resolved_via = "value"
                             broker.publish(ctx.project_id, "step_update",
                                            {"stage": "passive_extraction",
                                             "substep": mpn, "status": "running",
-                                            "detail": f"resolving from BOM value {bom_value!r}"})
-                            model = await extraction.resolve_from_value(
-                                mpn=mpn, value=bom_value,
-                                ref_prefix=ref_prefix,
-                                component_type="passive",
-                                taxonomy_dir=ctx.ws.taxonomy_dir,
-                                api_logger=private,
-                            )
-                            resolved_via = "value"
-                        except Exception as e:
-                            first_error = first_error or str(e)
+                                            "detail": f"parsed BOM value {bom_value!r}"})
+                        elif not is_placeholder_value(bom_value):
+                            if not await _gate_llm():
+                                return
+                            try:
+                                broker.publish(ctx.project_id, "step_update",
+                                               {"stage": "passive_extraction",
+                                                "substep": mpn, "status": "running",
+                                                "detail": f"resolving from BOM value {bom_value!r}"})
+                                model = await extraction.resolve_from_value(
+                                    mpn=mpn, value=bom_value,
+                                    ref_prefix=ref_prefix,
+                                    component_type="passive",
+                                    taxonomy_dir=ctx.ws.taxonomy_dir,
+                                    api_logger=private,
+                                )
+                                resolved_via = "value"
+                            except Exception as e:
+                                first_error = first_error or str(e)
 
                 if model is None:
                     err = first_error or "no LCSC/DigiKey hit and no usable BOM value"

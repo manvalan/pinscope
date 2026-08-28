@@ -62,7 +62,7 @@
     "passive.ferrite_bead": {
       "description": "Ferrite bead",
       "extra_specs": [
-        {"name": "value_henries", "description": "Impedance at test frequency (stored as inductance proxy)", "unit": "H"},
+        {"name": "impedance_ohm", "description": "Impedance at the test frequency", "unit": "ohm", "required": true},
         {"name": "current_rating_a", "description": "Rated current", "unit": "A"},
         {"name": "dcr_ohms", "description": "DC resistance", "unit": "ohm"}
       ]

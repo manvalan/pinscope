@@ -38,7 +38,27 @@ def test_chip_resistor_from_mpn():
     assert abs(model.specs.value_ohms - 2200) < 0.1
 
 
-def test_skips_murata_and_bare_value():
+def test_murata_lqw18an():
+    model = specs_from_mpn("LQW18AN12NG00D")
+    assert model is not None
+    assert model.specs.specs_type == "inductor"
+    assert abs(model.specs.value_henries - 12e-9) < 1e-15
+    assert model.specs.package == "0603"
+    assert model.specs.tolerance == "±2%"
+
+    model = specs_from_mpn("LQW18AN18NJ00D")
+    assert abs(model.specs.value_henries - 18e-9) < 1e-15
+    assert model.specs.tolerance == "±5%"
+
+    model = specs_from_mpn("LQW18AN2N2D00D")
+    assert abs(model.specs.value_henries - 2.2e-9) < 1e-15
+    assert model.specs.tolerance == "±0.5nH"
+
+    model = specs_from_mpn("LQW18ANR10G00D")
+    assert abs(model.specs.value_henries - 100e-9) < 1e-15
+
+
+def test_skips_opaque_murata_and_bare_value():
     assert specs_from_mpn("GRM21A5C2J200JA01") is None
     assert specs_from_mpn("18pF") is None
     assert specs_from_mpn("CH340E") is None
