@@ -50,6 +50,28 @@ def test_render_keyword_pages_not_only_front(tmp_path: Path):
     assert images[0][1][:2] == b"\xff\xd8"  # JPEG
 
 
+def test_sparse_page_is_flagged(tmp_path: Path):
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(make_text_pdf(["   "]))
+    text = extract_pdf_text(pdf)
+    assert "low-text page" in text
+
+
+def test_one_table_markdown_from_extract_rows():
+    from backend.pinscopex.pdf_text import _one_table_markdown
+
+    class _Table:
+        def to_markdown(self):
+            raise RuntimeError("no markdown")
+
+        def extract(self):
+            return [["Pin", "Name"], ["1", "VCC"]]
+
+    md = _one_table_markdown(_Table())
+    assert "VCC" in md
+    assert "Pin" in md
+
+
 def test_coerce_abs_max_keeps_valid_drops_junk():
     rows = _coerce_abs_max([
         {"parameter": "VCC", "max": "6", "unit": "V", "source_page": 12},

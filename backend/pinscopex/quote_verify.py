@@ -7,15 +7,13 @@ demote ERROR → WARNING and prefix ``why`` with ``Unverified:``.
 
 from __future__ import annotations
 
-import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
 
 from backend.pinscopex.models import Finding
+from backend.pinscopex.pdf_text import pdf_page_texts as extract_pdf_pages
 from backend.pinscopex.utils import safe_mpn
-
-log = logging.getLogger(__name__)
 
 _MIN_QUOTE_CHARS = 12
 _EMPTY_PAGE_ALNUM = 40
@@ -48,49 +46,7 @@ def quote_in_text(quote: str, text: str) -> bool:
 
 def pdf_page_texts(pdf_path: Path) -> list[str]:
     """1-based page texts (index 0 unused). Empty list if the file cannot be read."""
-    blob = _pages_pymupdf(pdf_path)
-    if blob is None:
-        blob = _pages_pypdf(pdf_path)
-    return blob
-
-
-def _pages_pymupdf(pdf_path: Path) -> list[str] | None:
-    try:
-        import fitz
-    except ImportError:
-        return None
-    try:
-        doc = fitz.open(str(pdf_path))
-    except Exception as exc:
-        log.warning("quote_verify: PyMuPDF failed on %s: %s", pdf_path, exc)
-        return None
-    try:
-        pages = [""]
-        for page in doc:
-            try:
-                pages.append(page.get_text("text") or "")
-            except Exception:
-                pages.append("")
-        return pages
-    finally:
-        doc.close()
-
-
-def _pages_pypdf(pdf_path: Path) -> list[str]:
-    from pypdf import PdfReader
-
-    try:
-        reader = PdfReader(str(pdf_path))
-    except Exception as exc:
-        log.warning("quote_verify: pypdf failed on %s: %s", pdf_path, exc)
-        return []
-    pages = [""]
-    for page in reader.pages:
-        try:
-            pages.append(page.extract_text() or "")
-        except Exception:
-            pages.append("")
-    return pages
+    return extract_pdf_pages(pdf_path)
 
 
 def locate_quote(

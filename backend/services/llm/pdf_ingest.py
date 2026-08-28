@@ -15,11 +15,17 @@ import logging
 import re
 from pathlib import Path
 
+from backend.pinscopex.pdf_text import (
+    extract_pdf_document_text,
+    fitz_page_text,
+    page_is_sparse,
+)
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_MAX_CHARS = 500_000
 _DEFAULT_MAX_IMAGES = 32
-_RENDER_ZOOM = 1.55
+_RENDER_ZOOM = 1.7
 
 # Pages whose diagrams/tables the model must actually see.
 _PAGE_KEYWORDS = re.compile(
@@ -37,57 +43,10 @@ _PAGE_KEYWORDS = re.compile(
 def extract_pdf_text(path: Path | str, *, max_chars: int = _DEFAULT_MAX_CHARS) -> str:
     """Return datasheet text with page markers, truncated to ``max_chars``.
 
-    Prefers PyMuPDF (better on datasheet tables) and falls back to pypdf.
+    Uses reading-order blocks and reconstructed tables (PyMuPDF), with pypdf
+    as fallback. Sparse/scan pages are flagged so the vision pass can cover them.
     """
-    pdf_path = Path(path)
-    blob = _extract_text_pymupdf(pdf_path)
-    if blob is None:
-        blob = _extract_text_pypdf(pdf_path)
-    if len(blob) > max_chars:
-        blob = blob[:max_chars] + "\n\n[truncated: remaining pages omitted]"
-    return blob
-
-
-def _extract_text_pymupdf(pdf_path: Path) -> str | None:
-    try:
-        import fitz
-    except ImportError:
-        return None
-    try:
-        doc = fitz.open(str(pdf_path))
-    except Exception as exc:
-        log.warning("PyMuPDF failed to open %s: %s", pdf_path, exc)
-        return None
-    try:
-        parts: list[str] = [f"[PDF: {pdf_path.name}, {len(doc)} pages]"]
-        for i, page in enumerate(doc, start=1):
-            try:
-                text = page.get_text("text") or ""
-            except Exception:
-                text = ""
-            parts.append(f"--- page {i} ---\n{text.strip()}")
-        return "\n\n".join(parts)
-    finally:
-        doc.close()
-
-
-def _extract_text_pypdf(pdf_path: Path) -> str:
-    from pypdf import PdfReader
-
-    try:
-        reader = PdfReader(str(pdf_path))
-    except Exception as exc:
-        log.warning("Failed to open PDF %s: %s", pdf_path, exc)
-        return f"[PDF {pdf_path.name}: unreadable ({exc})]"
-
-    parts: list[str] = [f"[PDF: {pdf_path.name}, {len(reader.pages)} pages]"]
-    for i, page in enumerate(reader.pages, start=1):
-        try:
-            text = page.extract_text() or ""
-        except Exception:
-            text = ""
-        parts.append(f"--- page {i} ---\n{text.strip()}")
-    return "\n\n".join(parts)
+    return extract_pdf_document_text(path, max_chars=max_chars)
 
 
 def relevant_page_indices(
@@ -108,15 +67,20 @@ def relevant_page_indices(
         if total <= max_pages:
             return list(range(total))
         hits: set[int] = set()
+        sparse: list[int] = []
         for i in range(total):
             try:
-                text = doc[i].get_text("text") or ""
+                text = fitz_page_text(doc[i])
             except Exception:
                 text = ""
             if keywords.search(text):
                 for neighbor in (i - 1, i, i + 1):
                     if 0 <= neighbor < total:
                         hits.add(neighbor)
+            elif page_is_sparse(text) and _page_has_artwork(doc[i]):
+                sparse.append(i)
+        for i in sparse[:8]:
+            hits.add(i)
         front = set(range(min(5, total)))
         ranked_hits = sorted(hits)
         if len(ranked_hits) >= max_pages:
@@ -188,6 +152,18 @@ def render_pdf_page_jpegs(
 def jpeg_data_url(jpeg: bytes) -> str:
     b64 = base64.standard_b64encode(jpeg).decode("ascii")
     return f"data:image/jpeg;base64,{b64}"
+
+
+def _page_has_artwork(page) -> bool:
+    try:
+        if page.get_images():
+            return True
+    except Exception:
+        pass
+    try:
+        return bool(page.get_drawings())
+    except Exception:
+        return False
 
 
 def pdf_to_openai_content(
