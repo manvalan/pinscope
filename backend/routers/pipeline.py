@@ -204,11 +204,20 @@ async def reprocess(project_id: str, request: Request, req: ReprocessRequest | N
     owner_user_id, meta = await resolve_or_404(request, project_id)
     if not meta.has_bom or not meta.has_netlist:
         raise HTTPException(400, "Upload BOM and netlist before reprocessing")
-    if meta.status not in _REPROCESS_OK_FROM:
+
+    if _project_active(meta):
+        await _interrupt_active_pipeline(storage, owner_user_id, project_id)
+        meta = proj_svc.get_project(storage, owner_user_id, project_id) or meta
+
+    if meta.status == proj_svc.STATUS_PAUSED:
+        allowed = _REPROCESS_OK_FROM | {proj_svc.STATUS_PAUSED}
+    else:
+        allowed = _REPROCESS_OK_FROM
+
+    if meta.status not in allowed and not _project_active(meta):
         raise HTTPException(
             409,
-            f"Reprocess is for complete / error / cancelled runs "
-            f"(status={meta.status}). Pause uses resume; a live run uses cancel.",
+            f"Cannot reprocess from status={meta.status}.",
         )
 
     body = req or ReprocessRequest()
@@ -221,7 +230,9 @@ async def reprocess(project_id: str, request: Request, req: ReprocessRequest | N
     try:
         proj_svc.transition_status(
             storage, owner_user_id, project_id,
-            from_status=_REPROCESS_OK_FROM,
+            from_status=allowed | {
+                proj_svc.STATUS_QUEUED, proj_svc.STATUS_RUNNING,
+            },
             to_status=proj_svc.STATUS_QUEUED,
             cancel_requested=False,
             execution_name=None,
@@ -478,6 +489,36 @@ async def status(project_id: str, request: Request):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+async def _interrupt_active_pipeline(
+    storage, user_id: str, project_id: str,
+) -> None:
+    """Cancel a queued/running worker so a new run can be enqueued.
+
+    If the worker is already dead (docker rebuild, OOM) the status can
+    stay ``running``; force it to cancelled after a short wait.
+    """
+    proj_svc.request_cancel(storage, user_id, project_id)
+    await _await_terminal(storage, user_id, project_id, timeout_s=10.0)
+    meta = proj_svc.get_project(storage, user_id, project_id)
+    if meta is None:
+        return
+    if _project_active(meta) and meta.execution_name:
+        job_runner.cancel_execution(meta.execution_name)
+        await _await_terminal(storage, user_id, project_id, timeout_s=5.0)
+        meta = proj_svc.get_project(storage, user_id, project_id) or meta
+    if _project_active(meta):
+        try:
+            proj_svc.transition_status(
+                storage, user_id, project_id,
+                from_status={proj_svc.STATUS_RUNNING, proj_svc.STATUS_QUEUED},
+                to_status=proj_svc.STATUS_CANCELLED,
+                pipeline_state={"error": "Superseded by reprocess"},
+                cancel_requested=False,
+            )
+        except proj_svc.StatusConflict:
+            pass
 
 
 async def _await_terminal(

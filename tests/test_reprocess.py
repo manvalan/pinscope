@@ -96,17 +96,34 @@ def test_reprocess_all_clears_kept_refs(tmp_path, monkeypatch):
     assert fresh.completed_review_refs == []
 
 
-def test_reprocess_rejects_running(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "backend.services.job_runner.enqueue_pipeline",
-        lambda *a, **k: "x",
-    )
+def test_reprocess_stops_running_then_enqueues(tmp_path, monkeypatch):
+    captured: dict = {}
+
+    async def fake_await(*a, **k):
+        return None
+
+    monkeypatch.setattr("backend.routers.pipeline._await_terminal", fake_await)
+    monkeypatch.setattr("backend.services.job_runner.cancel_execution", lambda *a, **k: None)
+
+    def fake_enqueue(project_id, user_id, *, resume=False, free=False):
+        captured["resume"] = resume
+        return "local/projects/x"
+
+    monkeypatch.setattr("backend.services.job_runner.enqueue_pipeline", fake_enqueue)
+
     client = _client(tmp_path)
     meta = client.post("/api/projects", json={"name": "board"}).json()
     pid = meta["id"]
     storage = client.app.state.storage
     proj_svc.update_project(
-        storage, "local", pid, status="running", has_bom=True, has_netlist=True,
+        storage, "local", pid,
+        status="running",
+        has_bom=True,
+        has_netlist=True,
+        completed_review_refs=["U1"],
     )
     resp = client.post(f"/api/pipeline/{pid}/reprocess", json={"mode": "failed"})
-    assert resp.status_code == 409
+    assert resp.status_code == 202, resp.text
+    assert captured["resume"] is True
+    fresh = proj_svc.get_project(storage, "local", pid)
+    assert fresh.status == "queued"
