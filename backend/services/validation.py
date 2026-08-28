@@ -44,6 +44,11 @@ from backend.pinscopex.quote_verify import verify_finding_citations
 from backend.pinscopex.utils import safe_mpn
 from backend.pinscopex.pin_mux_check import check_pin_mux_feasibility
 from backend.pinscopex.led_current_check import check_led_current
+from backend.pinscopex.passive_rail_check import (
+    check_i2c_pullups,
+    check_reset_pullups,
+    check_supply_decoupling,
+)
 
 TRACE_VERSION = 1
 
@@ -62,6 +67,9 @@ def _run_deterministic_checks(
     for name, fn in (
         ("pin_mux_check", lambda: check_pin_mux_feasibility(graph, constraints_map)),
         ("led_current_check", lambda: check_led_current(graph)),
+        ("supply_decoupling_check", lambda: check_supply_decoupling(graph, constraints_map)),
+        ("i2c_pullup_check", lambda: check_i2c_pullups(graph, constraints_map)),
+        ("reset_pullup_check", lambda: check_reset_pullups(graph, constraints_map)),
     ):
         try:
             out.extend(fn())

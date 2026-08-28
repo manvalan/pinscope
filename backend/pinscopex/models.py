@@ -318,7 +318,7 @@ class Finding(BaseModel):
     status: Literal["ERROR", "WARNING", "INFO"]
     recommendation: str = ""
     reference: str = ""
-    source: str | None = None        # None/"review" = LLM datasheet review; "pin_mux_check"/"led_current_check" = deterministic
+    source: str | None = None        # None/"review" = LLM; "pin_mux_check"/"led_current_check"/"supply_decoupling_check"/… = deterministic
 
 
 class ValidationReport(BaseModel):
