@@ -111,8 +111,11 @@ def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
             tool_calls = [b for b in m.content if isinstance(b, ToolCall)]
             msg: dict[str, Any] = {"role": "assistant"}
             text = "".join(text_parts)
-            msg["content"] = text if text else None
+            # DeepSeek 400s with "content or tool_calls must be set" when
+            # thinking-mode returns reasoning only (content=null, no tools).
+            # Tool turns may keep content=null; text-only turns need "".
             if tool_calls:
+                msg["content"] = text if text else None
                 msg["tool_calls"] = [
                     {
                         "id": tc.id,
@@ -124,6 +127,8 @@ def messages_to_openai(messages: list[Message], *, vision: bool) -> list[dict]:
                     }
                     for tc in tool_calls
                 ]
+            else:
+                msg["content"] = text
             reasoning = _reasoning_from_blocks(m.content)
             if reasoning:
                 msg["reasoning_content"] = reasoning

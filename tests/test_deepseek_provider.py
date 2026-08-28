@@ -72,6 +72,33 @@ def test_messages_to_openai_pdf_becomes_text(sample_pdf: Path):
     assert "Extract the pin table" in blob
 
 
+def test_thinking_only_assistant_sends_empty_content():
+    """Thinking with no visible text and no tools must still set content."""
+    out = messages_to_openai(
+        [Message("assistant", [
+            TextBlock("", reasoning_content="Need to inspect pin 3 first."),
+        ])],
+        vision=False,
+    )
+    assert out[0]["role"] == "assistant"
+    assert out[0]["content"] == ""
+    assert out[0]["reasoning_content"] == "Need to inspect pin 3 first."
+    assert "tool_calls" not in out[0]
+
+
+def test_tool_call_assistant_may_have_null_content():
+    out = messages_to_openai(
+        [Message("assistant", [
+            ToolCall(id="c1", name="get_pintable", input={"ref": "U2"},
+                     reasoning_content="look up pins"),
+        ])],
+        vision=False,
+    )
+    assert out[0]["content"] is None
+    assert out[0]["tool_calls"][0]["function"]["name"] == "get_pintable"
+    assert out[0]["reasoning_content"] == "look up pins"
+
+
 def test_messages_to_openai_tool_roundtrip():
     messages = [
         Message("assistant", [
