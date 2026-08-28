@@ -129,6 +129,37 @@ class ProjectMeta(BaseModel):
     cancel_requested: bool = False
 
 
+def completed_review_refs_for_retry(
+    storage: StorageBackend, user_id: str, project_id: str,
+) -> list[str]:
+    """ICs that already finished review and should be skipped on reprocess.
+
+    Drops refs that failed (skipped_components / report.review_errors) so
+    those ICs are tried again.
+    """
+    meta = get_project(storage, user_id, project_id)
+    if not meta:
+        return []
+    failed: set[str] = set()
+    for item in meta.skipped_components or []:
+        stage = (item.get("stage") or "")
+        ident = (item.get("identifier") or "").strip()
+        if ident and stage in ("validation", "review"):
+            failed.add(ident)
+    report_key = f"{_project_prefix(user_id, project_id)}/report.json"
+    if storage.exists(report_key):
+        try:
+            report = storage.read_json(report_key)
+        except Exception:
+            report = {}
+        for ref in (report.get("review_errors") or {}):
+            if ref:
+                failed.add(str(ref))
+    from backend.pinscopex.utils import natural_sort_key
+    kept = [r for r in (meta.completed_review_refs or []) if r and r not in failed]
+    return sorted(kept, key=natural_sort_key)
+
+
 def _project_prefix(user_id: str, project_id: str) -> str:
     return f"users/{user_id}/projects/{project_id}"
 

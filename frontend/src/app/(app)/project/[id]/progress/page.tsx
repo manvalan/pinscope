@@ -20,7 +20,7 @@ import {
 import { PipelineStepper } from "@/components/progress/pipeline-stepper";
 import { PausedRunBanner } from "@/components/billing/paused-run-banner";
 import { usePipelineProgress } from "@/hooks/use-pipeline-progress";
-import { cancelPipeline, fetchProject, resumePipeline } from "@/lib/api";
+import { cancelPipeline, fetchProject, resumePipeline, reprocessPipeline } from "@/lib/api";
 import type { PauseCheckpoint } from "@/lib/types";
 import {
   AlertTriangle,
@@ -31,6 +31,7 @@ import {
   Loader2,
   OctagonX,
   Ban,
+  RotateCcw,
 } from "lucide-react";
 
 export default function ProgressPage({
@@ -51,6 +52,18 @@ export default function ProgressPage({
   const [projectPaused, setProjectPaused] = useState(false);
   const [projectCheckpoint, setProjectCheckpoint] = useState<PauseCheckpoint | null>(null);
   const [resuming, setResuming] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
+
+  async function handleReprocess(mode: "failed" | "all") {
+    setReprocessing(true);
+    try {
+      await reprocessPipeline(id, mode);
+      window.location.reload();
+    } catch (e) {
+      setReprocessing(false);
+      alert(e instanceof Error ? e.message : "Failed to reprocess");
+    }
+  }
 
   // Fetch project name + initial paused state. The SSE stream only reports
   // `pipeline_paused` if the page is open when it fires; landing on the
@@ -333,6 +346,15 @@ export default function ProgressPage({
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reprocessing}
+            onClick={() => handleReprocess("failed")}
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            {reprocessing ? "Starting..." : "Reprocess"}
+          </Button>
         </div>
       )}
 
@@ -348,12 +370,28 @@ export default function ProgressPage({
               Back to Dashboard
             </Button>
           </Link>
+          <Button
+            size="sm"
+            disabled={reprocessing}
+            onClick={() => handleReprocess("failed")}
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            {reprocessing ? "Starting..." : "Reprocess"}
+          </Button>
         </div>
       )}
 
       {done && error && !cancelled && (
         <div className="flex items-center gap-3 p-4 rounded-lg border border-rose-500/30 bg-rose-500/5">
-          <span className="text-sm text-rose-600 dark:text-rose-400">{error}</span>
+          <span className="text-sm text-rose-600 dark:text-rose-400 flex-1">{error}</span>
+          <Button
+            size="sm"
+            disabled={reprocessing}
+            onClick={() => handleReprocess("failed")}
+          >
+            <RotateCcw className="h-4 w-4 mr-1" />
+            {reprocessing ? "Starting..." : "Reprocess"}
+          </Button>
         </div>
       )}
     </div>

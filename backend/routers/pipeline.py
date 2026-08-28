@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from sse_starlette.sse import EventSourceResponse
 
 from pydantic import BaseModel
+from typing import Literal
 
 from backend.routers.deps import get_storage, resolve_or_404
 from backend.services import event_bridge, job_runner
@@ -24,10 +25,20 @@ from backend.services import projects as proj_svc
 logger = logging.getLogger(__name__)
 
 VALID_REGEN_STAGES = {"derating"}
+_REPROCESS_OK_FROM = frozenset({
+    proj_svc.STATUS_COMPLETE,
+    proj_svc.STATUS_ERROR,
+    proj_svc.STATUS_CANCELLED,
+})
 
 
 class RegenRequest(BaseModel):
     stages: list[str]
+
+
+class ReprocessRequest(BaseModel):
+    """``failed`` retries skipped / errored IC reviews; ``all`` re-reviews every IC."""
+    mode: Literal["failed", "all"] = "failed"
 
 
 router = APIRouter(tags=["pipeline"])
@@ -177,6 +188,75 @@ async def resume(project_id: str, request: Request):
         storage, owner_user_id, project_id, execution_name=execution_name,
     )
     return {"status": "resumed", "project_id": project_id}
+
+
+@router.post("/pipeline/{project_id}/reprocess", status_code=202)
+async def reprocess(project_id: str, request: Request, req: ReprocessRequest | None = None):
+    """Re-run a finished project without the create wizard.
+
+    Keeps BOM, netlist, datasheets, and library extractions. ``failed``
+    (default) skips ICs that already produced a review; ``all`` re-reviews
+    every IC.
+    """
+    from backend._version import PINSCOPE_VERSION
+
+    storage = get_storage(request)
+    owner_user_id, meta = await resolve_or_404(request, project_id)
+    if not meta.has_bom or not meta.has_netlist:
+        raise HTTPException(400, "Upload BOM and netlist before reprocessing")
+    if meta.status not in _REPROCESS_OK_FROM:
+        raise HTTPException(
+            409,
+            f"Reprocess is for complete / error / cancelled runs "
+            f"(status={meta.status}). Pause uses resume; a live run uses cancel.",
+        )
+
+    body = req or ReprocessRequest()
+    retry_failed = body.mode == "failed"
+    keep_refs = (
+        proj_svc.completed_review_refs_for_retry(storage, owner_user_id, project_id)
+        if retry_failed else []
+    )
+
+    try:
+        proj_svc.transition_status(
+            storage, owner_user_id, project_id,
+            from_status=_REPROCESS_OK_FROM,
+            to_status=proj_svc.STATUS_QUEUED,
+            cancel_requested=False,
+            execution_name=None,
+            pipeline_state=None,
+            pause_checkpoint=None,
+            pause_reason=None,
+            completed_review_refs=keep_refs,
+            pinscope_version=PINSCOPE_VERSION,
+        )
+    except proj_svc.StatusConflict:
+        raise HTTPException(409, "Pipeline already running or queued")
+
+    try:
+        execution_name = job_runner.enqueue_pipeline(
+            project_id, owner_user_id, resume=retry_failed, free=False,
+        )
+    except Exception:
+        logger.exception("enqueue_pipeline (reprocess) failed for %s", project_id)
+        proj_svc.update_project(
+            storage, owner_user_id, project_id,
+            status=proj_svc.STATUS_ERROR,
+            pipeline_state={"error": "Failed to enqueue worker"},
+        )
+        raise HTTPException(503, "Failed to enqueue pipeline worker; please retry")
+
+    proj_svc.update_project(
+        storage, owner_user_id, project_id, execution_name=execution_name,
+    )
+    return {
+        "status": "reprocess_started",
+        "project_id": project_id,
+        "mode": body.mode,
+        "resume": retry_failed,
+        "kept_review_refs": keep_refs,
+    }
 
 
 @router.post("/pipeline/{project_id}/restart", status_code=202)

@@ -1644,15 +1644,17 @@ async def run_pipeline(
     the project is left in ``paused_insufficient_credits`` with a
     checkpoint so it can be resumed later.
 
-    When ``resume=True``, prior completed review refs and spent credits are
-    restored from the project's ``pause_checkpoint`` so completed work is
-    skipped on the next pass.
+    When ``resume=True``, prior completed review refs are restored so
+    already-reviewed ICs are skipped (paused credit resume, or user
+    reprocess of failed reviews).
 
     When ``free=True`` (admin-initiated rerun), every call runs through
     ``ApiLogger(free=True)`` so ``credits_charged`` is zeroed, the credit
     gate is bypassed, and ``meta.total_cost_usd`` is preserved rather than
-    incremented.  The raw Anthropic cost is still captured in log entries.
+    incremented.      The raw Anthropic cost is still captured in log entries.
     """
+    ctx: PipelineContext | None = None
+    api_logger: ApiLogger | None = None
     try:
         meta = proj_svc.get_project(storage, user_id, project_id)
         if not meta:
@@ -1826,37 +1828,59 @@ async def run_pipeline(
         # asyncio.CancelledError can also arrive during local-dev
         # subprocess shutdown (SIGTERM). Both are handled the same way.
         try:
+            extra: dict = {
+                "pipeline_state": {"error": "Pipeline cancelled by user"},
+                "cancel_requested": False,
+            }
+            if ctx is not None:
+                extra["completed_review_refs"] = sorted(
+                    ctx.completed_review_refs, key=natural_sort_key,
+                )
+                extra["skipped_components"] = (
+                    [s.to_dict() for s in ctx.skipped] or None
+                )
             proj_svc.transition_status(
                 storage, user_id, project_id,
                 from_status={proj_svc.STATUS_RUNNING, proj_svc.STATUS_QUEUED},
                 to_status=proj_svc.STATUS_CANCELLED,
-                pipeline_state={"error": "Pipeline cancelled by user"},
-                cancel_requested=False,
+                **extra,
             )
         except proj_svc.StatusConflict:
             pass
         broker.publish(project_id, "pipeline_cancelled", {"error": "Pipeline cancelled by user"})
         # Last-mile flush so partial billing is captured.
         try:
-            api_logger.flush(storage, user_id, project_id)  # type: ignore[has-type]
+            if api_logger is not None:
+                api_logger.flush(storage, user_id, project_id)
         except Exception:
             pass
 
     except Exception as e:
         logger.exception("Pipeline run crashed for project %s", project_id)
         try:
+            extra = {
+                "pipeline_state": {"error": str(e)},
+                "cancel_requested": False,
+            }
+            if ctx is not None:
+                extra["completed_review_refs"] = sorted(
+                    ctx.completed_review_refs, key=natural_sort_key,
+                )
+                extra["skipped_components"] = (
+                    [s.to_dict() for s in ctx.skipped] or None
+                )
             proj_svc.transition_status(
                 storage, user_id, project_id,
                 from_status={proj_svc.STATUS_RUNNING, proj_svc.STATUS_QUEUED},
                 to_status=proj_svc.STATUS_ERROR,
-                pipeline_state={"error": str(e)},
-                cancel_requested=False,
+                **extra,
             )
         except proj_svc.StatusConflict:
             pass
         broker.publish(project_id, "pipeline_error", {"error": str(e)})
         try:
-            api_logger.flush(storage, user_id, project_id)  # type: ignore[has-type]
+            if api_logger is not None:
+                api_logger.flush(storage, user_id, project_id)
         except Exception:
             pass
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, Suspense } from "react";
-import { Download } from "lucide-react";
+import { Download, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useOptionalUser } from "@/hooks/use-optional-auth";
 import { useReport } from "@/hooks/use-report";
 import { useReviewedFindings } from "@/hooks/use-reviewed-findings";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toast, useToast } from "@/components/ui/toast";
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
-import { fetchCollaborators, fetchProject, fetchMyFeedback } from "@/lib/api";
+import { fetchCollaborators, fetchProject, fetchMyFeedback, reprocessPipeline } from "@/lib/api";
 import { exportReportToExcel } from "@/lib/report-export";
 import { cn, getFindingKey } from "@/lib/utils";
 import type { Finding, FindingComment, Collaborator } from "@/lib/types";
@@ -26,6 +27,7 @@ interface FocusState {
 }
 
 function ReportContent({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const { report, graph, loading, error } = useReport(projectId);
   const { user } = useOptionalUser();
   const [focus, setFocus] = useState<FocusState | null>(null);
@@ -39,6 +41,18 @@ function ReportContent({ projectId }: { projectId: string }) {
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [reportedFindingIds, setReportedFindingIds] = useState<Set<string>>(new Set());
+  const [reprocessing, setReprocessing] = useState(false);
+
+  async function handleReprocessFailed() {
+    setReprocessing(true);
+    try {
+      await reprocessPipeline(projectId, "failed");
+      router.push(`/project/${projectId}/progress`);
+    } catch (e) {
+      setReprocessing(false);
+      alert(e instanceof Error ? e.message : "Failed to reprocess");
+    }
+  }
 
   useEffect(() => {
     fetchMyFeedback()
@@ -211,14 +225,25 @@ function ReportContent({ projectId }: { projectId: string }) {
               {new Date(report.timestamp).toLocaleDateString()}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportReportToExcel(report, graph, projectName)}
-            disabled={report.findings.length === 0}
-          >
-            <Download /> Export Excel
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={reprocessing}
+              onClick={handleReprocessFailed}
+            >
+              <RotateCcw />
+              {reprocessing ? "Starting..." : "Retry failed reviews"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportReportToExcel(report, graph, projectName)}
+              disabled={report.findings.length === 0}
+            >
+              <Download /> Export Excel
+            </Button>
+          </div>
         </div>
         <ReportSummary
           summary={report.summary}
@@ -231,7 +256,8 @@ function ReportContent({ projectId }: { projectId: string }) {
               {Object.keys(report.review_errors).length} IC review{Object.keys(report.review_errors).length === 1 ? "" : "s"} failed
             </p>
             <p className="text-xs text-muted-foreground">
-              These ICs could not be reviewed against their datasheets. Re-run the pipeline to retry; if the failure repeats, share the error with support.
+              These ICs could not be reviewed against their datasheets. Use Retry
+              failed reviews to run them again without repeating ICs that already succeeded.
             </p>
             <ul className="space-y-1 text-xs">
               {Object.entries(report.review_errors).map(([ref, err]) => (

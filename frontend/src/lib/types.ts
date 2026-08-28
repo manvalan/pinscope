@@ -227,6 +227,7 @@ export interface Project {
   hasBom: boolean;
   datasheetCount: number;
   skippedComponents?: SkippedComponent[];
+  completedReviewRefs?: string[];
   userId?: string;
   collaborators?: string[];
   creditsSpent?: number;

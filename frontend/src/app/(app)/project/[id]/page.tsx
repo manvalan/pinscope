@@ -16,6 +16,7 @@ import {
   removeCollaborator,
   makeCollaboratorOwner,
   startPipeline,
+  reprocessPipeline,
   resumePipeline,
   fetchPipelineEstimate,
 } from "@/lib/api";
@@ -24,6 +25,7 @@ import type { Project, SkippedComponent, ApiLogEntry, BomSummaryRow, DeratingRow
 import {
   ArrowRight,
   Play,
+  RotateCcw,
   AlertTriangle,
   ExternalLink,
   X,
@@ -106,7 +108,14 @@ export default function ProjectDetailPage({
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
 
   const canRun = Boolean(project?.hasBom && project?.hasNetlist);
-  const canStartFresh = project?.status !== "complete" && project?.status !== "paused_insufficient_credits";
+  const canReprocess =
+    project?.status === "complete" ||
+    project?.status === "error" ||
+    project?.status === "cancelled";
+  const canStartFresh =
+    project?.status !== "complete" &&
+    project?.status !== "paused_insufficient_credits" &&
+    !canReprocess;
 
   // Pull a cost estimate when the project is ready to run, so we can show
   // the "~X credits" hint under the button.  No blocking — the user can
@@ -157,6 +166,20 @@ export default function ProjectDetailPage({
     }
   };
 
+  const handleReprocess = async (mode: "failed" | "all") => {
+    if (!canRun) return;
+    setStarting(true);
+    try {
+      await reprocessPipeline(id, mode);
+      router.push(`/project/${id}/progress`);
+    } catch (e) {
+      setStarting(false);
+      alert(e instanceof Error ? e.message : "Failed to reprocess");
+    }
+  };
+
+  const hasFailedReviews = Boolean(hasSkipped);
+
   return (
     <div className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-6">
       <div className="flex items-center justify-between">
@@ -190,16 +213,38 @@ export default function ProjectDetailPage({
       <Card>
         <CardContent className="py-3">
           {project.status === "complete" ? (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <span className="text-sm text-emerald-600 dark:text-emerald-400">
                 Validation complete
               </span>
-              <Link href={`/project/${id}/report`} className="ml-auto">
-                <Button size="sm">
-                  View Report
-                  <ArrowRight className="h-4 w-4 ml-1" />
+              <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                {hasFailedReviews && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={starting}
+                    onClick={() => handleReprocess("failed")}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    {starting ? "Starting..." : "Retry failed reviews"}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={starting}
+                  onClick={() => handleReprocess("all")}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Reprocess all
                 </Button>
-              </Link>
+                <Link href={`/project/${id}/report`}>
+                  <Button size="sm">
+                    View Report
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
             </div>
           ) : isPaused ? (
             <span className="text-sm text-amber-600 dark:text-amber-400">
@@ -207,11 +252,32 @@ export default function ProjectDetailPage({
             </span>
           ) : (
             <div className="flex flex-col items-start gap-2">
-              <div className="flex items-center gap-3">
-                <Button size="sm" disabled={!canRun || starting} onClick={handleRunPipeline}>
-                  <Play className="h-4 w-4 mr-1" />
-                  {starting ? "Starting..." : "Run Pipeline"}
-                </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                {(project.status === "error" || project.status === "cancelled") && canRun ? (
+                  <>
+                    <Button
+                      size="sm"
+                      disabled={starting}
+                      onClick={() => handleReprocess("failed")}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      {starting ? "Starting..." : "Reprocess"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={starting}
+                      onClick={() => handleReprocess("all")}
+                    >
+                      Reprocess all
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="sm" disabled={!canRun || starting} onClick={handleRunPipeline}>
+                    <Play className="h-4 w-4 mr-1" />
+                    {starting ? "Starting..." : "Run Pipeline"}
+                  </Button>
+                )}
                 {!canRun && (
                   <span className="text-xs text-muted-foreground">
                     Upload BOM and netlist to enable

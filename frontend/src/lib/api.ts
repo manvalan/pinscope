@@ -63,6 +63,7 @@ function mapProject(p: Record<string, unknown>): Project {
     hasBom: p.has_bom as boolean,
     datasheetCount: p.datasheet_count as number,
     skippedComponents: (p.skipped_components as SkippedComponent[] | null) ?? undefined,
+    completedReviewRefs: (p.completed_review_refs as string[] | null) ?? undefined,
     userId: p.user_id as string | undefined,
     collaborators: (p.collaborators as string[] | null) ?? undefined,
     creditsSpent: (p.credits_spent as number | undefined) ?? undefined,
@@ -439,7 +440,21 @@ export async function fetchLibraryDatasheetUrl(mpn: string): Promise<string | nu
 
 // --- Pipeline ---
 
-export async function startPipeline(projectId: string) {
+export async function reprocessPipeline(
+  projectId: string,
+  mode: "failed" | "all" = "failed",
+) {
+  const res = await authFetch(`${BASE}/api/pipeline/${projectId}/reprocess`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to reprocess" }));
+    throw new Error(err.detail || "Failed to reprocess pipeline");
+  }
+  return res.json();
+}
   const res = await authFetch(`${BASE}/api/pipeline/${projectId}/start`, {
     method: "POST",
   });
