@@ -217,7 +217,23 @@ def _is_i2c_pin(
     pin_num: str,
     net_name: str,
 ) -> bool:
-    return bool(_I2C_RE.search(_pin_blob(cons, pin_num, net_name)))
+    net = net_name or ""
+    if re.match(r"(?i)SPI([_-]|$)", net) or re.search(
+        r"(?i)\bSPI[_-]?(CLK|SCK|MOSI|MISO|CS|SS)\b", net,
+    ):
+        return False
+    primary = ""
+    if cons:
+        pin = cons.pin_by_number(pin_num)
+        if pin and pin.name:
+            primary = pin.name.split("/")[0].strip()
+    if re.search(r"(?i)\b(MISO|MOSI|SCLK|SCK)\b", primary):
+        return False
+    if _I2C_RE.search(net):
+        return True
+    if _I2C_RE.search(primary):
+        return True
+    return False
 
 
 def _is_reset_pin(
@@ -241,7 +257,9 @@ def _is_ground_net(graph: DesignGraph, name: str) -> bool:
 
 def _is_power_net(graph: DesignGraph, name: str) -> bool:
     net = graph.nets.get(name)
-    return bool(net and net.net_type == NetType.POWER)
+    if net and net.net_type == NetType.POWER:
+        return True
+    return bool(re.match(r"^\d+V\d*", (name or "").upper()))
 
 
 def _capacitor_to_ground(graph: DesignGraph, power_net: str) -> bool:

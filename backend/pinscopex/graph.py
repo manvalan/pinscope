@@ -154,6 +154,11 @@ def _infer_net_properties(name: str) -> tuple[NetType, float | None]:
         voltage = _parse_rail_voltage(name)
         return NetType.POWER, voltage
 
+    # KiCad-style rails: 3V3_DIGITAL, 1V8_SI4684, 5V_USB (not I2C1-SCL-3V3).
+    if re.match(r"^\d+V\d*", upper):
+        voltage = _parse_rail_voltage(name)
+        return NetType.POWER, voltage
+
     # Everything else is a signal
     return NetType.SIGNAL, None
 

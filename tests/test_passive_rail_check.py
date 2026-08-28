@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.pinscopex.graph import _infer_net_properties
 from backend.pinscopex.models import (
     Component,
     ComponentConstraints,
@@ -17,6 +18,17 @@ from backend.pinscopex.passive_rail_check import (
     check_reset_pullups,
     check_supply_decoupling,
 )
+
+
+def test_ki_cad_voltage_prefix_is_power():
+    ntype, volts = _infer_net_properties("3V3_DIGITAL")
+    assert ntype == NetType.POWER
+    assert volts == 3.3
+    ntype, volts = _infer_net_properties("1V8_SI4684")
+    assert ntype == NetType.POWER
+    assert volts == 1.8
+    ntype, _ = _infer_net_properties("I2C1-SCL-3V3")
+    assert ntype == NetType.SIGNAL
 
 
 def _graph(components, nets):
@@ -113,6 +125,44 @@ def test_i2c_pullup_present():
             "I2C_SDA": (NetType.SIGNAL, [("U1", "8"), ("R1", "1")]),
             "3V3": (NetType.POWER, [("R1", "2")]),
         },
+    )
+    assert check_i2c_pullups(g, cons) == []
+
+
+def test_i2c_pullup_to_3v3_digital_typed_as_signal():
+    cons = {
+        "UTEST": ComponentConstraints(
+            mpn="UTEST",
+            pintable=[Pin(number=8, name="SDA")],
+            absolute_maximum_ratings=[], rules=[],
+        )
+    }
+    r = Component(
+        reference="R1", value="4.7k", footprint="",
+        component_type=ComponentType.RESISTOR, mpn="R1",
+        pins={"1": "I2C_SDA", "2": "3V3_DIGITAL"},
+    )
+    g = _graph(
+        {"U1": _ic("U1", {"8": "I2C_SDA"}), "R1": r},
+        {
+            "I2C_SDA": (NetType.SIGNAL, [("U1", "8"), ("R1", "1")]),
+            "3V3_DIGITAL": (NetType.SIGNAL, [("R1", "2")]),
+        },
+    )
+    assert check_i2c_pullups(g, cons) == []
+
+
+def test_spi_pin_alias_sda_is_not_i2c():
+    cons = {
+        "UTEST": ComponentConstraints(
+            mpn="UTEST",
+            pintable=[Pin(number=38, name="MISO/SDA")],
+            absolute_maximum_ratings=[], rules=[],
+        )
+    }
+    g = _graph(
+        {"U1": _ic("U1", {"38": "SPI_MISO"})},
+        {"SPI_MISO": (NetType.SIGNAL, [("U1", "38")])},
     )
     assert check_i2c_pullups(g, cons) == []
 
