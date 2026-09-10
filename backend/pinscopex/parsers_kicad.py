@@ -394,7 +394,10 @@ def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
             elif n == "lcsc" and v:
                 lcsc = v
         parts[ref] = footprint
-        fields[ref] = {"value": value, "footprint": footprint, "mpn": mpn, "lcsc": lcsc}
+        fields[ref] = {
+            "value": value, "footprint": footprint, "mpn": mpn, "lcsc": lcsc,
+            "cad_uuid": _val(sym, "uuid"),
+        }
         lp = lib_pins.get(lib_id, {})
         for pin_el in _kids(sym, "pin"):
             num = str(pin_el[1]) if len(pin_el) > 1 else ""
@@ -579,7 +582,10 @@ def parse_kicad_sch_project(
             if ref in parts:
                 raise ValueError(f"Duplicate reference {ref} in {path.name}")
             parts[ref] = fp
-            fields[ref] = sheet.fields.get(ref, {})
+            fields[ref] = {
+                **sheet.fields.get(ref, {}),
+                "cad_sheet": path.name,
+            }
         for name, pins in sheet.nets.items():
             scope = sheet.net_scope.get(name, "unnamed")
             if scope == "global":

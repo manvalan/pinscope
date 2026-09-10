@@ -8,6 +8,7 @@ from pathlib import Path
 
 from backend.pinscopex.utils import safe_mpn
 from backend.pinscopex.models import (
+    CadIndexEntry,
     Component,
     ComponentConstraints,
     ComponentModel,
@@ -289,6 +290,8 @@ def build_graph(
             schematic_fields[ref] = {
                 "mpn": extra.get("mpn"),
                 "value": extra.get("value", ""),
+                "cad_uuid": extra.get("cad_uuid") or "",
+                "cad_sheet": extra.get("cad_sheet") or "",
             }
             entry = bom.setdefault(
                 ref,
@@ -410,9 +413,17 @@ def build_graph(
             pins=pin_connections,
         )
 
+    cad_index: dict[str, CadIndexEntry] = {}
+    for ref, extra in schematic_fields.items():
+        uuid = extra.get("cad_uuid") or ""
+        sheet = extra.get("cad_sheet") or ""
+        if uuid or sheet:
+            cad_index[ref] = CadIndexEntry(uuid=uuid, sheet=sheet)
+
     return DesignGraph(
         components=components,
         nets=nets,
         bom_fields=bom_fields,
         schematic_fields=schematic_fields,
+        cad_index=cad_index,
     )

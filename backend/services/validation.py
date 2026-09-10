@@ -51,6 +51,7 @@ from backend.pinscopex.passive_rail_check import (
 )
 from backend.pinscopex.bom_match_check import check_bom_schematic_match
 from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
+from backend.pinscopex.cad_bridge import annotate_findings_cad, build_cad_bridge, write_cad_bridge
 from backend.pinscopex.filter_check import check_filters
 from backend.pinscopex.thermal_check import check_thermal
 from backend.pinscopex.power_margin_check import check_power_margin
@@ -761,6 +762,7 @@ async def validate_design_async(
         return clean
 
     def _write_report(paused: bool = False) -> ValidationReport:
+        annotate_findings_cad(all_findings, graph.cad_index)
         assign_finding_ids(all_findings)
         summary = {"total": len(all_findings), "ERROR": 0, "WARNING": 0, "INFO": 0}
         for f in all_findings:
@@ -792,6 +794,12 @@ async def validate_design_async(
         if paused:
             report_dict["partial"] = True
         existing_path.write_text(json.dumps(report_dict, indent=2))
+        try:
+            prefix_id = (project_prefix or "").rstrip("/").rsplit("/", 1)[-1]
+            bridge = build_cad_bridge(report, prefix_id or report.project)
+            write_cad_bridge(existing_path.with_name("pinscope-findings.json"), bridge)
+        except Exception:
+            log.exception("cad bridge write failed")
         return report
 
     git_commit = (run_meta or {}).get("git_commit", "unknown")

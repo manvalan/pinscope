@@ -260,6 +260,7 @@ class PipelineWorkspace:
             self._upload_file("bom_summary.json")
             self._upload_file("derating.json")
             self._upload_file("report.json")
+            self._upload_file("pinscope-findings.json")
             self._upload_file("review_fingerprints.json")
             self._upload_file("api_logs.jsonl")
 

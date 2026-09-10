@@ -11,6 +11,7 @@ Each project lives at users/{user_id}/projects/{id}/ with:
   models/                   — cached component specs
   design_graph.json         — graph output
   report.json               — validation report
+  pinscope-findings.json    — KiCad cad-bridge (plugin pan-and-zoom)
 
 Library (global, shared across users):
   library/extracted/{mpn}.json
@@ -359,6 +360,7 @@ def clear_project_extractions(
         "bom_summary.json",
         "derating.json",
         "report.json",
+        "pinscope-findings.json",
         "review_fingerprints.json",
         "api_logs.jsonl",
         "graph_voltage_updates.json",
@@ -393,6 +395,7 @@ def reopen_project(
         "bom_summary.json",
         "derating.json",
         "report.json",
+        "pinscope-findings.json",
         "review_fingerprints.json",
         "api_logs.jsonl",
         "graph_voltage_updates.json",

@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.16.0 — 2026-09-10 — KiCad cad-bridge
+
+Pinscope writes `pinscope-findings.json` next to the report so a KiCad 9/10 action plugin can pan to the symbol uuid on the right sheet.
+
+- [New] E2 cad-bridge JSON (`version`, `ref`, `pins`, `sheet`, `uuid`, `severity`). Layout rule ids target pcbnew; others target eeschema.
+- [New] `.kicad_sch` symbols keep `cad_uuid` + `cad_sheet` in `cad_index` (child sheet, not the empty root).
+- [New] Action plugin in `plugins/kicad/` reads the JSON beside `.kicad_pro` / `.kicad_pcb`.
+
 ## 2.15.0 — 2026-09-10 — Power margin, sequencing, DNP enable
 
 Schema checks now compare regulator load to Iout_max, look at PG→EN when a sequence is declared, and treat DNP as a fitted-variant graph.

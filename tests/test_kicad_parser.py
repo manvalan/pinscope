@@ -137,12 +137,13 @@ _LIB_R = """
 
 
 def _resistor(ref: str, value: str, x: float = 0, y: float = 0) -> str:
+    uid = "aaaaaaaa-aaaa-aaaa-aaaa-" + ref.encode().hex()[:12].ljust(12, "0")
     return f"""
   (symbol
     (lib_id "Device:R")
     (at {x} {y} 0)
     (unit 1)
-    (uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    (uuid "{uid}")
     (property "Reference" "{ref}" (at 0 0 0) (effects (font (size 1.27 1.27))))
     (property "Value" "{value}" (at 0 0 0) (effects (font (size 1.27 1.27))))
     (pin "1" (uuid "p1"))

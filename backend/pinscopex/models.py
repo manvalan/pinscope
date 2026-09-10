@@ -234,6 +234,12 @@ class Component(BaseModel):
     )
 
 
+class CadIndexEntry(BaseModel):
+    """KiCad symbol identity for plugin pan-and-zoom."""
+    uuid: str = ""
+    sheet: str = ""
+
+
 class DesignGraph(BaseModel):
     """
     Bipartite design graph: Components <-> Nets.
@@ -247,6 +253,7 @@ class DesignGraph(BaseModel):
     # KiCad property table vs uploaded BOM (empty on PADS/EDIF).
     bom_fields: dict[str, dict] = {}
     schematic_fields: dict[str, dict] = {}
+    cad_index: dict[str, CadIndexEntry] = {}
 
     # -- Traversal helpers --------------------------------------------------
 

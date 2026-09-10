@@ -38,6 +38,17 @@ async def get_report(project_id: str, request: Request):
     return JSONResponse(storage.read_json(key))
 
 
+@router.get("/report/{project_id}/cad-bridge")
+async def get_cad_bridge(project_id: str, request: Request):
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    prefix = proj_svc.project_prefix(owner_user_id, project_id)
+    key = f"{prefix}/pinscope-findings.json"
+    if not storage.exists(key):
+        raise HTTPException(404, "CAD bridge not found — run the pipeline first")
+    return JSONResponse(storage.read_json(key))
+
+
 class AddCommentBody(BaseModel):
     finding_id: str
     text: str
