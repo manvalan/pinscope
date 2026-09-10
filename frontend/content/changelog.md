@@ -2,6 +2,12 @@
 
 What's new in Pinscope.
 
+## 2.20.0 — 2026-09-10 — Placement vs datasheet (PCB)
+
+Decoupling distance is measured on the `.kicad_pcb` against `layout_rules`. No board → no `PS-PLC-001`. A null millimetre uses the declared 3 mm default as WARNING.
+
+- [New] `PS-PLC-001` when a decoupling cap is farther than `max_distance_mm` (ERROR) or the 3 mm default (WARNING). Empty `layout_rules` and missing caps skip.
+
 ## 2.19.0 — 2026-09-10 — Finding review and ECO
 
 Findings can be accepted, marked false-positive, or wontfix with a required reason. Accepted rows export as ECO; OpenEMS-style layout SI is still not this.

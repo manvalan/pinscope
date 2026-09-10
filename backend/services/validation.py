@@ -26,6 +26,7 @@ from backend.pinscopex.models import (
     ComponentType,
     DesignGraph,
     Finding,
+    LayoutGraph,
     NetType,
     ValidationReport,
 )
@@ -60,6 +61,7 @@ from backend.pinscopex.dnp_check import check_dnp_enables
 from backend.pinscopex.lifecycle import check_lifecycle, load_lifecycle_dir
 from backend.pinscopex.errata_check import check_errata
 from backend.pinscopex.internal_features_check import check_internal_features
+from backend.pinscopex.placement_check import check_placement
 
 TRACE_VERSION = 1
 
@@ -72,6 +74,7 @@ def _is_deterministic(f: Finding) -> bool:
 def _run_deterministic_checks(
     graph: DesignGraph, constraints_map: dict,
     lifecycle_map: dict | None = None,
+    layout: LayoutGraph | None = None,
 ) -> list[Finding]:
     """Run the deterministic graph checks, fail-soft per check — a check bug
     can never break the review or the report."""
@@ -94,12 +97,24 @@ def _run_deterministic_checks(
         ("lifecycle_check", lambda: check_lifecycle(graph, lifecycle_map)),
         ("errata_check", lambda: check_errata(graph, constraints_map)),
         ("internal_features_check", lambda: check_internal_features(graph, constraints_map)),
+        ("placement_check", lambda: check_placement(graph, constraints_map, layout)),
     ):
         try:
             out.extend(fn())
         except Exception:
             log.exception("deterministic check %s failed — skipping", name)
     return out
+
+
+def _load_layout_graph(graph_path: str) -> LayoutGraph | None:
+    path = Path(graph_path).with_name("layout_graph.json")
+    if not path.is_file():
+        return None
+    try:
+        return LayoutGraph.model_validate_json(path.read_text())
+    except Exception:
+        log.exception("layout_graph.json invalid — skipping placement_check")
+        return None
 
 
 def _assistant_text(blocks) -> str:
@@ -709,7 +724,7 @@ async def validate_design_async(
         if loaded:
             lifecycle_map.update(loaded)
     deterministic_findings = _run_deterministic_checks(
-        graph, constraints_map, lifecycle_map,
+        graph, constraints_map, lifecycle_map, layout=_load_layout_graph(graph_path),
     )
 
     pdf_dir_path = Path(pdf_dir)

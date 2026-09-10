@@ -30,6 +30,7 @@ from backend.pinscopex.dnp_check import check_dnp_enables
 from backend.pinscopex.lifecycle import check_lifecycle
 from backend.pinscopex.errata_check import check_errata
 from backend.pinscopex.internal_features_check import check_internal_features
+from backend.pinscopex.placement_check import check_placement
 
 
 class EvalScores(BaseModel):
@@ -99,6 +100,7 @@ def run_deterministic_on_graph(graph: DesignGraph) -> list[Finding]:
     out.extend(check_lifecycle(graph, {}))
     out.extend(check_errata(graph, cmap))
     out.extend(check_internal_features(graph, cmap))
+    out.extend(check_placement(graph, cmap, None))
     return out
 
 
