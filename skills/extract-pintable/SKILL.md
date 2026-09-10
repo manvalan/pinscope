@@ -31,7 +31,7 @@ Rules for pin extraction:
 
 Optional extras (omit if the PDF does not show them):
 - `internal_features.pullup_pins` / `esd_clamp_pins` / `analog_switch` from the **block diagram** only.
-- `layout_rules` from **PCB layout / typical application** pages. `kind` is only `decoupling_proximity`, `thermal_via`, or `keepout`. Set `max_distance_mm` only when the document states a number — do not invent JEDEC millimetres.
+- `layout_rules` from **PCB layout / typical application** pages. `kind` is only `decoupling_proximity`, `thermal_via`, `keepout`, or `length_match` (intra-pair skew mm). Set `max_distance_mm` only when the document states a number — do not invent JEDEC or USB millimetres.
 
 Rules for pin extraction:`
 - If the datasheet has separate tables for different packages, extract for the package matching the MPN

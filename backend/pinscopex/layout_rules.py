@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-KNOWN_KINDS = frozenset({"decoupling_proximity", "thermal_via", "keepout"})
+KNOWN_KINDS = frozenset({"decoupling_proximity", "thermal_via", "keepout", "length_match"})
 
 
 def _num(v: Any) -> float | None:

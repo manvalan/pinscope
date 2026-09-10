@@ -135,7 +135,7 @@ PINTABLE_TOOL = {
             },
             "layout_rules": {
                 "type": "array",
-                "description": "Optional PCB layout constraints from typical-application pages. kind must be decoupling_proximity, thermal_via, or keepout. max_distance_mm only if the PDF states a number.",
+                "description": "Optional PCB layout constraints from typical-application pages. kind must be decoupling_proximity, thermal_via, keepout, or length_match. max_distance_mm only if the PDF states a number — never invent 3 mm or 3W.",
                 "items": {"type": "object"},
             },
         },

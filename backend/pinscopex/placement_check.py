@@ -1,9 +1,7 @@
 """G2: decoupling proximity on the PCB vs datasheet layout_rules.
 
-Runs only when a LayoutGraph is present. Empty layout_rules skip the IC.
-No capacitor on the rail does not invent a distance. A null
-max_distance_mm uses the declared DEFAULT_MAX_DISTANCE_MM (3 mm) as
-WARNING, never as an invented datasheet number.
+Runs only when a LayoutGraph is present and a decoupling_proximity rule
+has a numeric max_distance_mm. Null millimetres skip — no 3 mm default.
 """
 
 from __future__ import annotations
@@ -19,8 +17,6 @@ from backend.pinscopex.models import (
     LayoutPad,
 )
 from backend.pinscopex.validate import _match_constraints
-
-DEFAULT_MAX_DISTANCE_MM = 3.0
 
 
 def _pad_for(layout: LayoutGraph, ref: str, number: str) -> LayoutPad | None:
@@ -95,20 +91,10 @@ def check_placement(
             nearest = min(_dist(ic_pad, p) for p in cap_pads)
             extracted = rule.get("max_distance_mm")
             if extracted is None:
-                limit = DEFAULT_MAX_DISTANCE_MM
-                used_default = True
-                status = "WARNING"
-            else:
-                limit = float(extracted)
-                used_default = False
-                status = "ERROR"
+                continue
+            limit = float(extracted)
             if nearest <= limit:
                 continue
-            why = (
-                f"Datasheet does not specify mm; used default {DEFAULT_MAX_DISTANCE_MM:g} mm."
-                if used_default
-                else f"Datasheet max_distance_mm={limit:g}."
-            )
             findings.append(Finding(
                 designator=ref,
                 mpn=comp.mpn or cons.mpn,
@@ -117,8 +103,8 @@ def check_placement(
                     f"Decoupling on {net} is {nearest:.1f} mm from {ref}.{pin_no} "
                     f"(limit {limit:g} mm)."
                 ),
-                why=why,
-                status=status,
+                why=f"Datasheet max_distance_mm={limit:g}.",
+                status="ERROR",
                 recommendation="Place the decoupling capacitor closer to the supply pin.",
                 source="placement_check",
                 rule_id="PS-PLC-001",

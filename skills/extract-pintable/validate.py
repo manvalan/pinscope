@@ -85,7 +85,7 @@ def validate(data: dict) -> list[str]:
         if not isinstance(data["layout_rules"], list):
             errors.append("layout_rules must be an array")
         else:
-            kinds = {"decoupling_proximity", "thermal_via", "keepout"}
+            kinds = {"decoupling_proximity", "thermal_via", "keepout", "length_match"}
             for i, row in enumerate(data["layout_rules"]):
                 if not isinstance(row, dict):
                     errors.append(f"layout_rules[{i}] must be an object")

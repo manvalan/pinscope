@@ -62,6 +62,7 @@ from backend.pinscopex.lifecycle import check_lifecycle, load_lifecycle_dir
 from backend.pinscopex.errata_check import check_errata
 from backend.pinscopex.internal_features_check import check_internal_features
 from backend.pinscopex.placement_check import check_placement
+from backend.pinscopex.si_check import check_si
 
 TRACE_VERSION = 1
 
@@ -98,6 +99,7 @@ def _run_deterministic_checks(
         ("errata_check", lambda: check_errata(graph, constraints_map)),
         ("internal_features_check", lambda: check_internal_features(graph, constraints_map)),
         ("placement_check", lambda: check_placement(graph, constraints_map, layout)),
+        ("si_check", lambda: check_si(graph, constraints_map, layout)),
     ):
         try:
             out.extend(fn())

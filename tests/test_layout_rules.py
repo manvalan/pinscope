@@ -29,6 +29,15 @@ def test_valid_decoupling_proximity_keeps_distance():
     assert ok[0]["kind"] == "decoupling_proximity"
 
 
+def test_length_match_kind_is_accepted():
+    ok, errors = validate_layout_rules([
+        {"kind": "length_match", "net_class": "diff", "max_distance_mm": 2.0, "source_page": 9},
+    ])
+    assert errors == []
+    assert ok[0]["kind"] == "length_match"
+    assert ok[0]["max_distance_mm"] == 2.0
+
+
 def test_empty_list_is_explicit_skip():
     ok, errors = validate_layout_rules([])
     assert ok == []
