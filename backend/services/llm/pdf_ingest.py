@@ -35,6 +35,8 @@ _PAGE_KEYWORDS = re.compile(
     r"|power\s+supply|thermal\s+(resistance|shutdown|pad)|ESD\s+(rating|tolerance)"
     r"|decoupling|bypass\s+capacitor|typical\s+application"
     r"|application\s+(circuit|schematic|information|note)|reference\s+design"
+    r"|block\s+diagram|functional\s+block|internal\s+block"
+    r"|pcb\s+layout|layout\s+consideration|thermal\s+via"
     r"|ordering\s+information|device\s+information",
     re.IGNORECASE,
 )

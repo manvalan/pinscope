@@ -2,6 +2,15 @@
 
 What's new in Pinscope.
 
+## 2.17.0 — 2026-09-10 — Lifecycle and datasheet extras
+
+Distributor lifecycle is a cached check, not a review scrape. Errata and layout_rules stay structured and skip when the catalog or the PDF has no number.
+
+- [New] `PS-LF-001` EOL, `PS-LF-002` NRND, `PS-LF-003` explicit RoHS fail. Replacement only if the distributor lists it. Active / RoHS N/A / missing cache row are silent.
+- [New] `PS-ERRATA-001` when a catalogued workaround pull-up is missing. No URL → skip.
+- [New] `PS-INT-001` when `internal_features.pullup_pins` has no rail resistor.
+- [New] `layout_rules` closed kinds; non-numeric `max_distance_mm` is stored as null.
+
 ## 2.16.0 — 2026-09-10 — KiCad cad-bridge
 
 Pinscope writes `pinscope-findings.json` next to the report so a KiCad 9/10 action plugin can pan to the symbol uuid on the right sheet.

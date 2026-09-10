@@ -27,6 +27,9 @@ from backend.pinscopex.thermal_check import check_thermal
 from backend.pinscopex.power_margin_check import check_power_margin
 from backend.pinscopex.sequencing_check import check_power_sequencing
 from backend.pinscopex.dnp_check import check_dnp_enables
+from backend.pinscopex.lifecycle import check_lifecycle
+from backend.pinscopex.errata_check import check_errata
+from backend.pinscopex.internal_features_check import check_internal_features
 
 
 class EvalScores(BaseModel):
@@ -93,6 +96,9 @@ def run_deterministic_on_graph(graph: DesignGraph) -> list[Finding]:
     out.extend(check_power_margin(graph, cmap))
     out.extend(check_power_sequencing(graph, cmap))
     out.extend(check_dnp_enables(graph, cmap))
+    out.extend(check_lifecycle(graph, {}))
+    out.extend(check_errata(graph, cmap))
+    out.extend(check_internal_features(graph, cmap))
     return out
 
 

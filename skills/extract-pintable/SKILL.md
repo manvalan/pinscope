@@ -28,6 +28,12 @@ Rules for pin extraction:
 - Include ALL pins — power, ground, NC, and signal pins
 - Use pin names verbatim from the datasheet — do not rename or normalize
 - For multiplexed pins, put the primary name in `name` and alternates in `functions`
+
+Optional extras (omit if the PDF does not show them):
+- `internal_features.pullup_pins` / `esd_clamp_pins` / `analog_switch` from the **block diagram** only.
+- `layout_rules` from **PCB layout / typical application** pages. `kind` is only `decoupling_proximity`, `thermal_via`, or `keepout`. Set `max_distance_mm` only when the document states a number — do not invent JEDEC millimetres.
+
+Rules for pin extraction:`
 - If the datasheet has separate tables for different packages, extract for the package matching the MPN
 - Pay careful attention to pin numbering — off-by-one errors here break everything downstream
 - **Modules vs bare die (critical).** MPNs containing `WROOM`, `WROVER`, `MODULE`, `MOD-`, or `SIP` are *modules*. Extract the **module landing-pad table** (connector pins the schematic uses). Do **not** extract the SoC/QFN ball map from a nested chip chapter or a sibling chip-only PDF.

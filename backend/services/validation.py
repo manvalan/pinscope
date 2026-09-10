@@ -57,6 +57,9 @@ from backend.pinscopex.thermal_check import check_thermal
 from backend.pinscopex.power_margin_check import check_power_margin
 from backend.pinscopex.sequencing_check import check_power_sequencing
 from backend.pinscopex.dnp_check import check_dnp_enables
+from backend.pinscopex.lifecycle import check_lifecycle, load_lifecycle_dir
+from backend.pinscopex.errata_check import check_errata
+from backend.pinscopex.internal_features_check import check_internal_features
 
 TRACE_VERSION = 1
 
@@ -67,7 +70,8 @@ def _is_deterministic(f: Finding) -> bool:
 
 
 def _run_deterministic_checks(
-    graph: DesignGraph, constraints_map: dict
+    graph: DesignGraph, constraints_map: dict,
+    lifecycle_map: dict | None = None,
 ) -> list[Finding]:
     """Run the deterministic graph checks, fail-soft per check — a check bug
     can never break the review or the report."""
@@ -87,6 +91,9 @@ def _run_deterministic_checks(
         ("power_margin_check", lambda: check_power_margin(graph, constraints_map)),
         ("sequencing_check", lambda: check_power_sequencing(graph, constraints_map)),
         ("dnp_check", lambda: check_dnp_enables(graph, constraints_map)),
+        ("lifecycle_check", lambda: check_lifecycle(graph, lifecycle_map)),
+        ("errata_check", lambda: check_errata(graph, constraints_map)),
+        ("internal_features_check", lambda: check_internal_features(graph, constraints_map)),
     ):
         try:
             out.extend(fn())
@@ -693,10 +700,17 @@ async def validate_design_async(
     graph = DesignGraph.model_validate(raw)
     datasheets = _load_datasheets(datasheets_dir)
     constraints_map = _build_constraints_map(datasheets)
-
-    # Deterministic graph checks (pin-mux feasibility, LED current). Pure
-    # functions of the graph; fail-soft. Seeded into all_findings below.
-    deterministic_findings = _run_deterministic_checks(graph, constraints_map)
+    lifecycle_map = {}
+    for cand in (
+        Path(datasheets_dir).parent / "lifecycle",
+        Path(datasheets_dir) / "lifecycle",
+    ):
+        loaded = load_lifecycle_dir(cand)
+        if loaded:
+            lifecycle_map.update(loaded)
+    deterministic_findings = _run_deterministic_checks(
+        graph, constraints_map, lifecycle_map,
+    )
 
     pdf_dir_path = Path(pdf_dir)
 

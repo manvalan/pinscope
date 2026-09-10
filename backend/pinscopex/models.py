@@ -44,6 +44,13 @@ def _check_subtype(v: object) -> str | None:
     return validate_subtype(str(v))
 
 
+class InternalFeatures(BaseModel):
+    """Block-diagram extras: ESD clamps, on-die pull-ups, analog switches."""
+    esd_clamp_pins: list[str] = []
+    pullup_pins: list[str] = []
+    analog_switch: list[str] = []
+
+
 class ComponentConstraints(BaseModel):
     mpn: str
     model_version: str = "1.0.0"  # semver; bumped on prune (patch) or skill update (minor)
@@ -52,6 +59,8 @@ class ComponentConstraints(BaseModel):
     pintable: list[Pin]
     absolute_maximum_ratings: list[AbsMaxRating]
     rules: list[Rule]
+    internal_features: InternalFeatures | None = None
+    layout_rules: list[dict] = []
 
     _validate_subtype = field_validator("component_subtype", mode="before")(
         staticmethod(_check_subtype)

@@ -45,6 +45,18 @@
         },
         "required": ["parameter", "unit", "source_page"]
       }
+    },
+    "internal_features": {
+      "type": "object",
+      "properties": {
+        "esd_clamp_pins": {"type": "array", "items": {"type": "string"}},
+        "pullup_pins": {"type": "array", "items": {"type": "string"}},
+        "analog_switch": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "layout_rules": {
+      "type": "array",
+      "items": {"type": "object"}
     }
   },
   "required": ["component_subtype", "package_info", "pintable"]

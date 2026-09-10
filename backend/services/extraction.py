@@ -125,6 +125,20 @@ PINTABLE_TOOL = {
                     "required": ["parameter", "unit", "source_page"],
                 },
             },
+            "internal_features": {
+                "type": "object",
+                "description": "Optional block-diagram extras. Omit or empty if not shown.",
+                "properties": {
+                    "esd_clamp_pins": {"type": "array", "items": {"type": "string"}},
+                    "pullup_pins": {"type": "array", "items": {"type": "string"}},
+                    "analog_switch": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+            "layout_rules": {
+                "type": "array",
+                "description": "Optional PCB layout constraints from typical-application pages. kind must be decoupling_proximity, thermal_via, or keepout. max_distance_mm only if the PDF states a number.",
+                "items": {"type": "object"},
+            },
         },
         "required": ["component_subtype", "component_subtype_description", "package_info", "pintable"],
     },
@@ -349,6 +363,25 @@ def _coerce_abs_max(raw: object) -> list[dict]:
             "source_page": source_page,
         })
     return out
+
+
+def _coerce_layout_rules(raw: object) -> list[dict]:
+    from backend.pinscopex.layout_rules import validate_layout_rules
+    rows, _errors = validate_layout_rules(raw if isinstance(raw, list) else [])
+    return rows
+
+
+def _coerce_internal_features(raw: object):
+    from backend.pinscopex.models import InternalFeatures
+    if not isinstance(raw, dict):
+        return None
+    try:
+        feat = InternalFeatures.model_validate(raw)
+    except Exception:
+        return None
+    if not feat.esd_clamp_pins and not feat.pullup_pins and not feat.analog_switch:
+        return None
+    return feat
 
 
 _GENERATE_SPECS_TOOL = {
@@ -623,6 +656,8 @@ async def extract_pintable(
             result.get("absolute_maximum_ratings") or [],
         ),
         rules=[],
+        internal_features=_coerce_internal_features(result.get("internal_features")),
+        layout_rules=_coerce_layout_rules(result.get("layout_rules")),
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -81,6 +81,19 @@ def validate(data: dict) -> list[str]:
                             f"absolute_maximum_ratings[{i}] missing required field: {f}"
                         )
 
+    if "layout_rules" in data and data["layout_rules"] is not None:
+        if not isinstance(data["layout_rules"], list):
+            errors.append("layout_rules must be an array")
+        else:
+            kinds = {"decoupling_proximity", "thermal_via", "keepout"}
+            for i, row in enumerate(data["layout_rules"]):
+                if not isinstance(row, dict):
+                    errors.append(f"layout_rules[{i}] must be an object")
+                    continue
+                kind = row.get("kind")
+                if kind not in kinds:
+                    errors.append(f"layout_rules[{i}] unknown kind: {kind!r}")
+
     return errors
 
 
