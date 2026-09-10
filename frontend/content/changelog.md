@@ -2,6 +2,12 @@
 
 What's new in Pinscope.
 
+## 2.25.0 — 2026-09-10 — Keepout courtyard
+
+`layout_rules` `keepout` flags a foreign net whose track endpoint is inside the KiCad courtyard. Own net and missing courtyard skip. No invented analog/digital classes.
+
+- [New] `PS-PLC-004` WARNING. Tests use `X1` / `/HFXIN` / `GND` from `simple_project`.
+
 ## 2.24.0 — 2026-09-10 — Crystal load caps and track path
 
 Load caps on XIN/XOUT use the same `max_distance_mm` as decoupling. If the PCB has segments on the net, the limit is shortest-path length, not a guessed “loop is too big” ratio.

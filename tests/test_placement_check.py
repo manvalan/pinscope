@@ -218,3 +218,63 @@ def test_track_path_longer_than_max_distance_mm_is_ps_plc_001():
     plc = [f for f in findings if f.rule_id == "PS-PLC-001"]
     assert len(plc) == 1
     assert plc[0].net == "/HFXIN"
+
+
+def _xtal_keepout_cons():
+    mpn = "AV08000301"
+    return {
+        mpn: ComponentConstraints(
+            mpn=mpn,
+            pintable=[Pin(number=1, name="/HFXIN")],
+            absolute_maximum_ratings=[],
+            rules=[],
+            layout_rules=[{"kind": "keepout", "pin": "1"}],
+        )
+    }
+
+
+def _x1_keepout_layout(*, net: str, courtyard=True):
+    poly = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] if courtyard else []
+    return LayoutGraph(
+        footprints={
+            "X1": LayoutFootprint(
+                reference="X1", x=0, y=0, layer="F.Cu",
+                pads=[LayoutPad(number="1", x=0.0, y=0.0, net="/HFXIN")],
+                courtyard=poly,
+            ),
+        },
+        segments=[
+            LayoutSegment(
+                start=(0.4, 0.4), end=(0.6, 0.4),
+                width=0.2, layer="F.Cu", net=net,
+            ),
+        ],
+    )
+
+
+def test_keepout_foreign_track_in_courtyard_is_ps_plc_004():
+    findings = check_placement(
+        _graph(),
+        _xtal_keepout_cons(),
+        _x1_keepout_layout(net="GND"),
+    )
+    plc = [f for f in findings if f.rule_id == "PS-PLC-004"]
+    assert len(plc) == 1
+    assert plc[0].designator == "X1"
+    assert plc[0].net == "GND"
+
+
+def test_keepout_own_net_in_courtyard_is_silent():
+    assert check_placement(
+        _graph(),
+        _xtal_keepout_cons(),
+        _x1_keepout_layout(net="/HFXIN"),
+    ) == []
+
+
+def test_keepout_without_courtyard_is_silent():
+    assert check_placement(
+        _graph(),
+        _xtal_keepout_cons(),
+        _x1_keepout_layout(net="GND", courtyard=False),
+    ) == []

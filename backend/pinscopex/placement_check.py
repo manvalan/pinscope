@@ -7,6 +7,7 @@ min_via_count — no invented pad radius. same_layer (`PS-PLC-003`) uses
 the boolean parameter plus footprint layers from the PCB. Crystals use
 the same decoupling_proximity rule. Track length is shortest path on
 segments vs max_distance_mm — no invented “much larger than euclidean”.
+Keepout (`PS-PLC-004`) is a foreign net endpoint inside the courtyard.
 """
 
 from __future__ import annotations
@@ -124,6 +125,8 @@ def check_placement(
                 )
             elif kind == "thermal_via":
                 findings.extend(_thermal_via_finding(ref, comp, cons, rule, layout))
+            elif kind == "keepout":
+                findings.extend(_keepout_finding(ref, comp, cons, rule, graph, layout))
     return findings
 
 
@@ -273,5 +276,40 @@ def _thermal_via_finding(ref, comp, cons, rule, layout: LayoutGraph) -> list[Fin
         source="placement_check",
         rule_id="PS-PLC-002",
         pins=[pin] if pin else [],
+        source_page=rule.get("source_page"),
+    )]
+
+
+def _keepout_finding(ref, comp, cons, rule, graph: DesignGraph, layout: LayoutGraph) -> list[Finding]:
+    fp = layout.footprints.get(ref)
+    if not fp or len(fp.courtyard) < 3:
+        return []
+    pin_no = _pin_number(cons, str(rule.get("pin") or ""))
+    own = _net_for_pin(graph, ref, pin_no) if pin_no else None
+    if not own:
+        return []
+    foreign: list[str] = []
+    for s in layout.segments:
+        if not s.net or s.net == own:
+            continue
+        if _in_poly(s.start[0], s.start[1], fp.courtyard) or _in_poly(
+            s.end[0], s.end[1], fp.courtyard
+        ):
+            foreign.append(s.net)
+    if not foreign:
+        return []
+    net = sorted(set(foreign))[0]
+    return [Finding(
+        designator=ref,
+        mpn=comp.mpn or cons.mpn,
+        aspect="placement",
+        finding=f"Track on {net} enters courtyard of {ref} (keepout on {own}).",
+        why="layout_rules kind=keepout.",
+        status="WARNING",
+        recommendation="Keep other nets out of the courtyard.",
+        source="placement_check",
+        rule_id="PS-PLC-004",
+        net=net,
+        pins=[pin_no],
         source_page=rule.get("source_page"),
     )]

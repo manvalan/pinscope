@@ -102,20 +102,20 @@ Passi:
 
 ## Mappa lista ↔ codice attuale
 
-| Blocco utente | Già c’è | Buco |
-| --- | --- | --- |
-| 1 Plugin / telemetry / BOM match | Parser KiCad XML/sexp/`.kicad_sch` **singolo foglio**; wizard BOM | Hierarchie multi-file; uuid; plugin; **EasyEDA fuori scope** |
-| 2 Datasheet / errata / OCR blocchi | Pintable+abs-max, PDF text+vision, excerpt per topic, quote_verify | Nessun RAG vendor; niente errata; vision non estrae clamp/ESD dal block diagram in schema strutturato |
-| 3 Impedenze / stackup | — | Motore assente; niente PCB |
-| 4 Filtri | Review LLM può parlarne | Nessun matcher topologico, niente \(f_c\) |
-| 5 Capacità PI | Decoupling check **sulla net**; derating V | No DC bias; ESR/ESL; Cin/Cout; **niente distanza cap↔pin sul PCB** |
-| 6 Elettrico | Pin mux; I2C/reset pull-up; power tree UI; LED current | Sequencing assente; pull-up non dimensionati (solo presenza); drop IR assente |
-| 7 RF | Review “ruolo parte” / bias-T | Nessun matching 50 Ω, niente clearance |
-| 8 HV / isolation | — | Serve layout + profilo normativo |
-| 9 Termico | Excerpt topic thermal | Nessun \(T_j\), niente P=I²R resistori |
-| 10 SI / DNP | Fingerprint skip IC; skipped/not_reviewed | DNP non è un modello; niente length/crosstalk |
-| 11 Lifecycle | DigiKey/LCSC/Mouser per datasheet e passivi | Nessun EOL/NRND/RoHS in report |
-| 13 Placement da datasheet | Review può citare “place close to pin”; vision su application pages | Nessuna misura mm sul `.kicad_pcb`; nessuna struttura `layout_rules` estratta |
+| Blocco utente | Già c’è | Buco | Stato |
+| --- | --- | --- | --- |
+| 1 Plugin / telemetry / BOM match | Parser KiCad XML/sexp/`.kicad_sch` gerarchico; wizard BOM; `plugins/kicad/` + cad-bridge JSON | EasyEDA fuori scope; uuid/sheet sul plugin da verificare su board reale | **OK** |
+| 2 Datasheet / errata / OCR blocchi | Pintable, excerpt, quote_verify, errata, `internal_features` | Nessun RAG vendor | **OK** |
+| 3 Impedenze / stackup | ImpedenceFinder + tab Impedance + `.kicad_dru` | CPWG non nel vendor; niente Z0 sul rame del PCB | **OK** |
+| 4 Filtri | `check_filters` (solo con poli/numeri in specs) | Niente \(f_c\) inventata | **OK** |
+| 5 Capacità PI | Decoupling sulla net; derating V; DC-bias/ESR se c’è il numero; mm sul PCB (`PS-PLC-001`) | — | **OK** |
+| 6 Elettrico | Pin mux; I2C/reset pull-up; LED; sequencing/IR/power margin se c’è il parametro | Senza numero in specs → skip | **OK** |
+| 7 RF | Tab impedenza 50 Ω; review ruolo parte | Nessun clearance CPW inventato | parziale |
+| 8 HV / isolation | — | Serve `layout_rules` + V/mm dal datasheet, non IEC inventato | — |
+| 9 Termico | `check_thermal` se θJA/I sono in specs; via courtyard vs `min_via_count` | Niente \(T_j\) senza parametro | **OK** |
+| 10 SI / DNP | DNP enable; `PS-SI-001` solo con `length_match` mm | Niente 3W/crosstalk inventati | **OK** |
+| 11 Lifecycle | `lifecycle_check` su cache distributore (EOL/NRND/RoHS esplicito) | Niente equivalente LLM | **OK** |
+| 13 Placement da datasheet | `layout_rules` + `.kicad_pcb`: PLC-001…004, same_layer, crystal, keepout, path | 3W/creepage/CPW/isolation senza numero | **OK** |
 
 ---
 
@@ -411,11 +411,13 @@ Passi:
 
 Passi:
 
-1. Length matching / intra-pair skew vs limite datasheet (USB/HDMI/PCIe).
-2. 3W: distanza centro-centro vs W aggressore.
-3. Creepage/clearance: profilo IEC 62368 (pollution, RMS V dai net).
-4. Isolation barrier: bbox isolator + divieto piste LV nel courtyard HV.
-5. CPW: gap verso GND copper vs valore del calcolatore D2.
+1. Length matching / intra-pair skew vs limite datasheet (USB/HDMI/PCIe). **OK** (`PS-SI-001`, solo `length_match` mm).
+2. 3W: distanza centro-centro vs W aggressore. — skip senza numero (non IEC/USB folklore).
+3. Creepage/clearance: profilo IEC 62368 (pollution, RMS V dai net). — skip senza V/mm nel datasheet.
+4. Isolation barrier: bbox isolator + divieto piste LV nel courtyard HV. — skip senza regola.
+5. CPW: gap verso GND copper vs valore del calcolatore D2. — CPWG non nel vendor.
+
+**G2. Placement vs datasheet (piste, decoupling, thermal)**
 
 **G2. Placement vs datasheet (piste, decoupling, thermal)**
 
@@ -423,13 +425,13 @@ Lo schema dice se C12 è sul net VDD. Il PCB dice se C12 è a 8 mm dal pad. Ques
 
 Passi:
 
-1. Per ogni pin alimentazione del pintable: footprint pad xy sul `.kicad_pcb`; condensatori sul medesimo net (grafo); distanza euclidea pad-cap (pin cap verso GND/VDD).
-2. Se `max_distance_mm` estratto: ERROR/WARNING se oltre. Se assente: WARNING oltre default configurabile, testo “datasheet non specifica mm; usato default 3 mm”.
-3. Via in pad / via sotto EP: contare via nel courtyard del thermal pad vs `min_via_count`.
-4. Stesso layer: se `same_layer: true` e il cap è sull’altro lato senza via sotto il pin → WARNING.
-5. Piste: lunghezza net VDD dal pin al cap (somma segmenti) come proxy di “loop area”; se >> distanza euclidea, c’è un giro largo.
-6. Crystal: cap load vs pin XIN/XOUT (stessa metrica di distanza), se X1 è nel grafo.
-7. Finding `PS-PLC-001` con `pins`, `net`, pagina datasheet. Plugin: focus footprint su pcbnew.
+1. Per ogni pin alimentazione del pintable: footprint pad xy sul `.kicad_pcb`; condensatori sul medesimo net (grafo); distanza euclidea pad-cap (pin cap verso GND/VDD). **OK**
+2. Se `max_distance_mm` estratto: ERROR/WARNING se oltre. Se assente: skip (niente default 3 mm). **OK**
+3. Via in pad / via sotto EP: contare via nel courtyard del thermal pad vs `min_via_count`. **OK** (`PS-PLC-002`)
+4. Stesso layer: se `same_layer: true` e il cap è sull’altro lato senza via sotto il pin → WARNING. **OK** (`PS-PLC-003`)
+5. Piste: lunghezza net dal pin al cap = shortest path sui segmenti vs `max_distance_mm`. **OK**
+6. Crystal: cap load vs pin XIN/XOUT (stessa metrica). **OK** (`X1`/`C9`/`C10`)
+7. Finding `PS-PLC-001`…`004` con `pins`, `net`; plugin focus pcbnew. **OK** (keepout = `PS-PLC-004`)
 
 Non confrontare una foto del layout TI con il board pixel-a-pixel. Solo vincoli numerici/topologici.
 
@@ -456,19 +458,19 @@ Commenti esistono: non rifarli, agganciarli allo stato.
 
 Non parallelizzare A0 schema finding con G.
 
-| Sprint (indicativo) | Contenuto | Dipende da |
-| --- | --- | --- |
-| 0 | Schema finding + eval + smoke V4.1 | — |
-| 1 | A1 KiCad GA + A2 BOM match | 0 |
-| 2 | B3–B5 pull-up/decoupling/Cin-Cout | 0 |
-| 3 | B6–B9 DC bias, ESR, filtri, termico | 2 |
-| 4 | B1–B2 power drop/sequencing + B10 DNP | 1 |
-| 5 | A3 plugin KiCad + E2 JSON | 1, 0 |
-| 6 | C2 errata + C3 internal features + **C4 layout_rules** | eval C1 |
-| 7 | D1–D2 calcolatrice impedenza + export netclass | — |
-| 8 | F lifecycle | APIs già presenti |
-| 9 | H review workflow / ECO | 0 |
-| 10+ | G layout `.kicad_pcb` + G2 placement datasheet | A1 + C4 |
+| Sprint (indicativo) | Contenuto | Dipende da | Stato |
+| --- | --- | --- | --- |
+| 0 | Schema finding + eval + smoke V4.1 | — | **OK** |
+| 1 | A1 KiCad GA + A2 BOM match | 0 | **OK** |
+| 2 | B3–B5 pull-up/decoupling/Cin-Cout | 0 | **OK** |
+| 3 | B6–B9 DC bias, ESR, filtri, termico | 2 | **OK** |
+| 4 | B1–B2 power drop/sequencing + B10 DNP | 1 | **OK** |
+| 5 | A3 plugin KiCad + E2 JSON | 1, 0 | **OK** |
+| 6 | C2 errata + C3 internal features + **C4 layout_rules** | eval C1 | **OK** |
+| 7 | D1–D2 calcolatrice impedenza + export netclass | — | **OK** |
+| 8 | F lifecycle | APIs già presenti | **OK** |
+| 9 | H review workflow / ECO | 0 | **OK** |
+| 10+ | G layout `.kicad_pcb` + G2 placement datasheet | A1 + C4 | **OK** (G1 3W/creepage/CPW/HV ancora skip senza numero) |
 
 Stima onesta: Wave A–B (schema) sono il ritorno; G è un secondo prodotto. Non promettere creepage nel plugin schema.
 
@@ -499,12 +501,12 @@ Stima onesta: Wave A–B (schema) sono il ritorno; G è un secondo prodotto. Non
 
 ## Prossimo passo concreto (quando si apre lo sviluppo)
 
-Sprint 0, in quest’ordine:
+Sprint 0–10+ del piano di lavoro sono **OK** nel codice (parametro o skip).
 
-1. Estensione `Finding` (`rule_id`, `pins`, `net`).
-2. Eval script `simple_project` (finding count + citation).
-3. Flatten `.kicad_sch` gerarchico (fixture multi-foglio).
-4. Upload `.kicad_pcb` accanto allo schema (parse, ancora senza check SI).
-5. BOM mismatch finding.
+Resta, senza inventare numeri:
 
-Il plugin KiCad aspetta uuid + sheet path. Placement decoupling in mm e 3W aspettano `.kicad_pcb` + `layout_rules`.
+1. HV / isolation (blocco 8) se il datasheet dà V/mm o keepout HV.
+2. 3W / creepage / CPW solo con numero in `layout_rules` o dal calcolatore D2.
+3. Un `.kicad_pcb` reale di progetto (non fixture USB inventata) per vedere `PS-PLC`/`PS-SI` sul board.
+
+Il plugin KiCad aspetta ancora verifica uuid + sheet su un progetto multi-foglio vero.
