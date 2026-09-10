@@ -53,6 +53,9 @@ from backend.pinscopex.bom_match_check import check_bom_schematic_match
 from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
 from backend.pinscopex.filter_check import check_filters
 from backend.pinscopex.thermal_check import check_thermal
+from backend.pinscopex.power_margin_check import check_power_margin
+from backend.pinscopex.sequencing_check import check_power_sequencing
+from backend.pinscopex.dnp_check import check_dnp_enables
 
 TRACE_VERSION = 1
 
@@ -80,6 +83,9 @@ def _run_deterministic_checks(
         ("hf_coverage_check", lambda: check_hf_decoupling_coverage(graph, constraints_map)),
         ("filter_check", lambda: check_filters(graph, constraints_map)),
         ("thermal_check", lambda: check_thermal(graph, constraints_map)),
+        ("power_margin_check", lambda: check_power_margin(graph, constraints_map)),
+        ("sequencing_check", lambda: check_power_sequencing(graph, constraints_map)),
+        ("dnp_check", lambda: check_dnp_enables(graph, constraints_map)),
     ):
         try:
             out.extend(fn())

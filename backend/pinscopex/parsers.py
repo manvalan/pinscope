@@ -267,6 +267,9 @@ def parse_bom(
     result: dict[str, dict] = {}
     text = Path(path).read_text()
     reader = csv.DictReader(text.splitlines())
+    colnames = {n.lower() for n in (reader.fieldnames or []) if n}
+    has_dnp_col = bool(colnames & {"dnp", "dni", "fitted", "populate"})
+    has_variant_col = bool(colnames & {"variant"})
 
     for row in reader:
         refs_raw = row.get(reference_col, "")
@@ -286,13 +289,25 @@ def parse_bom(
         if not mpn and any(re.match(r"^U\d", r, re.I) for r in refs):
             mpn = (value or "").strip() or None
 
+        dnp_raw = (row.get("DNP") or row.get("DNI") or "").strip().lower()
+        fitted_raw = (row.get("Fitted") or row.get("Populate") or "").strip().lower()
+        variant = (row.get("Variant") or row.get("variant") or "").strip() or None
+        is_dnp = dnp_raw in {"1", "y", "yes", "true", "dnp", "dni", "x"}
+        if not is_dnp and fitted_raw in {"0", "n", "no", "false"}:
+            is_dnp = True
+
         for ref in refs:
-            result[ref] = {
+            entry = {
                 "value": value,
                 "footprint": footprint,
                 "mpn": mpn,
                 "lcsc": lcsc,
                 "datasheet_url": datasheet_url,
             }
+            if has_dnp_col:
+                entry["dnp"] = is_dnp
+            if has_variant_col:
+                entry["variant"] = variant
+            result[ref] = entry
 
     return result

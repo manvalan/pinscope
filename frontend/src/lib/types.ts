@@ -94,7 +94,7 @@ export interface Net {
 export interface DesignGraph {
   components: Record<string, Component>;
   nets: Record<string, Net>;
-  bom_fields?: Record<string, { mpn?: string | null; value?: string }>;
+  bom_fields?: Record<string, { mpn?: string | null; value?: string; dnp?: boolean; variant?: string | null }>;
   schematic_fields?: Record<string, { mpn?: string | null; value?: string }>;
 }
 

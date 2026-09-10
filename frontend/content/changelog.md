@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.15.0 — 2026-09-10 — Power margin, sequencing, DNP enable
+
+Schema checks now compare regulator load to Iout_max, look at PG→EN when a sequence is declared, and treat DNP as a fitted-variant graph.
+
+- [New] `PS-PWR-001` when specified IQ+I_load exceeds Iout_max, or an explicit series R/ferrite DCR drops >5% of the rail. Missing IQ and PCB traces are not guessed.
+- [New] `PS-SEQ-001` WARNING if `power_sequence` is in IC specs and upstream PG does not net to downstream EN.
+- [New] BOM `DNP`/`Fitted`/`Variant` on `bom_fields`. Fitted enable with only a DNP pull is `PS-DNP-001` ERROR; no DNP column skips the check.
+
 ## 2.14.0 — 2026-09-10 — Filtri e termico schema
 
 Deterministic checks now match RC/LC/π/T filters and estimate LDO/resistor dissipation without inventing missing numbers.

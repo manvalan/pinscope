@@ -103,12 +103,16 @@ def _pin_net_by_role(
     comp: Component,
     cons: ComponentConstraints | None,
     role_re: re.Pattern,
+    exclude_re: re.Pattern | None = _NOT_OUT,
 ) -> str | None:
     for pin_num, net in comp.pins.items():
         tokens = _pin_name_tokens(cons, pin_num) or [pin_num]
-        if any(role_re.search(t) and not _NOT_OUT.search(t) for t in tokens):
+        if any(
+            role_re.search(t) and not (exclude_re and exclude_re.search(t))
+            for t in tokens
+        ):
             return net
-        if role_re.search(net or ""):
+        if role_re.search(net or "") and not (exclude_re and exclude_re.search(net or "")):
             return net
     return None
 

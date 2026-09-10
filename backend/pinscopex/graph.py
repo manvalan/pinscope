@@ -269,10 +269,14 @@ def build_graph(
     # only tokenise correctly with the BOM's ref list as a lookup. EDIF
     # netlists ignore known_refs (designators are unambiguous tokens).
     bom = parse_bom(bom_path, reference_col=reference_col, mpn_col=mpn_col)
-    bom_fields = {
-        ref: {"mpn": entry.get("mpn"), "value": entry.get("value", "")}
-        for ref, entry in bom.items()
-    }
+    bom_fields = {}
+    for ref, entry in bom.items():
+        row = {"mpn": entry.get("mpn"), "value": entry.get("value", "")}
+        if "dnp" in entry:
+            row["dnp"] = entry.get("dnp")
+        if entry.get("variant") is not None:
+            row["variant"] = entry.get("variant")
+        bom_fields[ref] = row
     schematic_fields: dict[str, dict] = {}
     parts, raw_nets, fmt = parse_netlist_any(
         netlist_path,
