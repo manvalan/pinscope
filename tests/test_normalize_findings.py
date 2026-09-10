@@ -50,6 +50,36 @@ def test_serialize_for_prompt_shows_reviewer_severity():
     assert [row["reviewer_severity"] for row in parsed] == ["ERROR", "INFO"]
 
 
+def test_normalize_passthrough_keeps_cad_fields():
+    originals = [
+        Finding(
+            designator="U3",
+            mpn="X",
+            finding="finding 1",
+            why="w",
+            status="WARNING",
+            recommendation="",
+            source_page=1,
+            reference="",
+            net="UART5_TX",
+            pins=["U3.54"],
+            rule_id="PS-MUX-001",
+            cad_sheet="mcu.kicad_sch",
+        )
+    ]
+    raw_findings = [{
+        "merged_from": [1], "finding": "finding 1", "why": "w",
+        "status": "WARNING", "recommendation": "", "change_rationale": "unchanged",
+    }]
+    built = _build_normalized(raw_findings, [], originals)
+    assert built is not None
+    kept, _ = built
+    assert kept[0].rule_id == "PS-MUX-001"
+    assert kept[0].net == "UART5_TX"
+    assert kept[0].pins == ["U3.54"]
+    assert kept[0].cad_sheet == "mcu.kicad_sch"
+
+
 def test_schema_exposes_dropped_array_and_single_fix_field():
     props = SUBMIT_NORMALIZED_SCHEMA.input_schema["properties"]
     assert "dropped" in props

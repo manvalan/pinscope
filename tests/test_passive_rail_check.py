@@ -104,6 +104,8 @@ def test_i2c_missing_pullup():
     findings = check_i2c_pullups(g, cons)
     assert len(findings) == 1
     assert findings[0].source == "i2c_pullup_check"
+    assert findings[0].rule_id == "PS-I2C-001"
+    assert findings[0].net == "I2C_SDA"
 
 
 def test_i2c_pullup_present():

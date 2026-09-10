@@ -1,0 +1,9 @@
+{
+  "required_refs": ["U1", "U2", "U3"],
+  "min_components": 30,
+  "min_nets": 30,
+  "deterministic_keys": [
+    "PS-I2C-001|U3|/I2C0.SDA",
+    "PS-I2C-001|U3|/I2C0.SCL"
+  ]
+}

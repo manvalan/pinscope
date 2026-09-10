@@ -69,6 +69,9 @@ def test_real_defect_uart5_swapped_is_error():
     assert {f.designator for f in findings} == {"U3"}
     tx = next(f for f in findings if "MCU-UART5-TX" in f.finding)
     assert "cannot be muxed as UART5_TX" in tx.finding
+    assert tx.rule_id == "PS-MUX-001"
+    assert tx.net == "MCU-UART5-TX"
+    assert tx.pins == ["U3.54"]
 
 
 def test_correct_assignment_no_finding():

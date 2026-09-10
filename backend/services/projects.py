@@ -5,6 +5,7 @@ Each project lives at users/{user_id}/projects/{id}/ with:
   uploads/bom.csv           — uploaded BOM
   uploads/netlist.asc       — uploaded netlist
   uploads/datasheets/*.pdf  — uploaded datasheets
+  uploads/pcb.kicad_pcb     — optional KiCad board (layout checks)
   extracted/                — IC extraction output
   patterns/                 — passive patterns
   models/                   — cached component specs
@@ -82,6 +83,7 @@ class ProjectMeta(BaseModel):
     updated: str = ""
     has_bom: bool = False
     has_netlist: bool = False
+    has_pcb: bool = False
     # "pads" | "edif" | None — None for legacy projects (pre-EDIF-support).
     # Legacy reads fall back to looking for netlist.asc on disk.
     netlist_format: str | None = None
@@ -655,6 +657,15 @@ def save_netlist(
         storage, user_id, project_id,
         has_netlist=True, netlist_format=fmt, netlist_subdesigns=None,
     )
+    return key
+
+
+def save_pcb(
+    storage: StorageBackend, user_id: str, project_id: str, data: bytes
+) -> str:
+    key = f"{_project_prefix(user_id, project_id)}/uploads/pcb.kicad_pcb"
+    storage.write_bytes(key, data)
+    update_project(storage, user_id, project_id, has_pcb=True)
     return key
 
 

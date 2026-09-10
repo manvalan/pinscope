@@ -49,6 +49,7 @@ from backend.pinscopex.passive_rail_check import (
     check_reset_pullups,
     check_supply_decoupling,
 )
+from backend.pinscopex.bom_match_check import check_bom_schematic_match
 
 TRACE_VERSION = 1
 
@@ -70,6 +71,9 @@ def _run_deterministic_checks(
         ("supply_decoupling_check", lambda: check_supply_decoupling(graph, constraints_map)),
         ("i2c_pullup_check", lambda: check_i2c_pullups(graph, constraints_map)),
         ("reset_pullup_check", lambda: check_reset_pullups(graph, constraints_map)),
+        ("bom_match_check", lambda: check_bom_schematic_match(
+            graph.schematic_fields, graph.bom_fields,
+        )),
     ):
         try:
             out.extend(fn())

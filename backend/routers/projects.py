@@ -520,6 +520,37 @@ async def upload_netlist(project_id: str, file: UploadFile, request: Request):
     }
 
 
+@router.post("/projects/{project_id}/upload/pcb")
+async def upload_pcb(project_id: str, file: UploadFile, request: Request):
+    storage = get_storage(request)
+    result = proj_svc.resolve_project_access(storage, get_user_id(request), project_id)
+    if not result:
+        raise HTTPException(404, "Project not found")
+    user_id = result[0]
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // 1024 // 1024} MB)")
+    import tempfile, os
+    from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".kicad_pcb")
+    try:
+        tmp.write(data)
+        tmp.close()
+        layout = parse_kicad_pcb(tmp.name)
+    except Exception as e:
+        raise HTTPException(400, f"Invalid KiCad PCB: {e}")
+    finally:
+        os.unlink(tmp.name)
+    key = proj_svc.save_pcb(storage, user_id, project_id, data)
+    return {
+        "path": key,
+        "footprints": len(layout.footprints),
+        "nets": len(layout.nets),
+        "segments": len(layout.segments),
+    }
+
+
 def _build_designator_pins(
     parts: dict[str, str],
     nets: dict[str, list[tuple[str, str]]],

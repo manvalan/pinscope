@@ -84,6 +84,9 @@ def check_supply_decoupling(
                     f"near {ref}."
                 ),
                 reference="netlist topology",
+                net=net_name,
+                pins=[f"{ref}.{pin_num}"],
+                rule_id="PS-DEC-001",
             ))
     return findings
 
@@ -133,6 +136,9 @@ def check_i2c_pullups(
                     f"to the I2C I/O rail."
                 ),
                 reference="netlist topology",
+                net=net_name,
+                pins=[f"{ref}.{pin_num}"],
+                rule_id="PS-I2C-001",
             ))
     return findings
 
@@ -184,6 +190,9 @@ def check_reset_pullups(
                     f"from a reset supervisor / GPIO."
                 ),
                 reference="netlist topology",
+                net=net_name,
+                pins=[f"{ref}.{pin_num}"],
+                rule_id="PS-RST-001",
             ))
     return findings
 

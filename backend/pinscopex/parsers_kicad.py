@@ -1,8 +1,9 @@
-"""KiCad netlist (XML / s-expression) and single-sheet ``.kicad_sch`` parser.
+"""KiCad netlist (XML / s-expression) and ``.kicad_sch`` parser.
 
 Yields the same ``(parts, nets)`` shape as PADS/EDIF so graph build is format-agnostic.
-``.kicad_sch`` uses embedded ``lib_symbols`` plus wires/labels; hierarchical
-sheets in other files are not followed (export a netlist for those).
+``.kicad_sch`` uses embedded ``lib_symbols`` plus wires/labels. Hierarchical
+``(sheet …)`` entries are followed from the root file (path-jailed under the
+project directory).
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import math
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -307,7 +309,30 @@ class _DSU:
             self.p[rb] = ra
 
 
-def parse_kicad_sch(tree: Any) -> tuple[dict[str, str], dict[str, list[tuple[str, str]]], dict[str, dict]]:
+_KIND_RANK = {"unnamed": 0, "local": 1, "hier": 2, "global": 3}
+
+
+@dataclass
+class _SchSheet:
+    parts: dict[str, str]
+    nets: dict[str, list[tuple[str, str]]]
+    fields: dict[str, dict]
+    net_scope: dict[str, str]
+    sheetfiles: list[str] = field(default_factory=list)
+
+
+def _sheetfiles(tree: Any) -> list[str]:
+    out: list[str] = []
+    for sheet in _kids(tree, "sheet"):
+        for p in _kids(sheet, "property"):
+            if len(p) >= 3 and str(p[1]) == "Sheetfile":
+                rel = str(p[2]).strip()
+                if rel:
+                    out.append(rel)
+    return out
+
+
+def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
     lib_pins: dict[str, dict[tuple[int, str], tuple[float, float]]] = {}
     for sym in _kids(_kid(tree, "lib_symbols") or [], "symbol"):
         lid = str(sym[1]) if len(sym) > 1 else ""
@@ -318,7 +343,7 @@ def parse_kicad_sch(tree: Any) -> tuple[dict[str, str], dict[str, list[tuple[str
     fields: dict[str, dict] = {}
     pin_at: dict[tuple[str, str], tuple[int, int]] = {}
     dsu = _DSU()
-    labels: dict[tuple[int, int], str] = {}
+    labels: dict[tuple[int, int], tuple[str, str]] = {}
     power_pts: list[tuple[tuple[int, int], str]] = []
 
     def prop(sym: Any, key: str) -> str:
@@ -326,6 +351,13 @@ def parse_kicad_sch(tree: Any) -> tuple[dict[str, str], dict[str, list[tuple[str
             if len(p) >= 3 and str(p[1]) == key:
                 return str(p[2])
         return ""
+
+    def set_label(pt: tuple[int, int], name: str, kind: str) -> None:
+        if not name:
+            return
+        prev = labels.get(pt)
+        if prev is None or _KIND_RANK[kind] >= _KIND_RANK[prev[1]]:
+            labels[pt] = (name, kind)
 
     for sym in _kids(tree, "symbol"):
         lib_id = _val(sym, "lib_id")
@@ -392,13 +424,34 @@ def parse_kicad_sch(tree: Any) -> tuple[dict[str, str], dict[str, list[tuple[str
             for a, b in zip(coords, coords[1:]):
                 dsu.union(a, b)
             return
-        if tag in {"label", "global_label", "hierarchical_label"}:
+        if tag == "label":
             name = str(node[1]) if len(node) > 1 else ""
             x, y, _ = _at(node)
             pt = _snap(x, y)
             dsu.add(pt)
-            if name:
-                labels[pt] = name
+            set_label(pt, name, "local")
+            return
+        if tag == "global_label":
+            name = str(node[1]) if len(node) > 1 else ""
+            x, y, _ = _at(node)
+            pt = _snap(x, y)
+            dsu.add(pt)
+            set_label(pt, name, "global")
+            return
+        if tag == "hierarchical_label":
+            name = str(node[1]) if len(node) > 1 else ""
+            x, y, _ = _at(node)
+            pt = _snap(x, y)
+            dsu.add(pt)
+            set_label(pt, name, "hier")
+            return
+        if tag == "sheet":
+            for pin in _kids(node, "pin"):
+                name = str(pin[1]) if len(pin) > 1 else ""
+                x, y, _ = _at(pin)
+                pt = _snap(x, y)
+                dsu.add(pt)
+                set_label(pt, name, "hier")
             return
         if tag == "junction":
             x, y, _ = _at(node)
@@ -410,33 +463,143 @@ def parse_kicad_sch(tree: Any) -> tuple[dict[str, str], dict[str, list[tuple[str
 
     collect_pts(tree)
 
-    for pt, name in labels.items():
+    for pt in labels:
         dsu.add(pt)
     for pt, _name in power_pts:
         dsu.add(pt)
 
-    # Merge labels/power onto coinciding pin/wire points (already same snap keys).
-    nets: dict[str, list[tuple[str, str]]] = {}
     root_name: dict[tuple[int, int], str] = {}
-    for pt, name in labels.items():
-        root_name[dsu.find(pt)] = name
+    root_kind: dict[tuple[int, int], str] = {}
+    for pt, (name, kind) in labels.items():
+        r = dsu.find(pt)
+        prev = root_kind.get(r, "unnamed")
+        if _KIND_RANK[kind] >= _KIND_RANK[prev]:
+            root_name[r] = name
+            root_kind[r] = kind
     for pt, name in power_pts:
-        root_name.setdefault(dsu.find(pt), name)
+        r = dsu.find(pt)
+        prev = root_kind.get(r, "unnamed")
+        if _KIND_RANK["global"] >= _KIND_RANK[prev]:
+            root_name[r] = name
+            root_kind[r] = "global"
 
     grouped: dict[tuple[int, int], list[tuple[str, str]]] = {}
     for (ref, pin), pt in pin_at.items():
         grouped.setdefault(dsu.find(pt), []).append((ref, pin))
 
+    nets: dict[str, list[tuple[str, str]]] = {}
+    net_scope: dict[str, str] = {}
     used_names: set[str] = set()
     for root, pins in grouped.items():
         name = root_name.get(root)
+        kind = root_kind.get(root, "unnamed")
         if not name:
             ref0, pin0 = pins[0]
             name = f"Net-({ref0}-Pad{pin0})"
+            kind = "unnamed"
         while name in used_names:
             name = name + "_"
         used_names.add(name)
         nets[name] = pins
+        net_scope[name] = kind
+
+    return _SchSheet(
+        parts=parts,
+        nets=nets,
+        fields=fields,
+        net_scope=net_scope,
+        sheetfiles=_sheetfiles(tree),
+    )
+
+
+def parse_kicad_sch(tree: Any) -> tuple[dict[str, str], dict[str, list[tuple[str, str]]], dict[str, dict]]:
+    sheet = _parse_kicad_sch_sheet(tree)
+    return sheet.parts, sheet.nets, sheet.fields
+
+
+def _uniq_pins(pins: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    seen: set[tuple[str, str]] = set()
+    out: list[tuple[str, str]] = []
+    for p in pins:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def _safe_sheetfile(parent: Path, rel: str, project_root: Path) -> Path:
+    rel_norm = rel.replace("\\", "/").strip()
+    if not rel_norm or rel_norm.startswith("/") or ".." in Path(rel_norm).parts:
+        raise ValueError(f"Sheetfile path rejected: {rel}")
+    child = (parent.parent / rel_norm).resolve()
+    root = project_root.resolve()
+    try:
+        child.relative_to(root)
+    except ValueError:
+        raise ValueError(f"Sheetfile path rejected: {rel}") from None
+    return child
+
+
+def parse_kicad_sch_project(
+    root_path: str | Path,
+) -> tuple[dict[str, str], dict[str, list[tuple[str, str]]], dict[str, dict]]:
+    root = Path(root_path).resolve()
+    project_root = root.parent
+    seen: set[Path] = set()
+    loaded: list[tuple[Path, _SchSheet]] = []
+
+    def visit(path: Path) -> None:
+        path = path.resolve()
+        if path in seen:
+            raise ValueError(f"Cyclic sheet include: {path.name}")
+        if not path.is_file():
+            raise ValueError(f"Missing sheet file: {path.name}")
+        seen.add(path)
+        text = path.read_text(encoding="utf-8", errors="replace")
+        tree = _parse_sexp(text)
+        if _tag(tree) != "kicad_sch":
+            raise ValueError(f"Expected kicad_sch in {path.name}, got {_tag(tree)!r}")
+        sheet = _parse_kicad_sch_sheet(tree)
+        loaded.append((path, sheet))
+        for rel in sheet.sheetfiles:
+            child = _safe_sheetfile(path, rel, project_root)
+            visit(child)
+
+    visit(root)
+
+    parts: dict[str, str] = {}
+    fields: dict[str, dict] = {}
+    global_nets: dict[str, list[tuple[str, str]]] = {}
+    hier_nets: dict[str, list[tuple[str, str]]] = {}
+    local_nets: dict[str, list[tuple[str, str]]] = {}
+    multi = len(loaded) > 1
+
+    for path, sheet in loaded:
+        for ref, fp in sheet.parts.items():
+            if ref in parts:
+                raise ValueError(f"Duplicate reference {ref} in {path.name}")
+            parts[ref] = fp
+            fields[ref] = sheet.fields.get(ref, {})
+        for name, pins in sheet.nets.items():
+            scope = sheet.net_scope.get(name, "unnamed")
+            if scope == "global":
+                global_nets[name] = _uniq_pins(global_nets.get(name, []) + pins)
+            elif scope == "hier":
+                hier_nets[name] = _uniq_pins(hier_nets.get(name, []) + pins)
+            else:
+                out_name = f"{path.stem}/{name}" if multi else name
+                local_nets[out_name] = _uniq_pins(local_nets.get(out_name, []) + pins)
+
+    nets: dict[str, list[tuple[str, str]]] = {}
+    for name, pins in global_nets.items():
+        nets[name] = pins
+    for name, pins in hier_nets.items():
+        nets[name] = _uniq_pins(nets.get(name, []) + pins)
+    for name, pins in local_nets.items():
+        out = name
+        while out in nets:
+            out = out + "_"
+        nets[out] = pins
 
     return parts, nets, fields
 
@@ -461,7 +624,7 @@ def parse_kicad(
         tree = _parse_sexp(text)
         tag = _tag(tree)
         if tag == "kicad_sch":
-            parts, nets, fields = parse_kicad_sch(tree)
+            parts, nets, fields = parse_kicad_sch_project(p)
         elif tag == "export":
             parts, nets, fields = parse_kicad_sexp_netlist(tree)
         else:

@@ -269,6 +269,11 @@ def build_graph(
     # only tokenise correctly with the BOM's ref list as a lookup. EDIF
     # netlists ignore known_refs (designators are unambiguous tokens).
     bom = parse_bom(bom_path, reference_col=reference_col, mpn_col=mpn_col)
+    bom_fields = {
+        ref: {"mpn": entry.get("mpn"), "value": entry.get("value", "")}
+        for ref, entry in bom.items()
+    }
+    schematic_fields: dict[str, dict] = {}
     parts, raw_nets, fmt = parse_netlist_any(
         netlist_path,
         known_refs=set(bom.keys()),
@@ -277,6 +282,10 @@ def build_graph(
     if fmt.startswith("kicad"):
         from backend.pinscopex.parsers_kicad import kicad_part_fields
         for ref, extra in kicad_part_fields(netlist_path).items():
+            schematic_fields[ref] = {
+                "mpn": extra.get("mpn"),
+                "value": extra.get("value", ""),
+            }
             entry = bom.setdefault(
                 ref,
                 {"value": "", "footprint": "", "mpn": None, "lcsc": None, "datasheet_url": None},
@@ -397,4 +406,9 @@ def build_graph(
             pins=pin_connections,
         )
 
-    return DesignGraph(components=components, nets=nets)
+    return DesignGraph(
+        components=components,
+        nets=nets,
+        bom_fields=bom_fields,
+        schematic_fields=schematic_fields,
+    )

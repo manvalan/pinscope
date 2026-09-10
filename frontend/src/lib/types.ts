@@ -14,6 +14,12 @@ export interface Finding {
   recommendation?: string;
   reference: string;
   source?: string | null; // pin_mux_check / led_current_check / supply_decoupling_check / i2c_pullup_check / reset_pullup_check = deterministic; null/"review" = LLM
+  net?: string | null;
+  pins?: string[];
+  rule_id?: string | null;
+  cad_sheet?: string | null;
+  cad_uuid?: string | null;
+  variant?: string | null;
 }
 
 export interface FindingComment {
@@ -88,6 +94,8 @@ export interface Net {
 export interface DesignGraph {
   components: Record<string, Component>;
   nets: Record<string, Net>;
+  bom_fields?: Record<string, { mpn?: string | null; value?: string }>;
+  schematic_fields?: Record<string, { mpn?: string | null; value?: string }>;
 }
 
 export interface BomSummaryRow {
@@ -226,6 +234,7 @@ export interface Project {
   summary?: Record<string, number>;
   hasNetlist: boolean;
   hasBom: boolean;
+  hasPcb?: boolean;
   datasheetCount: number;
   skippedComponents?: SkippedComponent[];
   completedReviewRefs?: string[];

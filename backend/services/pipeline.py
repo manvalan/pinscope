@@ -1496,6 +1496,25 @@ async def _stage_passive_extraction(ctx: PipelineContext) -> None:
                    {"stage": "passive_extraction", "status": "complete"})
 
 
+def _write_layout_graph(ws: PipelineWorkspace, project_id: str) -> None:
+    """Parse optional `.kicad_pcb`. Fail-soft — schema validation must still run."""
+    pcb = ws.local_path("uploads/pcb.kicad_pcb")
+    if not pcb.is_file():
+        return
+    try:
+        from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+
+        layout = parse_kicad_pcb(pcb)
+        out = ws.local_path("layout_graph.json")
+        out.write_text(layout.model_dump_json(indent=2) + "\n")
+        logger.info(
+            "layout_graph: %s footprints, %s nets for %s",
+            len(layout.footprints), len(layout.nets), project_id,
+        )
+    except Exception:
+        logger.exception("kicad_pcb parse failed — continuing without layout")
+
+
 async def _stage_graph_build(ctx: PipelineContext) -> None:
     """Stage 4 — Build the design graph from netlist, BOM, and extracted data."""
     broker.publish(ctx.project_id, "step_update",
@@ -1525,6 +1544,7 @@ async def _stage_graph_build(ctx: PipelineContext) -> None:
 
     graph_path = ctx.ws.local_path("design_graph.json")
     graph_path.write_text(ctx.graph.model_dump_json(indent=2) + "\n")
+    _write_layout_graph(ctx.ws, ctx.project_id)
 
     broker.publish(ctx.project_id, "step_update",
                    {"stage": "graph_build", "status": "complete",
@@ -2088,6 +2108,7 @@ async def run_regen_pipeline(
 
             graph_path = ws.local_path("design_graph.json")
             graph_path.write_text(graph.model_dump_json(indent=2) + "\n")
+            _write_layout_graph(ws, project_id)
 
             broker.publish(project_id, "step_update",
                            {"stage": "graph_build", "status": "complete",

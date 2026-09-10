@@ -394,20 +394,15 @@ def _build_normalized(
             new_why = "Unverified: " + new_why
 
         try:
-            result.append(Finding(
-                finding_id=canon.finding_id,
-                designator=canon.designator,
-                mpn=canon.mpn,
-                aspect=canon.aspect,
-                finding=str(entry.get("finding") or canon.finding),
-                why=new_why,
-                source_page=entry.get("source_page", canon.source_page),
-                source_quote=str(entry.get("source_quote") or canon.source_quote),
-                source_designator=canon.source_designator,
-                status=final_status,
-                recommendation=str(entry.get("recommendation") or canon.recommendation),
-                reference=str(entry.get("reference") or canon.reference),
-            ))
+            result.append(canon.model_copy(update={
+                "finding": str(entry.get("finding") or canon.finding),
+                "why": new_why,
+                "source_page": entry.get("source_page", canon.source_page),
+                "source_quote": str(entry.get("source_quote") or canon.source_quote),
+                "status": final_status,
+                "recommendation": str(entry.get("recommendation") or canon.recommendation),
+                "reference": str(entry.get("reference") or canon.reference),
+            }))
         except Exception:
             log.exception("normalize: failed to build merged Finding")
             return None

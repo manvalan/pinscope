@@ -247,23 +247,16 @@ def _build_deduped(
             new_why = "Unverified: " + new_why
 
         try:
-            result.append(Finding(
-                finding_id=canon.finding_id,
-                designator=canon.designator,
-                mpn=canon.mpn,
-                aspect=canon.aspect,
-                finding=str(group.get("finding") or canon.finding),
-                why=new_why,
-                source_page=group.get("source_page", canon.source_page),
-                source_quote=canon.source_quote,
-                source_designator=canon.source_designator,
-                status=final_status,
-                recommendation=str(
+            result.append(canon.model_copy(update={
+                "finding": str(group.get("finding") or canon.finding),
+                "why": new_why,
+                "source_page": group.get("source_page", canon.source_page),
+                "status": final_status,
+                "recommendation": str(
                     group.get("recommendation") or canon.recommendation
                 ),
-                reference=str(group.get("reference") or canon.reference),
-                source=canon.source,
-            ))
+                "reference": str(group.get("reference") or canon.reference),
+            }))
         except Exception:
             log.exception("dedupe: failed to build merged Finding")
             return None

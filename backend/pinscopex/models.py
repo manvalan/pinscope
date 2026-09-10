@@ -244,6 +244,12 @@ class DesignGraph(BaseModel):
     """
     components: dict[str, Component] = {}
     nets: dict[str, Net] = {}
+    # KiCad property table vs uploaded BOM (empty on PADS/EDIF).
+    bom_fields: dict[str, dict] = {}
+    schematic_fields: dict[str, dict] = {}
+    # KiCad property table vs uploaded BOM (empty on PADS/EDIF).
+    bom_fields: dict[str, dict] = {}
+    schematic_fields: dict[str, dict] = {}
 
     # -- Traversal helpers --------------------------------------------------
 
@@ -330,6 +336,12 @@ class Finding(BaseModel):
     recommendation: str = ""
     reference: str = ""
     source: str | None = None        # None/"review" = LLM; "pin_mux_check"/"led_current_check"/"supply_decoupling_check"/… = deterministic
+    net: str | None = None          # net name for CAD telemetry / SI filters
+    pins: list[str] = []           # e.g. ["U3.54"] for pan-and-zoom
+    rule_id: str | None = None       # deterministic id, e.g. PS-MUX-001
+    cad_sheet: str | None = None     # schematic sheet filename for plugin sync
+    cad_uuid: str | None = None      # KiCad symbol/pin uuid
+    variant: str | None = None      # DNP / ECO / assembly variant
 
 
 class ValidationReport(BaseModel):
@@ -420,3 +432,42 @@ class ResolvedPassive(BaseModel):
     power_rating: str | None = None
     dielectric: str | None = None
     raw_fields: dict[str, str] = {}
+
+
+class LayoutPad(BaseModel):
+    number: str
+    x: float
+    y: float
+    net: str = ""
+
+
+class LayoutFootprint(BaseModel):
+    reference: str
+    footprint: str = ""
+    x: float
+    y: float
+    layer: str = ""
+    pads: list[LayoutPad] = []
+
+
+class LayoutSegment(BaseModel):
+    start: tuple[float, float]
+    end: tuple[float, float]
+    width: float = 0.0
+    layer: str = ""
+    net: str = ""
+
+
+class LayoutVia(BaseModel):
+    x: float
+    y: float
+    net: str = ""
+
+
+class LayoutGraph(BaseModel):
+    """Parsed `.kicad_pcb` geometry. Optional; schema validation does not require it."""
+    nets: dict[str, int] = {}
+    footprints: dict[str, LayoutFootprint] = {}
+    segments: list[LayoutSegment] = []
+    vias: list[LayoutVia] = []
+

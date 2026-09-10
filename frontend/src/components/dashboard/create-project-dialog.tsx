@@ -46,6 +46,7 @@ import {
   deleteProject,
   uploadBom,
   uploadNetlist,
+  uploadPcb,
   uploadDatasheet,
   startPipeline,
   checkLibrary,
@@ -548,6 +549,7 @@ export function CreateProjectDialog({
   const [name, setName] = useState("");
   const [bomFile, setBomFile] = useState<File | null>(null);
   const [netlistFile, setNetlistFile] = useState<File | null>(null);
+  const [pcbFile, setPcbFile] = useState<File | null>(null);
   const [netlistNetCount, setNetlistNetCount] = useState<number | null>(null);
   const [netlistError, setNetlistError] = useState<string | null>(null);
 
@@ -1879,6 +1881,10 @@ export function CreateProjectDialog({
           setProgress("Uploading netlist...");
           await uploadNetlist(project.id, netlistFile!);
         }
+        if (pcbFile) {
+          setProgress("Uploading PCB...");
+          await uploadPcb(project.id, pcbFile);
+        }
       } catch (uploadErr) {
         if (!projectAlreadyExists) {
           try {
@@ -2111,6 +2117,19 @@ export function CreateProjectDialog({
                     </p>
                   )}
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <FileUploadZone
+                  label="PCB (.kicad_pcb, optional)"
+                  accept=".kicad_pcb"
+                  files={pcbFile ? [pcbFile] : []}
+                  onFilesChange={(files) => setPcbFile(files[0] ?? null)}
+                />
+                <p className="text-[11px] text-muted-foreground leading-tight px-1">
+                  Optional. Layout checks (trace width, 3W, placement mm) stay
+                  off until a board is present. Schema review still runs
+                  without it.
+                </p>
               </div>
             </div>
           )}

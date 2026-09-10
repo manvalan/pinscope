@@ -12,10 +12,13 @@ const HEADER = [
   "Description",
   "Recommendation",
   "Source",
+  "Net",
+  "Pins",
+  "Rule",
 ];
 
 // Column widths (in characters), aligned with HEADER order.
-const COL_WIDTHS = [12, 20, 12, 10, 44, 60, 50, 24];
+const COL_WIDTHS = [12, 20, 12, 10, 44, 60, 50, 24, 16, 16, 14];
 
 // Fold the datasheet reference + page number into a single cell, mirroring the
 // finding card's reference button + "Automated check" tag logic.
@@ -47,6 +50,9 @@ export function exportReportToExcel(
     f.why ?? "",
     f.recommendation ?? "",
     formatSource(f),
+    f.net ?? "",
+    (f.pins ?? []).join(", "),
+    f.rule_id ?? "",
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet([HEADER, ...rows]);

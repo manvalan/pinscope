@@ -169,4 +169,7 @@ def _feasibility_finding(
         ),
         recommendation=rec,
         reference=f"{mpn or ref} alternate-function table",
+        net=net_name,
+        pins=[f"{ref}.{pin_num}"],
+        rule_id="PS-MUX-001",
     )

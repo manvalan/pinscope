@@ -61,6 +61,7 @@ function mapProject(p: Record<string, unknown>): Project {
     summary: p.summary as Record<string, number> | undefined,
     hasNetlist: p.has_netlist as boolean,
     hasBom: p.has_bom as boolean,
+    hasPcb: (p.has_pcb as boolean | undefined) ?? false,
     datasheetCount: p.datasheet_count as number,
     skippedComponents: (p.skipped_components as SkippedComponent[] | null) ?? undefined,
     completedReviewRefs: (p.completed_review_refs as string[] | null) ?? undefined,
@@ -275,6 +276,22 @@ export interface UploadNetlistResult {
   // browser-side PADS parser produces. Empty list for PADS uploads (the
   // browser parses those locally).
   designator_pins: NetlistPreviewDesignator[];
+}
+
+export async function uploadPcb(
+  projectId: string, file: File,
+): Promise<{ path: string; footprints: number; nets: number; segments: number }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await authFetch(
+    `${BASE}/api/projects/${projectId}/upload/pcb`,
+    { method: "POST", body: form },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(err.detail || "Failed to upload PCB");
+  }
+  return res.json();
 }
 
 export async function uploadNetlist(

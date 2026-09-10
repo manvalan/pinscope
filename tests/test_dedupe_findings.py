@@ -65,6 +65,30 @@ def test_singletons_pass_through_unchanged():
     assert [f.designator for f in built] == ["U2", "U3"]
 
 
+def test_dedupe_passthrough_keeps_cad_fields():
+    originals = [
+        Finding(
+            designator="U2",
+            mpn="MPN1",
+            finding="finding 1",
+            why="w",
+            status="ERROR",
+            recommendation="",
+            source_page=1,
+            reference="ref 1",
+            net="USB_D+",
+            pins=["U2.1"],
+            rule_id="PS-USB-001",
+        )
+    ]
+    groups = [{"member_indices": [1], "change_rationale": "passthrough"}]
+    built = _build_deduped(groups, originals)
+    assert built is not None
+    assert built[0].rule_id == "PS-USB-001"
+    assert built[0].net == "USB_D+"
+    assert built[0].pins == ["U2.1"]
+
+
 def test_merge_collapses_interface_and_uses_primary_source():
     """U2-001 + U3-001 → one finding. primary_index picks which side supplies
     the canonical designator + datasheet citation."""
