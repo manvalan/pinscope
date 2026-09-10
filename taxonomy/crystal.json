@@ -13,6 +13,10 @@
         {"name": "drive_level_w", "description": "Maximum drive level", "unit": "W"},
         {"name": "shunt_capacitance_f", "description": "Shunt capacitance (C0)", "unit": "F"}
       ]
+    },
+    "crystal.crystal": {
+      "description": "Crystal / crystal oscillator",
+      "example_mpn": "ABM8-19.200MHZ-10-1-U-T"
     }
   }
 }
