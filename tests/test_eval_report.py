@@ -85,8 +85,9 @@ def test_simple_project_eval_matches_committed_golden():
     assert scores.graph_ok, scores.graph_errors
     assert scores.precision == 1.0
     assert scores.recall == 1.0
-    assert scores.finding_count == 2
+    assert scores.finding_count == 3
     assert scores.by_status["WARNING"] == 2
+    assert scores.by_status["INFO"] == 1
 
 
 def test_simple_project_eval_rejects_truncated_graph(tmp_path: Path):

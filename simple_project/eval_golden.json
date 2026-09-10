@@ -4,6 +4,7 @@
   "min_nets": 30,
   "deterministic_keys": [
     "PS-I2C-001|U3|/I2C0.SDA",
-    "PS-I2C-001|U3|/I2C0.SCL"
+    "PS-I2C-001|U3|/I2C0.SCL",
+    "PS-ESR-001|U1|+3V3"
   ]
 }

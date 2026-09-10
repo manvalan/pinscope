@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.13.0 — 2026-09-10 — DC-bias C_eff stima
+
+The derating table now shows an effective capacitance under DC bias for C0G/X7R/X5R ceramics. It is labelled *stima* — not a vendor lot curve.
+
+- [New] `C_eff` column from an empirical V/Vrated table. Tantalum/electrolytic and unknown dielectrics are left blank.
+- [Improved] C0G/NP0 stays at nominal C; X7R at 50% of rated V is about 70% of C.
+- [New] Bulk C without a ~100 nF ceramic is `PS-ESR-001` INFO (no invented Z(f) target).
+
 ## 2.12.0 — 2026-09-10 — Pull-up sizing and LDO Cout
 
 Deterministic schema checks now size I2C pull-ups, flag NRST pull-downs, and look at LDO VOUT capacitance — still WARNING, never a invented datasheet µF ERROR.

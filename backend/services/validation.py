@@ -50,6 +50,7 @@ from backend.pinscopex.passive_rail_check import (
     check_supply_decoupling,
 )
 from backend.pinscopex.bom_match_check import check_bom_schematic_match
+from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
 
 TRACE_VERSION = 1
 
@@ -74,6 +75,7 @@ def _run_deterministic_checks(
         ("bom_match_check", lambda: check_bom_schematic_match(
             graph.schematic_fields, graph.bom_fields,
         )),
+        ("hf_coverage_check", lambda: check_hf_decoupling_coverage(graph, constraints_map)),
     ):
         try:
             out.extend(fn())

@@ -21,6 +21,7 @@ from backend.pinscopex.passive_rail_check import (
     check_supply_decoupling,
 )
 from backend.pinscopex.bom_match_check import check_bom_schematic_match
+from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
 
 
 class EvalScores(BaseModel):
@@ -81,6 +82,7 @@ def run_deterministic_on_graph(graph: DesignGraph) -> list[Finding]:
     out.extend(check_i2c_pullups(graph, cmap))
     out.extend(check_reset_pullups(graph, cmap))
     out.extend(check_bom_schematic_match(graph.schematic_fields, graph.bom_fields))
+    out.extend(check_hf_decoupling_coverage(graph, cmap))
     return out
 
 

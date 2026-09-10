@@ -751,6 +751,9 @@ function DeratingTable({
               <span className="text-[10px] text-rose-600 dark:text-rose-400">{failCount} fail</span>
             )}
           </CardTitle>
+          <p className="text-[11px] text-muted-foreground pt-1">
+            C_eff is an empirical DC-bias stima (C0G/X7R/X5R), not a Murata lot curve.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -760,6 +763,7 @@ function DeratingTable({
                   <th className="pb-2 pr-4 font-medium">Designator</th>
                   <th className="pb-2 pr-4 font-medium">MPN</th>
                   <th className="pb-2 pr-4 font-medium">Value</th>
+                  <th className="pb-2 pr-4 font-medium">C_eff</th>
                   <th className="pb-2 pr-4 font-medium">Type</th>
                   <th className="pb-2 pr-4 font-medium">Net+</th>
                   <th className="pb-2 pr-4 font-medium">Net−</th>
@@ -799,6 +803,18 @@ function DeratingTable({
                       </td>
                       <td className="py-2 pr-4 font-mono text-xs">
                         {row.value_formatted ?? <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="py-2 pr-4 font-mono text-xs">
+                        {row.c_eff_formatted ? (
+                          <span title="Empirical DC-bias stima, not a vendor lot curve">
+                            {row.c_eff_formatted}
+                            {row.dc_bias_model === "stima" && (
+                              <span className="ml-1 text-[10px] text-muted-foreground">stima</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="py-2 pr-4 text-xs">
                         {row.dielectric_category ? (

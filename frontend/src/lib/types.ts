@@ -305,6 +305,12 @@ export interface DeratingRow {
   net_plus: string | null;
   net_minus: string | null;
   dielectric_category: "ceramic" | "tantalum" | "electrolytic" | null;
+  dielectric?: string | null;
+  c_nominal_f?: number | null;
+  dc_bias_factor?: number | null;
+  c_eff_f?: number | null;
+  c_eff_formatted?: string | null;
+  dc_bias_model?: "stima" | null;
 }
 
 export interface DeratingSettings {
