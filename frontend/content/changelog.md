@@ -2,6 +2,12 @@
 
 What's new in Pinscope.
 
+## 2.23.0 — 2026-09-10 — same_layer decoupling
+
+If `layout_rules` sets `same_layer: true`, a decoupling cap on the opposite copper from the IC is a WARNING. A via inside the courtyard (calculated) is enough. Unset flag → skip.
+
+- [New] `PS-PLC-003` WARNING when every placed cap on the net is on F vs B opposite the IC.
+
 ## 2.22.0 — 2026-09-10 — Thermal vias vs min_via_count
 
 Via count is calculated inside the KiCad courtyard. The limit is the `min_via_count` parameter from `layout_rules`. No courtyard or no count → skip. No pad radius default.

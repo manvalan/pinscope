@@ -3,7 +3,8 @@
 Runs only when a LayoutGraph is present and a decoupling_proximity rule
 has a numeric max_distance_mm. Null millimetres skip — no 3 mm default.
 Thermal vias (`PS-PLC-002`) skip without courtyard vertices and without
-min_via_count — no invented pad radius.
+min_via_count — no invented pad radius. same_layer (`PS-PLC-003`) uses
+the boolean parameter plus footprint layers from the PCB.
 """
 
 from __future__ import annotations
@@ -73,6 +74,9 @@ def check_placement(
                 findings.extend(
                     _decoupling_finding(ref, comp, cons, rule, graph, layout)
                 )
+                findings.extend(
+                    _same_layer_finding(ref, comp, cons, rule, graph, layout)
+                )
             elif kind == "thermal_via":
                 findings.extend(_thermal_via_finding(ref, comp, cons, rule, layout))
     return findings
@@ -118,6 +122,68 @@ def _decoupling_finding(ref, comp, cons, rule, graph: DesignGraph, layout: Layou
         recommendation="Place the decoupling capacitor closer to the supply pin.",
         source="placement_check",
         rule_id="PS-PLC-001",
+        net=net,
+        pins=[pin_no],
+        source_page=rule.get("source_page"),
+    )]
+
+
+def _copper_side(layer: str) -> str | None:
+    s = (layer or "").strip().upper()
+    if s.startswith("F."):
+        return "F"
+    if s.startswith("B."):
+        return "B"
+    return None
+
+
+def _same_layer_finding(ref, comp, cons, rule, graph: DesignGraph, layout: LayoutGraph) -> list[Finding]:
+    if rule.get("same_layer") is not True:
+        return []
+    pin_no = _pin_number(cons, str(rule.get("pin") or ""))
+    if not pin_no:
+        return []
+    net = _net_for_pin(graph, ref, pin_no)
+    if not net:
+        return []
+    ic_fp = layout.footprints.get(ref)
+    if not ic_fp:
+        return []
+    ic_side = _copper_side(ic_fp.layer)
+    if ic_side is None:
+        return []
+    placed = []
+    for cref in graph.capacitors_on_net(net):
+        fp = layout.footprints.get(cref)
+        if not fp:
+            continue
+        side = _copper_side(fp.layer)
+        if side is None:
+            continue
+        placed.append((cref, side, fp))
+    if not placed:
+        return []
+    if any(side == ic_side for _, side, _ in placed):
+        return []
+    if len(ic_fp.courtyard) >= 3:
+        for v in layout.vias:
+            if v.net and v.net != net:
+                continue
+            if _in_poly(v.x, v.y, ic_fp.courtyard):
+                return []
+    return [Finding(
+        designator=ref,
+        mpn=comp.mpn or cons.mpn,
+        aspect="placement",
+        finding=(
+            f"Decoupling on {net} is on the opposite copper from {ref} "
+            f"(same_layer=true)."
+        ),
+        why="layout_rules same_layer=true.",
+        status="WARNING",
+        recommendation="Place the decoupling capacitor on the same layer or add a via in the courtyard.",
+        source="placement_check",
+        rule_id="PS-PLC-003",
         net=net,
         pins=[pin_no],
         source_page=rule.get("source_page"),
