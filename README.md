@@ -2,7 +2,7 @@
 
 Pinscope reviews schematics the way a good senior engineer does: with the datasheets open.
 
-This tree is adapted from [manvalan/pinscope](https://github.com/manvalan/pinscope) so the pipeline talks to the **DeepSeek API** (`deepseek-flash`, with legacy aliases still accepted) instead of requiring an Anthropic Console skill upload. Anthropic and Gemini remain optional fallbacks.
+This tree is adapted from [manvalan/pinscope](https://github.com/manvalan/pinscope) so the pipeline talks to the **DeepSeek API** (`deepseek-flash`, with legacy aliases still accepted). Do not use Anthropic.
 
 Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your design, reads each IC's datasheet, and checks the circuit around every part against what the manufacturer actually specifies — reference application, pin functions, absolute maximums, recommended operating conditions. Every finding points at the datasheet page that backs it up.
 
@@ -55,9 +55,7 @@ cd frontend && npm install
 NEXT_PUBLIC_API_URL=http://127.0.0.1:18741 npm run dev -- --port 18742 --hostname 127.0.0.1
 ```
 
-Open the frontend URL, create a project, and feed it the netlist and BOM from `simple_project/`. Datasheets are fetched automatically (LCSC, TI, optional DigiKey); you can still drop in PDFs by hand. Fetched PDFs and extracted pin tables land in the **Library** (sidebar) and are reused on later projects. Everything runs locally against your own key; projects and the extraction library live in `data/`.
-
-Anthropic Console Skills (`python3 scripts/upload_skills.py --update`) are optional and only needed if you set `PROVIDER_DEFAULT=anthropic`.
+Open the frontend URL, create a project, and feed it the netlist and BOM from `simple_project/`. Datasheets are fetched automatically (LCSC, TI, optional DigiKey); you can still drop in PDFs by hand. Fetched PDFs and extracted pin tables land in the **Library** (sidebar) and are reused on later projects. Everything runs locally against your own DeepSeek key; projects and the extraction library live in `data/`. Skills are local `skills/*/SKILL.md` — do not run `scripts/upload_skills.py`.
 
 ## Docker
 

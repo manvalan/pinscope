@@ -220,9 +220,16 @@ class Settings(BaseSettings):
         return bool(self.email_sender and self.email_frontend_url)
 
     def provider_for_stage(self, stage: str) -> str:
-        """Return the LLM provider name for a pipeline stage."""
+        """Return the LLM provider name for a pipeline stage.
+
+        Anthropic is never used: any ``PROVIDER_*=anthropic`` override is
+        coerced to DeepSeek.
+        """
         override = getattr(self, f"provider_{stage}", "")
-        return override or self.provider_default
+        name = override or self.provider_default
+        if name == "anthropic":
+            return "deepseek"
+        return name
 
     def model_for_stage(self, stage: str) -> str:
         """Return the model for a pipeline stage, provider-aware.
@@ -247,7 +254,7 @@ class Settings(BaseSettings):
         when the primary provider raises.
         """
         fb_provider = getattr(self, f"fallback_provider_{stage}", "")
-        if not fb_provider:
+        if not fb_provider or fb_provider == "anthropic":
             return None
         fb_model = getattr(self, f"fallback_model_{stage}", "")
         if not fb_model:
@@ -269,15 +276,13 @@ class Settings(BaseSettings):
     def has_llm_credentials(self) -> bool:
         """True if the configured default provider has an API key."""
         name = self.provider_default
+        if name == "anthropic":
+            name = "deepseek"
         if name == "deepseek":
             return bool(self.deepseek_api_key)
         if name == "gemini":
             return bool(self.gemini_api_key)
-        if name == "anthropic":
-            return bool(self.anthropic_api_key)
-        return bool(
-            self.deepseek_api_key or self.anthropic_api_key or self.gemini_api_key
-        )
+        return bool(self.deepseek_api_key)
 
     def get_skill_or_none(self, name: str) -> tuple[str | None, str | None]:
         """Return (skill_id, version) or (None, None) if the Anthropic

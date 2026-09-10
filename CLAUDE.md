@@ -22,7 +22,7 @@ Three layers:
 | **Backend** | `backend/` | FastAPI app — async pipeline orchestration, SSE progress, project/file storage |
 | **Frontend** | `frontend/` | Next.js 16 app — project dashboard, pipeline progress, report viewer, derating, admin dashboard |
 
-Plus `skills/` — extraction prompts (pintable, patterns, specs) inlined locally for DeepSeek; optional Anthropic Console Skills if you route a stage to Anthropic.
+Plus `skills/` — extraction prompts (pintable, patterns, specs) inlined locally for DeepSeek. Do not upload to Anthropic Console.
 
 The pipeline stages: Parse BOM → Extract IC Pintables → Extract Simple Components → Extract Passives → DigiKey Auto-Resolve + Value Fallback → Build Graph → Direct Datasheet Review. Pipeline runs can be cancelled mid-execution via `POST /api/pipeline/{id}/cancel`.
 
@@ -44,7 +44,7 @@ Files: `.asc` (PADS-PCB netlist; `.edn` EDIF 2.0.0 also accepted), `.csv`/`.xlsx
 - **Netlist as graph** — Queryable bipartite graph (components + nets) with traversal helpers
 - **LLM API for PDF extraction** — Forced tool calls for structured output (pintable, passive patterns, specs). Default provider is DeepSeek.
 - **Prompt caching** — Anthropic stamps `cache_control`; Gemini uses CachedContent; DeepSeek uses automatic prefix cache (cache-hit tokens in usage).
-- **Local extraction skills** — `skills/*/SKILL.md` is inlined and `validate.py` runs in-process. Anthropic Console Skills remain optional via `scripts/upload_skills.py`.
+- **Local extraction skills** — `skills/*/SKILL.md` is inlined and `validate.py` runs in-process. Never call `scripts/upload_skills.py` (Anthropic Console).
 - **Direct datasheet review** — The model reads the IC datasheet plus circuit neighborhood, compares to the reference application circuit, and flags issues via graph query tools (`find_connected_components`, `get_net_for_pin`, `get_pintable`). DeepSeek converts PDFs to text (and page images on the vision model).
 - **Datasheet page trimming** — Large PDFs are keyword-trimmed to relevant pages before sending to Claude, reducing token cost (`pypdf`)
 - **DigiKey fallback (exact MPN only)** — When pattern-based and direct extraction fail, DigiKey API fetches product parameters for auto-resolve. DigiKey matches only on exact MPN; fuzzy hits are rejected to avoid polluting the shared library with wrong-dielectric / wrong-voltage parts.
@@ -75,7 +75,7 @@ Per-MPN IC extraction captures:
 For discrete/simple components:
 4. **Specs** — Component specs (value, tolerance, package, voltage rating, etc.); parameters are filtered against taxonomy specs schemas
 
-Extraction inlines **local skills** (`skills/*/SKILL.md` + `validate.py`). Anthropic Console Skills are optional when `PROVIDER_*=anthropic` and a skill_id is in `backend/skills_manifest.json`.
+Extraction inlines **local skills** (`skills/*/SKILL.md` + `validate.py`) against DeepSeek. Do not use Anthropic Console Skills.
 
 ## Claude Console Skills
 
@@ -101,7 +101,7 @@ Key taxonomy features:
 
 ## Scripts
 
-- `scripts/upload_skills.py` — Create, update, or list Claude Console Skills. Reads/writes skill IDs to `backend/skills_manifest.json`
+- `scripts/upload_skills.py` — leftover Claude Console uploader. **Do not run.** Skills are local + DeepSeek only.
 - `scripts/migrate_datasheets_to_library.py` — One-time migration: copy per-project datasheets to `library/datasheets/` (dry-run by default, `--apply` to execute)
 - `scripts/migrate_datasheets_to_blobs.py` — Migrate named-PDF datasheets into the content-addressed blobs/refs layout (dry-run by default, `--apply` to execute)
 - `scripts/dedup_library_datasheets.py` — Remove redundant per-MPN datasheet PDFs when a passive pattern already has a `datasheet_key` (dry-run by default, `--apply` to execute)
@@ -113,9 +113,9 @@ Key taxonomy features:
 - **Core**: Python 3.12+, Pydantic 2.x, OpenAI SDK (DeepSeek), Anthropic SDK (optional), google-genai (optional), openpyxl, pypdf, PyMuPDF
 - **Backend**: FastAPI, uvicorn, sse-starlette, pydantic-settings
 - **Frontend**: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4, shadcn/ui (Base UI), react-pdf
-- **AI**: DeepSeek Chat Completions (OpenAI-compatible) with forced tool calls for extraction and agentic review. Optional Anthropic / Gemini fallbacks.
+- **AI**: DeepSeek Chat Completions (OpenAI-compatible) with forced tool calls for extraction and agentic review. Do not route stages to Anthropic.
 - **Model**: `deepseek-flash` for extraction, review, auto-resolve, and normalize (per-stage overrides via `.env`)
-- **Skills**: Local SKILL.md + validate.py (DeepSeek/Gemini); optional Anthropic Console Skills
+- **Skills**: Local SKILL.md + validate.py on DeepSeek
 - **External APIs**: DigiKey API v4 (OAuth2) — optional datasheet auto-fetch and parameter-based auto-resolve (`DIGIKEY_CLIENT_ID`, `DIGIKEY_CLIENT_SECRET`)
 
 ## Extracted Model Versioning
@@ -123,9 +123,9 @@ Key taxonomy features:
 All `ComponentConstraints` extracted JSON files carry a `model_version` semver field:
 
 - **Initial value** — set from `default_model_version` in `backend/skills_manifest.json` (starts at `1.0.0`)
-- **Minor bump** — `default_model_version` in `skills_manifest.json` is incremented by `scripts/upload_skills.py --update`, so all new extractions after a skill update start at the new minor (e.g. `1.0.0` → `1.1.0`)
+- **Minor bump** — increment `default_model_version` in `skills_manifest.json` when extraction prompts change (do **not** run `upload_skills.py`).
 
-**Rule**: When committing or pushing changes under `skills/`, run `python3 scripts/upload_skills.py --update` before the commit/push to sync skill versions and bump `default_model_version`.
+**Rule**: When committing changes under `skills/`, bump `default_model_version` locally. Never call Anthropic.
 
 ## Development Guidelines
 

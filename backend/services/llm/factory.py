@@ -24,8 +24,9 @@ def get_provider_by_name(name: str) -> LLMProvider:
         from backend.services.llm.deepseek_provider import DeepSeekProvider
         return DeepSeekProvider()
     if name == "anthropic":
-        from backend.services.llm.anthropic_provider import AnthropicProvider
-        return AnthropicProvider()
+        log.warning("Anthropic is disabled — using DeepSeek instead")
+        from backend.services.llm.deepseek_provider import DeepSeekProvider
+        return DeepSeekProvider()
     if name == "gemini":
         from backend.services.llm.gemini_provider import GeminiProvider
         return GeminiProvider()

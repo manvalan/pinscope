@@ -5,8 +5,7 @@ Ports the extraction steps from run_pipeline.py to async:
   - extract_pattern: Passive MPN pattern
   - extract_specs: Component specs (discrete, connectors, crystals, etc.)
 
-Skills (SKILL.md + validate.py) run locally for DeepSeek/Gemini. Anthropic
-can still use Console Skills when a skill_id is in skills_manifest.json.
+Skills (SKILL.md + validate.py) run locally against DeepSeek. Do not use Anthropic Console Skills.
 """
 
 from __future__ import annotations

@@ -39,6 +39,7 @@ def restore_settings():
         "model_pattern", "model_pattern_gemini", "model_pattern_deepseek",
         "model_specs", "model_specs_gemini", "model_specs_deepseek",
         "model_auto_resolve", "model_auto_resolve_gemini", "model_auto_resolve_deepseek",
+        "fallback_provider_validation", "fallback_model_validation",
     ]
     snapshot = {f: getattr(settings, f) for f in fields if hasattr(settings, f)}
     yield
@@ -47,54 +48,42 @@ def restore_settings():
 
 
 def test_review_cost_changes_with_validation_model(restore_settings):
-    """Routing validation to Sonnet vs Haiku should produce different
-    per-IC review costs — and Haiku should be cheaper than Sonnet."""
-    settings.provider_validation = "anthropic"
-
-    settings.model_validation = "claude-sonnet-4-6"
-    sonnet_cost = estimate_stage_cost_usd("review")
-
-    settings.model_validation = "claude-haiku-4-5"
-    haiku_cost = estimate_stage_cost_usd("review")
-
-    assert sonnet_cost > 0
-    assert haiku_cost > 0
-    # Haiku is ~3× cheaper than Sonnet on input ($1 vs $3) and 3× on
-    # output ($5 vs $15). The blended ratio with cache_read should
-    # land Haiku at <50% of Sonnet's cost — wide enough margin to be
-    # robust to baseline tweaks.
-    assert haiku_cost < sonnet_cost * 0.6
-
-
-def test_review_cost_changes_with_validation_provider(restore_settings):
-    """Flipping PROVIDER_VALIDATION between deepseek and anthropic must
-    swap the rate table the estimator pulls from."""
+    """Routing validation to two DeepSeek models should produce different
+    per-IC review costs."""
     settings.provider_validation = "deepseek"
+
     settings.model_validation_deepseek = "deepseek-v4-pro"
-    deepseek_cost = estimate_stage_cost_usd("review")
+    pro_cost = estimate_stage_cost_usd("review")
 
+    settings.model_validation_deepseek = "deepseek-flash"
+    flash_cost = estimate_stage_cost_usd("review")
+
+    assert pro_cost > 0
+    assert flash_cost > 0
+    assert pro_cost != flash_cost
+
+
+def test_review_cost_stays_on_deepseek_table(restore_settings):
+    """PROVIDER_VALIDATION=anthropic must still price DeepSeek, not Claude."""
     settings.provider_validation = "anthropic"
+    settings.model_validation_deepseek = "deepseek-flash"
     settings.model_validation = "claude-sonnet-4-6"
-    anthropic_cost = estimate_stage_cost_usd("review")
-
-    assert deepseek_cost > 0
-    assert anthropic_cost > 0
-    assert abs(deepseek_cost - anthropic_cost) > 0.01, (
-        f"expected materially different costs, got "
-        f"deepseek={deepseek_cost!r} anthropic={anthropic_cost!r}"
-    )
+    cost = estimate_stage_cost_usd("review")
+    assert cost > 0
+    settings.provider_validation = "deepseek"
+    ds_cost = estimate_stage_cost_usd("review")
+    assert cost == pytest.approx(ds_cost, rel=1e-9)
 
 
 def test_unknown_model_falls_back_to_default_rate(restore_settings):
     """A model not in PRICING[provider] should price against
     PRICING[provider]['default'], not crash."""
-    settings.provider_validation = "anthropic"
-    settings.model_validation = "claude-totally-made-up-2099"
+    settings.provider_validation = "deepseek"
+    settings.model_validation_deepseek = "deepseek-totally-made-up-2099"
     cost = estimate_stage_cost_usd("review")
 
-    # Same baseline against PRICING['anthropic']['default']
-    settings.model_validation = ""  # forces anthropic_model fallback
-    settings.anthropic_model = "claude-totally-made-up-2099"
+    settings.model_validation_deepseek = ""
+    settings.deepseek_model = "deepseek-totally-made-up-2099"
     cost_via_global_default = estimate_stage_cost_usd("review")
 
     assert cost > 0
