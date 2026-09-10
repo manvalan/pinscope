@@ -51,6 +51,8 @@ from backend.pinscopex.passive_rail_check import (
 )
 from backend.pinscopex.bom_match_check import check_bom_schematic_match
 from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
+from backend.pinscopex.filter_check import check_filters
+from backend.pinscopex.thermal_check import check_thermal
 
 TRACE_VERSION = 1
 
@@ -76,6 +78,8 @@ def _run_deterministic_checks(
             graph.schematic_fields, graph.bom_fields,
         )),
         ("hf_coverage_check", lambda: check_hf_decoupling_coverage(graph, constraints_map)),
+        ("filter_check", lambda: check_filters(graph, constraints_map)),
+        ("thermal_check", lambda: check_thermal(graph, constraints_map)),
     ):
         try:
             out.extend(fn())

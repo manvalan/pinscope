@@ -22,6 +22,8 @@ from backend.pinscopex.passive_rail_check import (
 )
 from backend.pinscopex.bom_match_check import check_bom_schematic_match
 from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
+from backend.pinscopex.filter_check import check_filters
+from backend.pinscopex.thermal_check import check_thermal
 
 
 class EvalScores(BaseModel):
@@ -83,6 +85,8 @@ def run_deterministic_on_graph(graph: DesignGraph) -> list[Finding]:
     out.extend(check_reset_pullups(graph, cmap))
     out.extend(check_bom_schematic_match(graph.schematic_fields, graph.bom_fields))
     out.extend(check_hf_decoupling_coverage(graph, cmap))
+    out.extend(check_filters(graph, cmap))
+    out.extend(check_thermal(graph, cmap))
     return out
 
 

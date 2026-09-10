@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.14.0 — 2026-09-10 — Filtri e termico schema
+
+Deterministic checks now match RC/LC/π/T filters and estimate LDO/resistor dissipation without inventing missing numbers.
+
+- [New] Filter topology `PS-FLT-001` (fc INFO) / `PS-FLT-002` vs `adc_sample_rate` only when that spec exists. Ferrite DCR `PS-FLT-003` only with a datasheet limit.
+- [New] LDO `P = I_load×(Vin−Vout)` and `Tj = 25 + P·θJA`. Missing θJA is `PS-TH-001` INFO. `Iout_max` is not treated as load.
+- [New] Resistor `I²R` vs `power_rating_w` on LED paths and shunts with known ΔV (`PS-TH-003`).
+
 ## 2.13.0 — 2026-09-10 — DC-bias C_eff stima
 
 The derating table now shows an effective capacitance under DC bias for C0G/X7R/X5R ceramics. It is labelled *stima* — not a vendor lot curve.

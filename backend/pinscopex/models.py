@@ -247,9 +247,6 @@ class DesignGraph(BaseModel):
     # KiCad property table vs uploaded BOM (empty on PADS/EDIF).
     bom_fields: dict[str, dict] = {}
     schematic_fields: dict[str, dict] = {}
-    # KiCad property table vs uploaded BOM (empty on PADS/EDIF).
-    bom_fields: dict[str, dict] = {}
-    schematic_fields: dict[str, dict] = {}
 
     # -- Traversal helpers --------------------------------------------------
 
@@ -288,7 +285,8 @@ class DesignGraph(BaseModel):
         """Capacitor refs connected to a net (useful for decoupling checks)."""
         return [
             r for r in self.components_on_net(net_name)
-            if self.components[r].component_type == ComponentType.CAPACITOR
+            if (c := self.components.get(r)) is not None
+            and c.component_type == ComponentType.CAPACITOR
         ]
 
     def components_by_subtype(self, prefix: str) -> list[str]:
