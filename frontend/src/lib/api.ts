@@ -10,6 +10,9 @@ import type {
   CreditSnapshot,
   DesignGraph,
   DeratingRow,
+  ImpedanceKind,
+  ImpedanceStackupResult,
+  ImpedanceTraceResult,
   EdifSubDesign,
   FindingComment,
   LcscPayload,
@@ -579,6 +582,28 @@ export async function fetchDerating(
 ): Promise<DeratingRow[]> {
   const res = await authFetch(`${BASE}/api/derating/${projectId}`);
   if (!res.ok) return [];
+  return res.json();
+}
+
+export async function computeImpedance(body: {
+  mode: "trace" | "stackup";
+  kind?: ImpedanceKind;
+  h: number;
+  er: number;
+  t: number;
+  w?: number | null;
+  s?: number | null;
+  target_z?: number | null;
+}): Promise<ImpedanceTraceResult | ImpedanceStackupResult> {
+  const res = await authFetch(`${BASE}/api/impedance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(typeof detail.detail === "string" ? detail.detail : "Impedance compute failed");
+  }
   return res.json();
 }
 

@@ -1,0 +1,30 @@
+# Manual stackup description consumed by impedancefinder.board_model.load_manual_stackup().
+#
+# This is the primary way to supply Er/height data today: KiCad's Python API
+# (verified against KiCad 10.0.4) does not expose BOARD_STACKUP to scripting,
+# so Board Setup's physical stackup cannot be read back reliably. Fill this
+# file in from the fabricator's stackup table instead.
+#
+# copper_layers: ordered top-to-bottom, using KiCad's canonical layer names.
+# dielectrics: ordered top-to-bottom, one entry between each pair of adjacent
+#              copper layers (len(dielectrics) == len(copper_layers) - 1).
+# copper_thickness_mm: optional, defaults to 0.035mm (1oz copper) if omitted.
+
+copper_thickness_mm: 0.035
+
+copper_layers:
+  - F.Cu
+  - In1.Cu
+  - In2.Cu
+  - B.Cu
+
+dielectrics:
+  - name: core
+    er: 4.4
+    height_mm: 0.2
+  - name: prepreg
+    er: 4.1
+    height_mm: 1.0
+  - name: core
+    er: 4.4
+    height_mm: 0.2

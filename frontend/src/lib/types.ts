@@ -320,6 +320,32 @@ export interface DeratingSettings {
   electrolytic: number;
 }
 
+export type ImpedanceKind = "microstrip" | "stripline" | "cpw" | "diff";
+
+export interface ImpedanceTraceResult {
+  kind: ImpedanceKind;
+  z0?: number | null;
+  zodd?: number | null;
+  zeven?: number | null;
+  zdiff?: number | null;
+  w_mm?: number | null;
+  s_mm?: number | null;
+}
+
+export interface ImpedanceTarget {
+  kind: string;
+  w_mm: number | null;
+  s_mm: number | null;
+  z0: number | null;
+  zdiff: number | null;
+  formula: string;
+}
+
+export interface ImpedanceStackupResult {
+  targets: Record<string, ImpedanceTarget>;
+  kicad_dru: string;
+}
+
 export interface NetlistPreviewDesignator {
   ref: string;
   pins: { number: string; net_name: string }[];

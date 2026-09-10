@@ -13,6 +13,7 @@ import {
   TableProperties,
   Loader2,
   Zap,
+  Ruler,
   ScrollText,
   MessageSquareWarning,
   Library,
@@ -179,6 +180,7 @@ const PROJECT_NAV_ITEMS: NavItem[] = [
   { type: "route", path: "/report", label: "Report", icon: ClipboardList },
   { type: "tab", tab: "bom", label: "BOM", icon: TableProperties },
   { type: "tab", tab: "derating", label: "Derating", icon: Zap },
+  { type: "tab", tab: "impedance", label: "Impedance", icon: Ruler },
   { type: "tab", tab: "logs", label: "Logs", icon: ScrollText, adminOnly: true },
   { type: "tab", tab: "settings", label: "Settings", icon: Settings },
 ];

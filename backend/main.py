@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.config import settings
-from backend.routers import admin, contact, feedback, pipeline, projects, reports, survey
+from backend.routers import admin, contact, feedback, impedance, pipeline, projects, reports, survey
 from backend.services.projects import ProjectNotFound
 from backend.services.storage import LocalStorageBackend
 
@@ -147,6 +147,7 @@ async def _project_not_found_handler(request: Request, exc: ProjectNotFound):
 app.include_router(projects.router, prefix="/api")
 app.include_router(pipeline.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
+app.include_router(impedance.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 if settings.billing_enabled:
     # Import guarded too: with billing disabled the core never loads the

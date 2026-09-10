@@ -25,6 +25,9 @@ COPY skills/ /app/skills/
 # Changelog: single source of truth for the user-facing Pinscope version.
 COPY frontend/content/changelog.md /app/changelog.md
 
+# ImpedenceFinder closed-form engine (no OpenEMS / pcbnew).
+COPY vendor/ /app/vendor/
+
 EXPOSE 8080
 
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]

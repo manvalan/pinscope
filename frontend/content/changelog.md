@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.18.0 — 2026-09-10 — ImpedenceFinder calculator
+
+The Impedance tab uses the closed-form engine from ImpedenceFinder (Hammerstad–Jensen / Cohn), not a second formula set and not OpenEMS.
+
+- [New] Project tab Impedance: microstrip, stripline, coupled-diff Z0, stackup → 50/90/100 Ω widths, download `.kicad_dru` advice.
+- [New] Vendored ImpedenceFinder core under `vendor/impedancefinder/` (no gerber2ems, no pcbnew).
+- CPWG stays unimplemented — no invented number.
+
 ## 2.17.0 — 2026-09-10 — Lifecycle and datasheet extras
 
 Distributor lifecycle is a cached check, not a review scrape. Errata and layout_rules stay structured and skip when the catalog or the PDF has no number.

@@ -40,7 +40,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useOptionalUser } from "@/hooks/use-optional-auth";
-import { PdfViewerSheet } from "@/components/pdf/pdf-viewer-sheet";
+import { ImpedancePanel } from "@/components/project/impedance-panel";
 
 export default function ProjectDetailPage({
   params,
@@ -346,6 +346,8 @@ export default function ProjectDetailPage({
           }}
         />
       )}
+
+      {tab === "impedance" && <ImpedancePanel />}
 
       {tab === "logs" && (
         <ApiLogsSection logs={logs} />

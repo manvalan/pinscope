@@ -13,6 +13,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from backend.vendor_path import ensure_impedancefinder
+
+ensure_impedancefinder()
+
 
 @pytest.fixture(autouse=True)
 def _disable_llm_post_passes(monkeypatch):
