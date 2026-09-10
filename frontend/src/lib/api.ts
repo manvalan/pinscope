@@ -11,6 +11,7 @@ import type {
   DesignGraph,
   DeratingRow,
   ImpedanceKind,
+  ImpedanceNetsReport,
   ImpedanceStackupResult,
   ImpedanceTraceResult,
   EdifSubDesign,
@@ -605,6 +606,43 @@ export async function computeImpedance(body: {
   if (!res.ok) {
     const detail = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(typeof detail.detail === "string" ? detail.detail : "Impedance compute failed");
+  }
+  return res.json();
+}
+
+export async function fetchImpedanceNets(
+  projectId: string,
+): Promise<ImpedanceNetsReport> {
+  const res = await authFetch(
+    `${BASE}/api/projects/${projectId}/impedance/nets`,
+  );
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(
+      typeof detail.detail === "string" ? detail.detail : "Impedance nets failed",
+    );
+  }
+  return res.json();
+}
+
+export async function analyzeImpedanceNets(
+  projectId: string,
+  nets: string[],
+  pitch_mm?: number,
+): Promise<ImpedanceNetsReport> {
+  const res = await authFetch(
+    `${BASE}/api/projects/${projectId}/impedance/nets`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nets, pitch_mm }),
+    },
+  );
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(
+      typeof detail.detail === "string" ? detail.detail : "Impedance nets failed",
+    );
   }
   return res.json();
 }

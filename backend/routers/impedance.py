@@ -1,11 +1,13 @@
-"""Standalone impedance calculator (no PCB, no findings)."""
+"""Impedance calculator and ImpedenceFinder analysis of PCB nets."""
 
 from __future__ import annotations
 
+import os
+import tempfile
 from dataclasses import asdict
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from backend.pinscopex.impedance import (
@@ -19,6 +21,13 @@ from backend.pinscopex.impedance import (
     stackup_targets,
     stripline_z0,
 )
+from backend.pinscopex.impedance_traces import (
+    NET_WALK_PITCH_MM,
+    analyze_specified_nets,
+)
+from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+from backend.routers.deps import get_storage, resolve_or_404
+from backend.services import projects as proj_svc
 
 router = APIRouter(tags=["impedance"])
 
@@ -73,3 +82,44 @@ def compute_impedance(body: ImpedanceRequest):
         return _z_for_kind(kind, geo)
     except GeometryError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+class NetsRequest(BaseModel):
+    nets: list[str]
+    pitch_mm: float | None = None
+
+
+@router.get("/projects/{project_id}/impedance/nets")
+async def get_project_impedance_nets(project_id: str, request: Request):
+    storage = get_storage(request)
+    owner, _ = await resolve_or_404(request, project_id)
+    prefix = proj_svc.project_prefix(owner, project_id)
+    key = f"{prefix}/impedance_nets.json"
+    if not storage.exists(key):
+        return {"pitch_mm": NET_WALK_PITCH_MM, "nets": [], "skipped": "not run"}
+    return storage.read_json(key)
+
+
+@router.post("/projects/{project_id}/impedance/nets")
+async def analyze_project_impedance_nets(
+    project_id: str, body: NetsRequest, request: Request,
+):
+    storage = get_storage(request)
+    owner, _ = await resolve_or_404(request, project_id)
+    prefix = proj_svc.project_prefix(owner, project_id)
+    pcb_key = f"{prefix}/uploads/pcb.kicad_pcb"
+    if not storage.exists(pcb_key):
+        raise HTTPException(400, "No .kicad_pcb on this project")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".kicad_pcb")
+    try:
+        tmp.write(storage.read_bytes(pcb_key))
+        tmp.close()
+        layout = parse_kicad_pcb(tmp.name)
+    finally:
+        os.unlink(tmp.name)
+    pitch = body.pitch_mm if body.pitch_mm is not None else NET_WALK_PITCH_MM
+    try:
+        rows = analyze_specified_nets(layout, body.nets, pitch)
+    except GeometryError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"pitch_mm": pitch, "nets": rows, "skipped": None}

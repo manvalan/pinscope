@@ -257,6 +257,8 @@ class PipelineWorkspace:
             self._upload_dir("patterns")
             self._upload_dir("models")
             self._upload_file("design_graph.json")
+            self._upload_file("layout_graph.json")
+            self._upload_file("impedance_nets.json")
             self._upload_file("bom_summary.json")
             self._upload_file("derating.json")
             self._upload_file("report.json")
@@ -1516,6 +1518,28 @@ def _write_layout_graph(ws: PipelineWorkspace, project_id: str) -> None:
         logger.exception("kicad_pcb parse failed — continuing without layout")
 
 
+def _write_impedance_nets(ws: PipelineWorkspace, graph) -> None:
+    """ImpedenceFinder Z0 on routed signal nets. Skip without PCB stackup."""
+    path = ws.local_path("layout_graph.json")
+    if not path.is_file():
+        return
+    try:
+        from backend.pinscopex.impedance_traces import analyze_where_needed
+        from backend.pinscopex.models import LayoutGraph
+
+        layout = LayoutGraph.model_validate_json(path.read_text())
+        report = analyze_where_needed(layout, graph)
+        out = ws.local_path("impedance_nets.json")
+        out.write_text(json.dumps(report, indent=2) + "\n")
+        logger.info(
+            "impedance_nets: %s nets (skipped=%s)",
+            len(report.get("nets") or []),
+            report.get("skipped"),
+        )
+    except Exception:
+        logger.exception("impedance net analysis failed — continuing")
+
+
 async def _stage_graph_build(ctx: PipelineContext) -> None:
     """Stage 4 — Build the design graph from netlist, BOM, and extracted data."""
     broker.publish(ctx.project_id, "step_update",
@@ -1546,6 +1570,7 @@ async def _stage_graph_build(ctx: PipelineContext) -> None:
     graph_path = ctx.ws.local_path("design_graph.json")
     graph_path.write_text(ctx.graph.model_dump_json(indent=2) + "\n")
     _write_layout_graph(ctx.ws, ctx.project_id)
+    _write_impedance_nets(ctx.ws, ctx.graph)
 
     broker.publish(ctx.project_id, "step_update",
                    {"stage": "graph_build", "status": "complete",
@@ -2110,6 +2135,7 @@ async def run_regen_pipeline(
             graph_path = ws.local_path("design_graph.json")
             graph_path.write_text(graph.model_dump_json(indent=2) + "\n")
             _write_layout_graph(ws, project_id)
+            _write_impedance_nets(ws, graph)
 
             broker.publish(project_id, "step_update",
                            {"stage": "graph_build", "status": "complete",

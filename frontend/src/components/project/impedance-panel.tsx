@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { computeImpedance } from "@/lib/api";
+import {
+  analyzeImpedanceNets,
+  computeImpedance,
+  fetchImpedanceNets,
+} from "@/lib/api";
 import type {
   ImpedanceKind,
+  ImpedanceNetsReport,
   ImpedanceStackupResult,
   ImpedanceTraceResult,
 } from "@/lib/types";
@@ -21,7 +26,13 @@ function fmt(n: number | null | undefined, digits = 2): string {
   return n.toFixed(digits);
 }
 
-export function ImpedancePanel() {
+export function ImpedancePanel({
+  projectId,
+  hasPcb,
+}: {
+  projectId: string;
+  hasPcb: boolean;
+}) {
   const [kind, setKind] = useState<ImpedanceKind>("microstrip");
   const [h, setH] = useState("0.20");
   const [er, setEr] = useState("4.5");
@@ -33,6 +44,22 @@ export function ImpedancePanel() {
   const [busy, setBusy] = useState(false);
   const [trace, setTrace] = useState<ImpedanceTraceResult | null>(null);
   const [stackup, setStackup] = useState<ImpedanceStackupResult | null>(null);
+  const [boardNets, setBoardNets] = useState<ImpedanceNetsReport | null>(null);
+  const [extraNets, setExtraNets] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchImpedanceNets(projectId)
+      .then((r) => {
+        if (!cancelled) setBoardNets(r);
+      })
+      .catch(() => {
+        if (!cancelled) setBoardNets(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   async function runTrace() {
     setBusy(true);
@@ -90,6 +117,23 @@ export function ImpedancePanel() {
     URL.revokeObjectURL(url);
   }
 
+  async function runSpecifiedNets() {
+    const names = extraNets
+      .split(/[\s,]+/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setBoardNets(await analyzeImpedanceNets(projectId, names));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Net analysis failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const needsGap = kind === "cpw" || kind === "diff";
 
   return (
@@ -100,9 +144,9 @@ export function ImpedancePanel() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            IPC-2141 / Hammerstad–Jensen from ImpedenceFinder (same as KiCad
-            pcb_calculator). Advice only — this tab does not sample the PCB
-            and does not emit findings. CPWG is not implemented.
+            ImpedenceFinder (Hammerstad–Jensen). The calculator is advice only.
+            With a `.kicad_pcb` and stackup, a pipeline run samples routed signal
+            nets. CPWG is not implemented upstream.
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <label className="space-y-1">
@@ -171,6 +215,72 @@ export function ImpedancePanel() {
               )}
               {trace.w_mm != null && <> · w = {fmt(trace.w_mm, 4)} mm</>}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">PCB net Z0 (ImpedenceFinder)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!hasPcb && (
+            <p className="text-sm text-muted-foreground">
+              Upload a `.kicad_pcb` and run analysis. Power/ground nets are
+              skipped; signal traces with stackup εr/h are sampled.
+            </p>
+          )}
+          {hasPcb && boardNets?.skipped && (
+            <p className="text-sm text-muted-foreground">{boardNets.skipped}</p>
+          )}
+          {boardNets && boardNets.nets.length > 0 && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="py-1">Net</th>
+                  <th>Z0 avg Ω</th>
+                  <th>min–max</th>
+                  <th>mm</th>
+                  <th>topology</th>
+                </tr>
+              </thead>
+              <tbody>
+                {boardNets.nets.map((row) => (
+                  <tr key={row.net_name} className="border-t border-border">
+                    <td className="py-1">{row.net_name}</td>
+                    <td className="tabular-nums">
+                      {row.error ?? fmt(row.z0_avg_ohms)}
+                    </td>
+                    <td className="tabular-nums">
+                      {row.z0_min_ohms != null
+                        ? `${fmt(row.z0_min_ohms)}–${fmt(row.z0_max_ohms)}`
+                        : "—"}
+                    </td>
+                    <td className="tabular-nums">{fmt(row.length_mm, 2)}</td>
+                    <td>{(row.topologies || []).join(", ") || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {hasPcb && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="min-w-40 flex-1 space-y-1">
+                <Label>Extra nets</Label>
+                <Input
+                  value={extraNets}
+                  onChange={(e) => setExtraNets(e.target.value)}
+                  placeholder="/USB.D+ /USB.D-"
+                />
+              </label>
+              <Button
+                variant="outline"
+                onClick={runSpecifiedNets}
+                disabled={busy}
+              >
+                Analyze named nets
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -8,11 +8,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.pinscopex.models import (
+    LayoutDielectric,
     LayoutFootprint,
     LayoutGraph,
     LayoutPad,
     LayoutSegment,
+    LayoutStackup,
     LayoutVia,
+    LayoutZone,
 )
 from backend.pinscopex.parsers_kicad import (
     _at,
@@ -45,6 +48,89 @@ def _pad_net(pad: object) -> str:
     if n and len(n) >= 3:
         return str(n[2])
     return ""
+
+
+def _net_name(node: object, nets: dict[str, int]) -> str:
+    n = _kid(node, "net")
+    if not n or len(n) < 2:
+        named = _val(node, "net_name")
+        return named
+    if len(n) >= 3:
+        return str(n[2])
+    try:
+        code = int(_fnum(n[1]))
+    except (TypeError, ValueError):
+        return ""
+    return next((name for name, c in nets.items() if c == code), str(code))
+
+
+def _layer_type(node: object) -> str:
+    return str(_val(node, "type") or "").lower()
+
+
+def _parse_stackup(tree: object) -> LayoutStackup | None:
+    setup = _kid(tree, "setup")
+    if not setup:
+        return None
+    stack = _kid(setup, "stackup")
+    if not stack:
+        return None
+    copper: list[str] = []
+    dielectrics: list[LayoutDielectric] = []
+    thicknesses: list[float] = []
+    for layer in _kids(stack, "layer"):
+        name = str(layer[1]) if len(layer) > 1 and not isinstance(layer[1], list) else ""
+        kind = _layer_type(layer)
+        thick = _kid(layer, "thickness")
+        height = _fnum(thick[1]) if thick and len(thick) > 1 else None
+        if kind == "copper" or name.endswith(".Cu"):
+            if name:
+                copper.append(name)
+            if height is not None and height > 0:
+                thicknesses.append(height)
+            continue
+        if kind in {"core", "prepreg", "dielectric"} or name.lower().startswith("dielectric"):
+            er_el = _kid(layer, "epsilon_r")
+            if er_el is None:
+                er_el = _kid(layer, "epsilonr")
+            er = _fnum(er_el[1]) if er_el and len(er_el) > 1 else None
+            if er is None or height is None or er <= 0 or height <= 0:
+                continue
+            dielectrics.append(LayoutDielectric(
+                name=name or f"dielectric_{len(dielectrics)}",
+                er=er,
+                height_mm=height,
+            ))
+    if len(copper) < 2 or len(dielectrics) != len(copper) - 1:
+        return None
+    t = thicknesses[0] if thicknesses else None
+    return LayoutStackup(
+        copper_layers=copper,
+        dielectrics=dielectrics,
+        copper_thickness_mm=t,
+    )
+
+
+def _pts_xy(node: object) -> list[tuple[float, float]]:
+    pts_el = _kid(node, "pts")
+    if not pts_el:
+        return []
+    out: list[tuple[float, float]] = []
+    for xy in pts_el[1:]:
+        if isinstance(xy, list) and xy and xy[0] == "xy" and len(xy) >= 3:
+            out.append((_fnum(xy[1]), _fnum(xy[2])))
+    return out
+
+
+def _parse_zone(node: object, nets: dict[str, int]) -> list[LayoutZone]:
+    net = str(_val(node, "net_name") or "") or _net_name(node, nets)
+    zones: list[LayoutZone] = []
+    for poly in _kids(node, "filled_polygon"):
+        layer = _val(poly, "layer")
+        pts = _pts_xy(poly)
+        if layer and len(pts) >= 3:
+            zones.append(LayoutZone(net=net, layer=layer, outlines=[pts]))
+    return zones
 
 
 def _is_crtyd(layer: str) -> bool:
@@ -105,6 +191,7 @@ def parse_kicad_pcb(path: str | Path) -> LayoutGraph:
     footprints: dict[str, LayoutFootprint] = {}
     segments: list[LayoutSegment] = []
     vias: list[LayoutVia] = []
+    zones: list[LayoutZone] = []
 
     for node in tree[1:]:
         if not isinstance(node, list) or not node:
@@ -150,31 +237,29 @@ def parse_kicad_pcb(path: str | Path) -> LayoutGraph:
             )
             continue
         if tag == "segment":
-            net_el = _kid(node, "net")
-            net_name = ""
-            if net_el and len(net_el) >= 2:
-                code = int(_fnum(net_el[1]))
-                net_name = next((n for n, c in nets.items() if c == code), str(code))
             segments.append(LayoutSegment(
                 start=_xy(node, "start"),
                 end=_xy(node, "end"),
                 width=_fnum(_val(node, "width") or 0),
                 layer=_val(node, "layer"),
-                net=net_name,
+                net=_net_name(node, nets),
             ))
             continue
         if tag == "via":
-            net_el = _kid(node, "net")
-            net_name = ""
-            if net_el and len(net_el) >= 2:
-                code = int(_fnum(net_el[1]))
-                net_name = next((n for n, c in nets.items() if c == code), str(code))
+            drill_el = _kid(node, "drill")
+            drill = _fnum(drill_el[1]) if drill_el and len(drill_el) > 1 else None
             vx, vy, _ = _at(node)
-            vias.append(LayoutVia(x=vx, y=vy, net=net_name))
+            vias.append(LayoutVia(x=vx, y=vy, net=_net_name(node, nets), drill=drill))
+            continue
+        if tag == "zone":
+            zones.extend(_parse_zone(node, nets))
+            continue
 
     return LayoutGraph(
         nets=nets,
         footprints=footprints,
         segments=segments,
         vias=vias,
+        stackup=_parse_stackup(tree),
+        zones=zones,
     )

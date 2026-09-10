@@ -364,6 +364,27 @@ export interface ImpedanceStackupResult {
   kicad_dru: string;
 }
 
+export interface ImpedanceNetRow {
+  net_name: string;
+  length_mm?: number;
+  branch_count?: number;
+  is_differential?: boolean;
+  partner_net_name?: string | null;
+  topologies?: string[];
+  z0_min_ohms?: number | null;
+  z0_max_ohms?: number | null;
+  z0_avg_ohms?: number | null;
+  flags?: string[];
+  sample_count?: number;
+  error?: string;
+}
+
+export interface ImpedanceNetsReport {
+  pitch_mm: number;
+  nets: ImpedanceNetRow[];
+  skipped: string | null;
+}
+
 export interface NetlistPreviewDesignator {
   ref: string;
   pins: { number: string; net_name: string }[];

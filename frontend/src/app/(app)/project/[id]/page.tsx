@@ -347,7 +347,9 @@ export default function ProjectDetailPage({
         />
       )}
 
-      {tab === "impedance" && <ImpedancePanel />}
+      {tab === "impedance" && (
+        <ImpedancePanel projectId={id} hasPcb={Boolean(project.hasPcb)} />
+      )}
 
       {tab === "logs" && (
         <ApiLogsSection logs={logs} />

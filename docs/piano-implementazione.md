@@ -106,7 +106,7 @@ Passi:
 | --- | --- | --- | --- |
 | 1 Plugin / telemetry / BOM match | Parser KiCad XML/sexp/`.kicad_sch` gerarchico; wizard BOM; `plugins/kicad/` + cad-bridge JSON | EasyEDA fuori scope; uuid/sheet sul plugin da verificare su board reale | **OK** |
 | 2 Datasheet / errata / OCR blocchi | Pintable, excerpt, quote_verify, errata, `internal_features` | Nessun RAG vendor | **OK** |
-| 3 Impedenze / stackup | ImpedenceFinder + tab Impedance + `.kicad_dru` | CPWG non nel vendor; niente Z0 sul rame del PCB | **OK** |
+| 3 Impedenze / stackup | ImpedenceFinder: calcolatrice + **Z0 sulle tracce** dei net signal (stackup PCB) | CPWG non nel vendor | **OK** |
 | 4 Filtri | `check_filters` (solo con poli/numeri in specs) | Niente \(f_c\) inventata | **OK** |
 | 5 Capacità PI | Decoupling sulla net; derating V; DC-bias/ESR se c’è il numero; mm sul PCB (`PS-PLC-001`) | — | **OK** |
 | 6 Elettrico | Pin mux; I2C/reset pull-up; LED; sequencing/IR/power margin se c’è il parametro | Senza numero in specs → skip | **OK** |

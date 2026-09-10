@@ -477,6 +477,25 @@ class LayoutVia(BaseModel):
     x: float
     y: float
     net: str = ""
+    drill: float | None = None
+
+
+class LayoutDielectric(BaseModel):
+    name: str
+    er: float
+    height_mm: float
+
+
+class LayoutStackup(BaseModel):
+    copper_layers: list[str]
+    dielectrics: list[LayoutDielectric]
+    copper_thickness_mm: float | None = None
+
+
+class LayoutZone(BaseModel):
+    net: str
+    layer: str
+    outlines: list[list[tuple[float, float]]] = []
 
 
 class LayoutGraph(BaseModel):
@@ -485,4 +504,6 @@ class LayoutGraph(BaseModel):
     footprints: dict[str, LayoutFootprint] = {}
     segments: list[LayoutSegment] = []
     vias: list[LayoutVia] = []
+    stackup: LayoutStackup | None = None
+    zones: list[LayoutZone] = []
 

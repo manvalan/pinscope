@@ -2,6 +2,12 @@
 
 What's new in Pinscope.
 
+## 2.26.0 — 2026-09-11 — ImpedenceFinder Z0 on PCB nets
+
+A pipeline run with `.kicad_pcb` + stackup samples routed **signal** nets (power/ground skipped). Extra net names can be analyzed from the Impedance tab. Z0 is ImpedenceFinder net_walk/zsolver; no invented εr.
+
+- [New] `impedance_nets.json` after graph build. GET/POST `/api/projects/{id}/impedance/nets`.
+
 ## 2.25.0 — 2026-09-10 — Keepout courtyard
 
 `layout_rules` `keepout` flags a foreign net whose track endpoint is inside the KiCad courtyard. Own net and missing courtyard skip. No invented analog/digital classes.
