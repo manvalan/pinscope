@@ -2,6 +2,12 @@
 
 What's new in Pinscope.
 
+## 2.22.0 — 2026-09-10 — Thermal vias vs min_via_count
+
+Via count is calculated inside the KiCad courtyard. The limit is the `min_via_count` parameter from `layout_rules`. No courtyard or no count → skip. No pad radius default.
+
+- [New] `PS-PLC-002` when vias in courtyard < `min_via_count`. `simple_project` has no PCB so it stays silent.
+
 ## 2.21.0 — 2026-09-10 — Layout SI skew (datasheet mm only)
 
 Intra-pair skew is measured on the PCB only when `layout_rules` `length_match` has a number. 3W, creepage, and CPWG are not guessed.

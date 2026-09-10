@@ -49,6 +49,7 @@ def test_parse_footprint_pads_and_nets(tmp_path: Path):
     assert by_num["2"].net == "GND"
     assert by_num["1"].x == pytest.approx(9.25)
     assert by_num["2"].x == pytest.approx(10.75)
+    assert r1.courtyard == []
 
 
 def test_parse_segment_and_via_resolve_net_name(tmp_path: Path):

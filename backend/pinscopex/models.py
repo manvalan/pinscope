@@ -462,6 +462,7 @@ class LayoutFootprint(BaseModel):
     y: float
     layer: str = ""
     pads: list[LayoutPad] = []
+    courtyard: list[tuple[float, float]] = []
 
 
 class LayoutSegment(BaseModel):

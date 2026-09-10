@@ -47,6 +47,54 @@ def _pad_net(pad: object) -> str:
     return ""
 
 
+def _is_crtyd(layer: str) -> bool:
+    return str(layer).endswith("CrtYd")
+
+
+def _abs(fx: float, fy: float, frot: float, lx: float, ly: float) -> tuple[float, float]:
+    rx, ry = _rotate(lx, ly, frot)
+    return fx + rx, fy + ry
+
+
+def _courtyard_pts(node: object, fx: float, fy: float, frot: float) -> list[tuple[float, float]]:
+    """Courtyard vertices from the PCB file. Empty if KiCad has no CrtYd."""
+    pts: list[tuple[float, float]] = []
+    for poly in _kids(node, "fp_poly"):
+        if not _is_crtyd(_val(poly, "layer")):
+            continue
+        pts_el = _kid(poly, "pts")
+        if not pts_el:
+            continue
+        for xy in pts_el[1:]:
+            if isinstance(xy, list) and xy and xy[0] == "xy" and len(xy) >= 3:
+                pts.append(_abs(fx, fy, frot, _fnum(xy[1]), _fnum(xy[2])))
+        if pts:
+            return pts
+    for rect in _kids(node, "fp_rect"):
+        if not _is_crtyd(_val(rect, "layer")):
+            continue
+        sx, sy = _xy(rect, "start")
+        ex, ey = _xy(rect, "end")
+        return [
+            _abs(fx, fy, frot, sx, sy),
+            _abs(fx, fy, frot, ex, sy),
+            _abs(fx, fy, frot, ex, ey),
+            _abs(fx, fy, frot, sx, ey),
+        ]
+    for line in _kids(node, "fp_line"):
+        if not _is_crtyd(_val(line, "layer")):
+            continue
+        sx, sy = _xy(line, "start")
+        ex, ey = _xy(line, "end")
+        a = _abs(fx, fy, frot, sx, sy)
+        b = _abs(fx, fy, frot, ex, ey)
+        if not pts or pts[-1] != a:
+            pts.append(a)
+        if pts[-1] != b:
+            pts.append(b)
+    return pts
+
+
 def parse_kicad_pcb(path: str | Path) -> LayoutGraph:
     p = Path(path)
     tree = _parse_sexp(p.read_text(encoding="utf-8", errors="replace"))
@@ -98,6 +146,7 @@ def parse_kicad_pcb(path: str | Path) -> LayoutGraph:
                 y=fy,
                 layer=layer,
                 pads=pads,
+                courtyard=_courtyard_pts(node, fx, fy, frot),
             )
             continue
         if tag == "segment":
