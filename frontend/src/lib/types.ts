@@ -102,6 +102,7 @@ export interface BomSummaryRow {
 
 export type ProjectStatus =
   | "draft"
+  | "queued"
   | "running"
   | "complete"
   | "error"
