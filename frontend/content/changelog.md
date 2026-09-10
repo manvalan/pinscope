@@ -2,6 +2,15 @@
 
 What's new in Pinscope.
 
+## 2.12.0 — 2026-09-10 — Pull-up sizing and LDO Cout
+
+Deterministic schema checks now size I2C pull-ups, flag NRST pull-downs, and look at LDO VOUT capacitance — still WARNING, never a invented datasheet µF ERROR.
+
+- [New] I2C pull-up value vs a wide NXP UM10204 band (`PS-I2C-002`). 4.7 kΩ is in-band; missing values are not sized.
+- [New] Active-low reset with a resistor to ground is `PS-RST-002`.
+- [New] Regulator VOUT needs Cout (`PS-DEC-001`); 100 nF-only on VOUT is `PS-DEC-002`. MCU VDD 100 nF is not flagged.
+- [Improved] Pin-mux UART0 on the `simple_project` MSPM0 nets is covered in tests (SPI PICO/POCI already was).
+
 ## 2.11.0 — 2026-09-10 — DeepSeek V4.1 and re-analyze
 
 Pinscope now defaults to DeepSeek-V4.1-Flash (`deepseek-flash`) for every LLM stage, shows API cost in dollars, and lets you replace the BOM and netlist on an existing project without deleting it.

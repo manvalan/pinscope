@@ -178,6 +178,52 @@ def test_spi_controller_peripheral_names_are_synonyms():
     assert normalize_functions(["SPI0_STE0"]) == {("SPI0", "NSS")}
 
 
+def test_simple_project_uart0_nets_are_feasible_on_mspm0_pins():
+    from pathlib import Path
+
+    from backend.pinscopex.models import DesignGraph
+
+    graph = DesignGraph.model_validate_json(
+        (Path(__file__).resolve().parents[1] / "simple_project" / "design_graph.json").read_text()
+    )
+    cmap = {
+        "MSPM0G3507SPTR": _constraints(
+            "MSPM0G3507SPTR",
+            [
+                Pin(number=1, name="PA11", functions=["UART0_TX", "SPI1_CS1"]),
+                Pin(number=2, name="PA12", functions=["UART0_RX", "SPI1_CS0"]),
+            ],
+        )
+    }
+    findings = check_pin_mux_feasibility(graph, cmap)
+    uart = [f for f in findings if f.net and "UART0" in f.net]
+    assert uart == []
+
+
+def test_simple_project_uart0_swapped_on_mspm0_is_error():
+    from pathlib import Path
+
+    from backend.pinscopex.models import DesignGraph
+
+    graph = DesignGraph.model_validate_json(
+        (Path(__file__).resolve().parents[1] / "simple_project" / "design_graph.json").read_text()
+    )
+    cmap = {
+        "MSPM0G3507SPTR": _constraints(
+            "MSPM0G3507SPTR",
+            [
+                Pin(number=1, name="PA11", functions=["UART0_RX"]),
+                Pin(number=2, name="PA12", functions=["UART0_TX"]),
+            ],
+        )
+    }
+    findings = check_pin_mux_feasibility(graph, cmap)
+    nets = {f.net for f in findings}
+    assert "/UART0.TX" in nets
+    assert "/UART0.RX" in nets
+    assert all(f.status == "ERROR" for f in findings if f.net and "UART0" in f.net)
+
+
 def test_spi_genuine_infeasibility_still_fires_with_modern_names():
     # Net asserts SPI0_MOSI on a pin that exposes SPI0 only as POCI (==MISO) —
     # genuinely infeasible even after synonym collapse -> ERROR.
