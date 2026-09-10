@@ -41,6 +41,24 @@ export interface ValidationReport {
   review_errors?: Record<string, string>;
   not_reviewed?: { designator: string; reason: string }[];
   comments?: Record<string, FindingComment[]>;
+  review_states?: Record<string, FindingReview>;
+  release?: ReportRelease;
+}
+
+export type FindingReviewState = "open" | "false_positive" | "accepted" | "wontfix";
+
+export interface FindingReview {
+  state: FindingReviewState;
+  reason: string;
+  user_id: string;
+  user_name: string;
+  updated_at: string;
+}
+
+export interface ReportRelease {
+  sha256: string;
+  user_id: string;
+  timestamp: string;
 }
 
 export type NetType = "power" | "ground" | "signal" | "unknown";

@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { ComponentGroup } from "./component-group";
 import { ReportFilters } from "./report-filters";
 import { ReviewedSection } from "./reviewed-section";
-import type { Finding, FindingComment, FindingStatus, DesignGraph, Collaborator } from "@/lib/types";
+import type { Finding, FindingComment, FindingReview, FindingStatus, DesignGraph, Collaborator } from "@/lib/types";
 import { groupBy, getFindingKey } from "@/lib/utils";
 
 interface FindingsListProps {
@@ -23,9 +23,11 @@ interface FindingsListProps {
   onCommentDeleted?: (commentId: string, findingId: string) => void;
   onReportFinding?: (finding: Finding) => void;
   reportedFindingIds?: Set<string>;
+  reviews?: Record<string, FindingReview>;
+  onReviewSaved?: (findingId: string, review: FindingReview) => void;
 }
 
-export function FindingsList({ findings, graph, onViewReference, projectId, isReviewed, toggleReviewed, comments, collaborators, currentUserId, currentUserName, onCommentAdded, onCommentDeleted, onReportFinding, reportedFindingIds }: FindingsListProps) {
+export function FindingsList({ findings, graph, onViewReference, projectId, isReviewed, toggleReviewed, comments, collaborators, currentUserId, currentUserName, onCommentAdded, onCommentDeleted, onReportFinding, reportedFindingIds, reviews, onReviewSaved }: FindingsListProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -38,6 +40,7 @@ export function FindingsList({ findings, graph, onViewReference, projectId, isRe
 
   const statusParam = searchParams.get("status");
   const componentParam = searchParams.get("component");
+  const reviewParam = searchParams.get("review");
   const searchParam = searchParams.get("q") ?? "";
 
   const statusFilters = useMemo(() => {
@@ -77,9 +80,13 @@ export function FindingsList({ findings, graph, onViewReference, projectId, isRe
       const q = searchParam.toLowerCase();
       if (q && !f.finding.toLowerCase().includes(q) && !(f.why ?? "").toLowerCase().includes(q))
         return false;
+      if (reviewParam === "open") {
+        const st = f.finding_id ? reviews?.[f.finding_id]?.state : undefined;
+        if (st && st !== "open") return false;
+      }
       return true;
     },
-    [statusFilters, componentParam, searchParam]
+    [statusFilters, componentParam, searchParam, reviewParam, reviews]
   );
 
   const filtered = useMemo(() => {
@@ -120,6 +127,10 @@ export function FindingsList({ findings, graph, onViewReference, projectId, isRe
         onComponentChange={(v) => updateParams({ component: v === "all" ? null : v })}
         search={searchParam}
         onSearchChange={(v) => updateParams({ q: v || null })}
+        needsReview={reviewParam === "open"}
+        onToggleNeedsReview={() =>
+          updateParams({ review: reviewParam === "open" ? null : "open" })
+        }
         designators={designators}
       />
       <div className="space-y-1">
@@ -144,6 +155,8 @@ export function FindingsList({ findings, graph, onViewReference, projectId, isRe
               onCommentDeleted={onCommentDeleted}
               onReportFinding={onReportFinding}
               reportedFindingIds={reportedFindingIds}
+              reviews={reviews}
+              onReviewSaved={onReviewSaved}
             />
           ))}
         {filtered.length === 0 && reviewedFindings.length === 0 && findings.length > 0 && (

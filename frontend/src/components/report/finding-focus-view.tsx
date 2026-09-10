@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PdfViewerPanel } from "@/components/pdf/pdf-viewer-panel";
 import { FindingCard } from "./finding-card";
-import type { Finding, FindingComment, Collaborator, Component } from "@/lib/types";
+import type { Finding, FindingComment, FindingReview, Collaborator, Component } from "@/lib/types";
 import { subtypeLabel } from "@/lib/utils";
 
 interface FindingFocusViewProps {
@@ -29,6 +29,8 @@ interface FindingFocusViewProps {
   onCommentDeleted?: (commentId: string, findingId: string) => void;
   onReportFinding?: (finding: Finding) => void;
   isReported?: boolean;
+  review?: FindingReview;
+  onReviewSaved?: (findingId: string, review: FindingReview) => void;
 }
 
 export function FindingFocusView({
@@ -51,6 +53,8 @@ export function FindingFocusView({
   onCommentDeleted,
   onReportFinding,
   isReported,
+  review,
+  onReviewSaved,
 }: FindingFocusViewProps) {
   const backRef = useRef<HTMLButtonElement>(null);
 
@@ -110,6 +114,8 @@ export function FindingFocusView({
           onReportFinding={onReportFinding}
           isReported={isReported}
           defaultOpen
+          review={review}
+          onReviewSaved={onReviewSaved}
         />
       </div>
       <div className="w-full lg:w-auto lg:shrink-0 lg:sticky lg:top-6 h-[70vh] lg:h-[calc(100vh-3rem)] rounded-lg border border-border bg-card overflow-hidden">

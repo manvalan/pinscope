@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toast, useToast } from "@/components/ui/toast";
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
-import { fetchCollaborators, fetchProject, fetchMyFeedback, reprocessPipeline } from "@/lib/api";
+import { fetchCollaborators, fetchProject, fetchMyFeedback, reprocessPipeline, signReport, downloadEcoCsv } from "@/lib/api";
 import { exportReportToExcel } from "@/lib/report-export";
 import { cn, getFindingKey } from "@/lib/utils";
-import type { Finding, FindingComment, Collaborator } from "@/lib/types";
+import type { Finding, FindingComment, FindingReview, Collaborator } from "@/lib/types";
 
 interface FocusState {
   key: string;
@@ -36,6 +36,7 @@ function ReportContent({ projectId }: { projectId: string }) {
   const prevInFocusRef = useRef(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [comments, setComments] = useState<Record<string, FindingComment[]>>({});
+  const [reviews, setReviews] = useState<Record<string, FindingReview>>({});
   const [creditsSpent, setCreditsSpent] = useState<number | undefined>();
   const [totalCostUsd, setTotalCostUsd] = useState<number | null>(null);
   const [projectName, setProjectName] = useState<string>("");
@@ -121,6 +122,9 @@ function ReportContent({ projectId }: { projectId: string }) {
     if (report?.comments) {
       setComments(report.comments);
     }
+    if (report?.review_states) {
+      setReviews(report.review_states);
+    }
   }, [report]);
 
   const handleCommentAdded = useCallback((comment: FindingComment) => {
@@ -128,6 +132,15 @@ function ReportContent({ projectId }: { projectId: string }) {
       ...prev,
       [comment.finding_id]: [...(prev[comment.finding_id] ?? []), comment],
     }));
+  }, []);
+
+  const handleReviewSaved = useCallback((findingId: string, review: FindingReview) => {
+    setReviews((prev) => {
+      const next = { ...prev };
+      if (review.state === "open") delete next[findingId];
+      else next[findingId] = review;
+      return next;
+    });
   }, []);
 
   const handleCommentDeleted = useCallback((commentId: string, findingId: string) => {
@@ -245,6 +258,33 @@ function ReportContent({ projectId }: { projectId: string }) {
             >
               <Download /> Export Excel
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await downloadEcoCsv(projectId);
+                } catch (e) {
+                  showToast(e instanceof Error ? e.message : "ECO export failed");
+                }
+              }}
+            >
+              <Download /> ECO CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const rel = await signReport(projectId);
+                  showToast(`Signed ${rel.sha256.slice(0, 12)}…`);
+                } catch (e) {
+                  showToast(e instanceof Error ? e.message : "Sign failed");
+                }
+              }}
+            >
+              Sign release
+            </Button>
           </div>
         </div>
         <ReportSummary
@@ -314,6 +354,8 @@ function ReportContent({ projectId }: { projectId: string }) {
             onCommentDeleted={handleCommentDeleted}
             onReportFinding={handleReportFinding}
             reportedFindingIds={reportedFindingIds}
+            reviews={reviews}
+            onReviewSaved={handleReviewSaved}
           />
         )}
       </div>
@@ -338,6 +380,8 @@ function ReportContent({ projectId }: { projectId: string }) {
           onCommentDeleted={handleCommentDeleted}
           onReportFinding={handleReportFinding}
           isReported={!!(focus.finding.finding_id && reportedFindingIds.has(focus.finding.finding_id))}
+          review={focus.finding.finding_id ? reviews[focus.finding.finding_id] : undefined}
+          onReviewSaved={handleReviewSaved}
         />
       )}
       <Toast toast={toast} />

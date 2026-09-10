@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 
 import { StatusBadge } from "./status-badge";
 import { FindingComments } from "./finding-comments";
-import type { Finding, FindingComment, Collaborator } from "@/lib/types";
+import { FindingReviewControls } from "./finding-review-controls";
+import type { Finding, FindingComment, FindingReview, Collaborator } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const BORDER_COLOR: Record<string, string> = {
@@ -31,6 +32,8 @@ interface FindingCardProps {
   onReportFinding?: (finding: Finding) => void;
   isReported?: boolean;
   defaultOpen?: boolean;
+  review?: FindingReview;
+  onReviewSaved?: (findingId: string, review: FindingReview) => void;
 }
 
 export function FindingCard({
@@ -48,11 +51,16 @@ export function FindingCard({
   onReportFinding,
   isReported,
   defaultOpen,
+  review,
+  onReviewSaved,
 }: FindingCardProps) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const commentCount = comments?.length ?? 0;
   const hasCommentSupport = !!(projectId && collaborators && onCommentAdded && onCommentDeleted);
-  const expandable = !!finding.recommendation || (hasCommentSupport && !!finding.finding_id);
+  const expandable =
+    !!finding.recommendation ||
+    (hasCommentSupport && !!finding.finding_id) ||
+    !!(projectId && finding.finding_id && onReviewSaved);
 
   return (
     <div
@@ -187,6 +195,15 @@ export function FindingCard({
                   currentUserName={currentUserName ?? "User"}
                   onCommentAdded={onCommentAdded}
                   onCommentDeleted={onCommentDeleted}
+                />
+              )}
+              {projectId && finding.finding_id && onReviewSaved && (
+                <FindingReviewControls
+                  projectId={projectId}
+                  findingId={finding.finding_id}
+                  review={review}
+                  userName={currentUserName ?? "User"}
+                  onSaved={onReviewSaved}
                 />
               )}
             </div>

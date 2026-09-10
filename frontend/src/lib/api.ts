@@ -15,6 +15,8 @@ import type {
   ImpedanceTraceResult,
   EdifSubDesign,
   FindingComment,
+  FindingReview,
+  FindingReviewState,
   LcscPayload,
   NetlistPreviewDesignator,
   PauseCheckpoint,
@@ -613,6 +615,46 @@ export async function fetchReport(
   const res = await authFetch(`${BASE}/api/report/${projectId}`);
   if (!res.ok) throw new Error("Failed to fetch report");
   return res.json();
+}
+
+export async function setFindingReview(
+  projectId: string,
+  findingId: string,
+  state: FindingReviewState,
+  reason: string,
+  userName: string,
+): Promise<FindingReview> {
+  const res = await authFetch(
+    `${BASE}/api/report/${projectId}/findings/${encodeURIComponent(findingId)}/review`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state, reason, user_name: userName }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : "Review update failed");
+  }
+  return res.json();
+}
+
+export async function signReport(projectId: string): Promise<{ sha256: string; user_id: string; timestamp: string }> {
+  const res = await authFetch(`${BASE}/api/report/${projectId}/sign`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to sign report");
+  return res.json();
+}
+
+export async function downloadEcoCsv(projectId: string): Promise<void> {
+  const res = await authFetch(`${BASE}/api/report/${projectId}/eco.csv`);
+  if (!res.ok) throw new Error("Failed to export ECO");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "pinscope-eco.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function addComment(

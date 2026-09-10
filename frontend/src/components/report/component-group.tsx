@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { FindingCard } from "./finding-card";
 import { StatusBadge } from "./status-badge";
-import type { Finding, FindingComment, Collaborator, Component } from "@/lib/types";
+import type { Finding, FindingComment, FindingReview, Collaborator, Component } from "@/lib/types";
 import { cn, sortFindings, subtypeLabel } from "@/lib/utils";
 
 interface ComponentGroupProps {
@@ -26,9 +26,11 @@ interface ComponentGroupProps {
   onCommentDeleted?: (commentId: string, findingId: string) => void;
   onReportFinding?: (finding: Finding) => void;
   reportedFindingIds?: Set<string>;
+  reviews?: Record<string, FindingReview>;
+  onReviewSaved?: (findingId: string, review: FindingReview) => void;
 }
 
-export function ComponentGroup({ designator, findings, component, onViewReference, findingKeys, isReviewed, onToggleReviewed, comments, projectId, collaborators, currentUserId, currentUserName, onCommentAdded, onCommentDeleted, onReportFinding, reportedFindingIds }: ComponentGroupProps) {
+export function ComponentGroup({ designator, findings, component, onViewReference, findingKeys, isReviewed, onToggleReviewed, comments, projectId, collaborators, currentUserId, currentUserName, onCommentAdded, onCommentDeleted, onReportFinding, reportedFindingIds, reviews, onReviewSaved }: ComponentGroupProps) {
   const [open, setOpen] = useState(true);
   const sorted = sortFindings(findings);
 
@@ -82,6 +84,8 @@ export function ComponentGroup({ designator, findings, component, onViewReferenc
                 onCommentDeleted={onCommentDeleted}
                 onReportFinding={onReportFinding}
                 isReported={!!(f.finding_id && reportedFindingIds?.has(f.finding_id))}
+                review={f.finding_id ? reviews?.[f.finding_id] : undefined}
+                onReviewSaved={onReviewSaved}
               />
             );
           })}

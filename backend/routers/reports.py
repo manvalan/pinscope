@@ -8,9 +8,17 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
+from backend.pinscopex.models import Finding
+from backend.pinscopex.review_workflow import (
+    ReviewError,
+    apply_review_state,
+    build_eco,
+    eco_csv,
+    sign_report,
+)
 from backend.pinscopex.utils import safe_mpn
 from backend.routers.deps import get_storage, get_user_id, resolve_or_404
 from backend.services import projects as proj_svc
@@ -100,8 +108,87 @@ async def delete_comment(project_id: str, comment_id: str, request: Request):
                 comment_list.pop(i)
                 if not comment_list:
                     del comments[finding_id]
-                storage.write_json(key, report_data)
-                return JSONResponse({"ok": True})
+    storage.write_json(key, report_data)
+    return JSONResponse({"ok": True})
+
+
+class ReviewBody(BaseModel):
+    state: str
+    reason: str = ""
+    user_name: str = ""
+
+
+def _load_report(storage, owner_user_id: str, project_id: str) -> tuple[str, dict]:
+    prefix = proj_svc.project_prefix(owner_user_id, project_id)
+    key = f"{prefix}/report.json"
+    if not storage.exists(key):
+        raise HTTPException(404, "Report not found")
+    return key, storage.read_json(key)
+
+
+def _findings_from_report(report_data: dict) -> list[Finding]:
+    out: list[Finding] = []
+    for raw in report_data.get("findings") or []:
+        try:
+            out.append(Finding.model_validate(raw))
+        except Exception:
+            continue
+    return out
+
+
+@router.put("/report/{project_id}/findings/{finding_id}/review")
+async def put_finding_review(project_id: str, finding_id: str, body: ReviewBody, request: Request):
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    user_id = get_user_id(request)
+    key, report_data = _load_report(storage, owner_user_id, project_id)
+    ids = {f.finding_id for f in _findings_from_report(report_data) if f.finding_id}
+    if finding_id not in ids:
+        raise HTTPException(404, "Finding not found")
+    try:
+        states = apply_review_state(
+            report_data.get("review_states") or {},
+            finding_id,
+            state=body.state,
+            reason=body.reason,
+            user_id=user_id,
+            user_name=body.user_name,
+        )
+    except ReviewError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    report_data["review_states"] = states
+    storage.write_json(key, report_data)
+    return JSONResponse(states.get(finding_id) or {"state": "open", "reason": ""})
+
+
+@router.get("/report/{project_id}/eco.json")
+async def get_eco_json(project_id: str, request: Request):
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    _, report_data = _load_report(storage, owner_user_id, project_id)
+    items = build_eco(_findings_from_report(report_data), report_data.get("review_states") or {})
+    return JSONResponse({"items": items})
+
+
+@router.get("/report/{project_id}/eco.csv")
+async def get_eco_csv(project_id: str, request: Request):
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    _, report_data = _load_report(storage, owner_user_id, project_id)
+    items = build_eco(_findings_from_report(report_data), report_data.get("review_states") or {})
+    return Response(eco_csv(items), media_type="text/csv")
+
+
+@router.post("/report/{project_id}/sign")
+async def post_sign_report(project_id: str, request: Request):
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    user_id = get_user_id(request)
+    key, report_data = _load_report(storage, owner_user_id, project_id)
+    release = sign_report(report_data, user_id=user_id)
+    report_data["release"] = release
+    storage.write_json(key, report_data)
+    return JSONResponse(release)
     raise HTTPException(404, "Comment not found")
 
 

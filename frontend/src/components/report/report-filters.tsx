@@ -21,6 +21,8 @@ interface ReportFiltersProps {
   search: string;
   onSearchChange: (value: string) => void;
   designators: string[];
+  needsReview?: boolean;
+  onToggleNeedsReview?: () => void;
 }
 
 const STATUSES: { key: FindingStatus; label: string; activeClass: string }[] = [
@@ -37,6 +39,8 @@ export function ReportFilters({
   search,
   onSearchChange,
   designators,
+  needsReview,
+  onToggleNeedsReview,
 }: ReportFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -56,6 +60,19 @@ export function ReportFilters({
           </Button>
         ))}
       </div>
+      {onToggleNeedsReview && (
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 text-xs",
+            needsReview && "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40",
+          )}
+          onClick={onToggleNeedsReview}
+        >
+          Needs review
+        </Button>
+      )}
 
       <Select value={componentFilter} onValueChange={(v) => onComponentChange(v ?? "all")}>
         <SelectTrigger className="w-[140px] h-8 text-xs">

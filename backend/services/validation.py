@@ -740,10 +740,12 @@ async def validate_design_async(
     preserved_findings: list[Finding] = []
     preserved_coverage: dict[str, list[str]] = {}
     preserved_comments = None
+    preserved_review_states = None
     if existing_path.is_file():
         try:
             existing = json.loads(existing_path.read_text())
             preserved_comments = existing.get("comments")
+            preserved_review_states = existing.get("review_states")
             if before_ic is not None:
                 # Resume mode — keep findings for refs we're about to skip
                 for f in existing.get("findings", []):
@@ -805,6 +807,8 @@ async def validate_design_async(
         report_dict = json.loads(report.model_dump_json(indent=2))
         if preserved_comments is not None:
             report_dict["comments"] = preserved_comments
+        if preserved_review_states is not None:
+            report_dict["review_states"] = preserved_review_states
         if paused:
             report_dict["partial"] = True
         existing_path.write_text(json.dumps(report_dict, indent=2))

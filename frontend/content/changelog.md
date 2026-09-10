@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.19.0 — 2026-09-10 — Finding review and ECO
+
+Findings can be accepted, marked false-positive, or wontfix with a required reason. Accepted rows export as ECO; OpenEMS-style layout SI is still not this.
+
+- [New] Review state on the report (`open` / `accepted` / `false_positive` / `wontfix`). Empty reason is rejected except when returning to open.
+- [New] ECO CSV/JSON of accepted findings only. False-positive and wontfix stay off the ECO.
+- [New] Release signature: SHA-256 of findings + user + timestamp. Needs-review filter `?review=open`.
+
 ## 2.18.0 — 2026-09-10 — ImpedenceFinder calculator
 
 The Impedance tab uses the closed-form engine from ImpedenceFinder (Hammerstad–Jensen / Cohn), not a second formula set and not OpenEMS.
