@@ -15,6 +15,7 @@ from backend.pinscopex.models import (
     LayoutFootprint,
     LayoutGraph,
     LayoutPad,
+    LayoutSegment,
     LayoutVia,
     Pin,
 )
@@ -140,3 +141,80 @@ def test_opposite_layers_with_via_in_courtyard_is_silent():
         ),
     )
     assert all(f.rule_id != "PS-PLC-003" for f in findings)
+
+
+def test_simple_project_has_crystal_load_caps():
+    g = _graph()
+    assert g.components["X1"].mpn == "AV08000301"
+    assert "C9" in g.capacitors_on_net("/HFXIN")
+    assert "C10" in g.capacitors_on_net("/HFXOUT")
+
+
+def _xtal_cons(*, max_distance_mm: float | None):
+    mpn = "AV08000301"
+    rule: dict = {"kind": "decoupling_proximity", "pin": "1"}
+    if max_distance_mm is not None:
+        rule["max_distance_mm"] = max_distance_mm
+    return {
+        mpn: ComponentConstraints(
+            mpn=mpn,
+            pintable=[Pin(number=1, name="/HFXIN")],
+            absolute_maximum_ratings=[],
+            rules=[],
+            layout_rules=[rule],
+        )
+    }
+
+
+def _x1_c9_layout(*, segments=None, cap_x: float = 0.5):
+    return LayoutGraph(
+        footprints={
+            "X1": LayoutFootprint(
+                reference="X1", x=0, y=0, layer="F.Cu",
+                pads=[LayoutPad(number="1", x=0.0, y=0.0, net="/HFXIN")],
+            ),
+            "C9": LayoutFootprint(
+                reference="C9", x=cap_x, y=0, layer="F.Cu",
+                pads=[LayoutPad(number="1", x=cap_x, y=0.0, net="/HFXIN")],
+            ),
+        },
+        segments=list(segments or []),
+    )
+
+
+def test_crystal_load_cap_beyond_max_distance_mm_is_ps_plc_001():
+    limit = 2.0
+    findings = check_placement(
+        _graph(),
+        _xtal_cons(max_distance_mm=limit),
+        _x1_c9_layout(cap_x=10.0),
+    )
+    plc = [f for f in findings if f.rule_id == "PS-PLC-001"]
+    assert len(plc) == 1
+    assert plc[0].designator == "X1"
+    assert plc[0].net == "/HFXIN"
+
+
+def test_crystal_load_cap_within_max_distance_mm_is_silent():
+    assert check_placement(
+        _graph(),
+        _xtal_cons(max_distance_mm=2.0),
+        _x1_c9_layout(cap_x=0.5),
+    ) == []
+
+
+def test_track_path_longer_than_max_distance_mm_is_ps_plc_001():
+    limit = 2.0
+    segs = [
+        LayoutSegment(start=(0.0, 0.0), end=(0.0, 10.0), width=0.2, layer="F.Cu", net="/HFXIN"),
+        LayoutSegment(start=(0.0, 10.0), end=(1.0, 10.0), width=0.2, layer="F.Cu", net="/HFXIN"),
+        LayoutSegment(start=(1.0, 10.0), end=(1.0, 0.0), width=0.2, layer="F.Cu", net="/HFXIN"),
+    ]
+    findings = check_placement(
+        _graph(),
+        _xtal_cons(max_distance_mm=limit),
+        _x1_c9_layout(cap_x=1.0, segments=segs),
+    )
+    plc = [f for f in findings if f.rule_id == "PS-PLC-001"]
+    assert len(plc) == 1
+    assert plc[0].net == "/HFXIN"

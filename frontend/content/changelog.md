@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.24.0 — 2026-09-10 — Crystal load caps and track path
+
+Load caps on XIN/XOUT use the same `max_distance_mm` as decoupling. If the PCB has segments on the net, the limit is shortest-path length, not a guessed “loop is too big” ratio.
+
+- [New] Crystals (`X1` / C9 / C10 on `simple_project`) run `PS-PLC-001` when `layout_rules` has millimetres.
+- [New] Detour tracks: path along segments vs the same `max_distance_mm`. No segments → euclidean pad distance.
+
 ## 2.23.0 — 2026-09-10 — same_layer decoupling
 
 If `layout_rules` sets `same_layer: true`, a decoupling cap on the opposite copper from the IC is a WARNING. A via inside the courtyard (calculated) is enough. Unset flag → skip.

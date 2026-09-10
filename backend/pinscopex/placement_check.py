@@ -4,11 +4,14 @@ Runs only when a LayoutGraph is present and a decoupling_proximity rule
 has a numeric max_distance_mm. Null millimetres skip — no 3 mm default.
 Thermal vias (`PS-PLC-002`) skip without courtyard vertices and without
 min_via_count — no invented pad radius. same_layer (`PS-PLC-003`) uses
-the boolean parameter plus footprint layers from the PCB.
+the boolean parameter plus footprint layers from the PCB. Crystals use
+the same decoupling_proximity rule. Track length is shortest path on
+segments vs max_distance_mm — no invented “much larger than euclidean”.
 """
 
 from __future__ import annotations
 
+import heapq
 import math
 
 from backend.pinscopex.models import (
@@ -46,6 +49,48 @@ def _dist(a: LayoutPad, b: LayoutPad) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
+def _xy_key(x: float, y: float) -> tuple[float, float]:
+    return (round(x, 3), round(y, 3))
+
+
+def _path_mm(layout: LayoutGraph, net: str, a: LayoutPad, b: LayoutPad) -> float | None:
+    segs = [s for s in layout.segments if s.net == net]
+    if not segs:
+        return None
+    adj: dict[tuple[float, float], list[tuple[tuple[float, float], float]]] = {}
+    for s in segs:
+        p = _xy_key(s.start[0], s.start[1])
+        q = _xy_key(s.end[0], s.end[1])
+        length = math.hypot(s.end[0] - s.start[0], s.end[1] - s.start[1])
+        adj.setdefault(p, []).append((q, length))
+        adj.setdefault(q, []).append((p, length))
+    src = _xy_key(a.x, a.y)
+    dst = _xy_key(b.x, b.y)
+    if src not in adj or dst not in adj:
+        return None
+    dist = {src: 0.0}
+    heap: list[tuple[float, tuple[float, float]]] = [(0.0, src)]
+    while heap:
+        d, node = heapq.heappop(heap)
+        if d > dist.get(node, math.inf):
+            continue
+        if node == dst:
+            return d
+        for nxt, w in adj.get(node, []):
+            nd = d + w
+            if nd < dist.get(nxt, math.inf):
+                dist[nxt] = nd
+                heapq.heappush(heap, (nd, nxt))
+    return None
+
+
+def _reach_mm(layout: LayoutGraph, net: str, a: LayoutPad, b: LayoutPad) -> float:
+    path = _path_mm(layout, net, a, b)
+    if path is None:
+        return _dist(a, b)
+    return path
+
+
 def _net_for_pin(graph: DesignGraph, ref: str, pin_no: str) -> str | None:
     for net in graph.nets.values():
         for pc in net.pins:
@@ -63,7 +108,7 @@ def check_placement(
         return []
     findings: list[Finding] = []
     for ref, comp in graph.components.items():
-        if comp.component_type != ComponentType.IC:
+        if comp.component_type not in (ComponentType.IC, ComponentType.CRYSTAL):
             continue
         cons = _match_constraints(comp.mpn, constraints_map)
         if not cons or not cons.layout_rules:
@@ -102,7 +147,7 @@ def _decoupling_finding(ref, comp, cons, rule, graph: DesignGraph, layout: Layou
                 cap_pads.append(pad)
     if not cap_pads:
         return []
-    nearest = min(_dist(ic_pad, p) for p in cap_pads)
+    nearest = min(_reach_mm(layout, net, ic_pad, p) for p in cap_pads)
     extracted = rule.get("max_distance_mm")
     if extracted is None:
         return []
