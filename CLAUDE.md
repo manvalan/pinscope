@@ -114,7 +114,7 @@ Key taxonomy features:
 - **Backend**: FastAPI, uvicorn, sse-starlette, pydantic-settings
 - **Frontend**: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4, shadcn/ui (Base UI), react-pdf
 - **AI**: DeepSeek Chat Completions (OpenAI-compatible) with forced tool calls for extraction and agentic review. Optional Anthropic / Gemini fallbacks.
-- **Model**: `deepseek-v4-flash-vision-exp` for extraction, `deepseek-v4-pro` for review, `deepseek-v4-flash` for auto-resolve (per-stage overrides via `.env`)
+- **Model**: `deepseek-flash` for extraction, review, auto-resolve, and normalize (per-stage overrides via `.env`)
 - **Skills**: Local SKILL.md + validate.py (DeepSeek/Gemini); optional Anthropic Console Skills
 - **External APIs**: DigiKey API v4 (OAuth2) — optional datasheet auto-fetch and parameter-based auto-resolve (`DIGIKEY_CLIENT_ID`, `DIGIKEY_CLIENT_SECRET`)
 

@@ -2,7 +2,7 @@
 
 Pinscope reviews schematics the way a good senior engineer does: with the datasheets open.
 
-This tree is adapted from [manvalan/pinscope](https://github.com/manvalan/pinscope) so the pipeline talks to the **DeepSeek API** (`deepseek-v4-flash`, `deepseek-v4-pro`, and `deepseek-v4-flash-vision-exp`) instead of requiring an Anthropic Console skill upload. Anthropic and Gemini remain optional fallbacks.
+This tree is adapted from [manvalan/pinscope](https://github.com/manvalan/pinscope) so the pipeline talks to the **DeepSeek API** (`deepseek-flash`, with legacy aliases still accepted) instead of requiring an Anthropic Console skill upload. Anthropic and Gemini remain optional fallbacks.
 
 Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your design, reads each IC's datasheet, and checks the circuit around every part against what the manufacturer actually specifies — reference application, pin functions, absolute maximums, recommended operating conditions. Every finding points at the datasheet page that backs it up.
 
@@ -19,9 +19,9 @@ Default routing:
 
 | Stage | Model |
 | --- | --- |
-| Pintable / pattern / specs extraction | `deepseek-v4-flash-vision-exp` |
-| Per-IC datasheet review | `deepseek-v4-pro` |
-| Auto-resolve / normalize | `deepseek-v4-flash` |
+| Pintable / pattern / specs extraction | `deepseek-flash` (native vision) |
+| Per-IC datasheet review | `deepseek-flash` |
+| Auto-resolve / normalize | `deepseek-flash` |
 
 Override with `PROVIDER_*` and `MODEL_*_DEEPSEEK` in `backend/.env`. See `backend/.env.example`.
 

@@ -481,7 +481,12 @@ async def upload_netlist(project_id: str, file: UploadFile, request: Request):
     import tempfile, os
 
     fmt = detect_netlist_format(data)
-    suffix = ".edn" if fmt == "edif" else ".asc"
+    suffix = {
+        "edif": ".edn",
+        "kicad_xml": ".xml",
+        "kicad_sexp": ".kicad_net",
+        "kicad_sch": ".kicad_sch",
+    }.get(fmt, ".asc")
     sub_designs: list[dict] = []
     try:
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -503,7 +508,7 @@ async def upload_netlist(project_id: str, file: UploadFile, request: Request):
     # shape, so the wizard's power-sources step can render its dropdowns
     # without re-parsing the (s-expression-heavy) file in the browser.
     designator_pins: list[dict] = []
-    if fmt == "edif":
+    if fmt != "pads":
         designator_pins = _build_designator_pins(parts, nets)
     return {
         "path": key,

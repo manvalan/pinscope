@@ -7,6 +7,7 @@ interface ReportSummaryProps {
   summary: Record<string, number>;
   reviewedCount: number;
   creditsSpent?: number;
+  totalCostUsd?: number | null;
 }
 
 const STAT_CONFIG = [
@@ -20,16 +21,19 @@ export function ReportSummary({
   summary,
   reviewedCount,
   creditsSpent,
+  totalCostUsd,
 }: ReportSummaryProps) {
   const total = summary.total || 0;
   const showCredits = typeof creditsSpent === "number" && creditsSpent > 0;
+  const showCost = typeof totalCostUsd === "number" && totalCostUsd > 0;
+  const extraCols = (showCredits ? 1 : 0) + (showCost ? 1 : 0);
 
   return (
     <div className="space-y-4">
       <div
         className={cn(
           "grid gap-4",
-          showCredits ? "grid-cols-6" : "grid-cols-5",
+          extraCols === 2 ? "grid-cols-7" : extraCols === 1 ? "grid-cols-6" : "grid-cols-5",
         )}
       >
         {STAT_CONFIG.map(({ key, label, color }) => (
@@ -50,6 +54,16 @@ export function ReportSummary({
             </p>
           </CardContent>
         </Card>
+        {showCost && (
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-sm text-muted-foreground">API cost</p>
+              <p className="text-3xl font-semibold font-mono tabular-nums text-foreground">
+                ${totalCostUsd!.toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+        )}
         {showCredits && (
           <Card>
             <CardContent className="pt-4 pb-4">

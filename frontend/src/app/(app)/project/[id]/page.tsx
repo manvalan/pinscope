@@ -20,6 +20,7 @@ import {
   resumePipeline,
   fetchPipelineEstimate,
 } from "@/lib/api";
+import { CreateProjectDialog } from "@/components/dashboard/create-project-dialog";
 import { PausedRunBanner } from "@/components/billing/paused-run-banner";
 import type { Project, SkippedComponent, ApiLogEntry, BomSummaryRow, DeratingRow, DeratingSettings, Collaborator, CostEstimate } from "@/lib/types";
 import {
@@ -36,6 +37,7 @@ import {
   OctagonX,
   Copy,
   Check,
+  Upload,
 } from "lucide-react";
 import { useOptionalUser } from "@/hooks/use-optional-auth";
 import { PdfViewerSheet } from "@/components/pdf/pdf-viewer-sheet";
@@ -106,6 +108,7 @@ export default function ProjectDetailPage({
   const tab = searchParams.get("tab") ?? "bom";
   const [starting, setStarting] = useState(false);
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
+  const [rerunProject, setRerunProject] = useState<Project | null>(null);
 
   const canRun = Boolean(project?.hasBom && project?.hasNetlist);
   const canReprocess =
@@ -187,11 +190,28 @@ export default function ProjectDetailPage({
           <h1 className="text-lg font-semibold">{project.name}</h1>
           <p className="text-sm text-muted-foreground">
             {new Date(project.created).toLocaleDateString()}
+            {typeof project.totalCostUsd === "number" && project.totalCostUsd > 0 && (
+              <span className="ml-2 font-mono tabular-nums text-foreground">
+                ${project.totalCostUsd.toFixed(4)}
+              </span>
+            )}
           </p>
         </div>
-        <Badge variant="outline" className="capitalize text-xs">
-          {project.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {project.status !== "running" && project.status !== "queued" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setRerunProject(project)}
+            >
+              <Upload className="h-4 w-4 mr-1" />
+              Replace BOM & netlist
+            </Button>
+          )}
+          <Badge variant="outline" className="capitalize text-xs">
+            {project.status}
+          </Badge>
+        </div>
       </div>
 
       {isPaused && (
@@ -285,13 +305,12 @@ export default function ProjectDetailPage({
                 )}
               </div>
               {canRun && estimate && estimate.review_ic_count > 0 && (
-                <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-700/90 dark:text-amber-300/90 animate-pulse drop-shadow-[0_0_6px_rgba(251,191,36,0.55)]">
+                <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Coins className="h-3 w-3" />
                   <span className="tabular-nums">
-                    ≈ {(estimate.review_ic_count * 2).toFixed(0)}
-                    –{(estimate.review_ic_count * 2.5).toFixed(0)} credits
+                    ≈ ${estimate.api_cost_low.toFixed(2)}–${estimate.api_cost_high.toFixed(2)}
                   </span>
-                  <span className="text-amber-700/60 dark:text-amber-300/60">
+                  <span>
                     · {estimate.review_ic_count} IC
                     {estimate.review_ic_count === 1 ? "" : "s"} to review
                   </span>
@@ -345,6 +364,18 @@ export default function ProjectDetailPage({
         projectId={id}
         mpn={pdfState.mpn}
         initialPage={1}
+      />
+      <CreateProjectDialog
+        hideTrigger
+        rerunProject={rerunProject}
+        onRerunDone={() => {
+          setRerunProject(null);
+          reload();
+        }}
+        onCreateProject={(p) => {
+          setRerunProject(null);
+          router.push(`/project/${p.id}/progress`);
+        }}
       />
     </div>
   );
@@ -414,7 +445,9 @@ function ApiLogsSection({ logs }: { logs: ApiLogEntry[] }) {
           <span>{formatTokens(totalInput)} input tokens</span>
           <span>{formatTokens(totalOutput)} output tokens</span>
           <span>{formatDuration(totalDuration)} total</span>
-          {totalCost > 0 && <span className="font-medium text-foreground">${totalCost.toFixed(4)}</span>}
+          {totalCost > 0 && (
+            <span className="font-medium text-foreground">${totalCost.toFixed(4)}</span>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -448,8 +481,10 @@ function ApiLogsSection({ logs }: { logs: ApiLogEntry[] }) {
                   <span>{formatTokens(log.output_tokens)} out</span>
                   <span>{formatDuration(log.duration_ms)}</span>
                   <span className="font-mono">{log.model}</span>
-                  {log.cost_usd != null && log.cost_usd > 0 && (
-                    <span className="font-medium text-foreground">${log.cost_usd.toFixed(4)}</span>
+                  {log.cost_usd != null && (
+                    <span className="font-medium text-foreground">
+                      ${log.cost_usd.toFixed(4)}
+                    </span>
                   )}
                 </div>
               </div>

@@ -37,7 +37,8 @@ class RegenRequest(BaseModel):
 
 
 class ReprocessRequest(BaseModel):
-    """``failed`` retries skipped / errored IC reviews; ``all`` re-reviews every IC."""
+    """``failed`` retries skipped/errored reviews and ICs whose circuit
+    neighborhood changed; ``all`` re-reviews every IC."""
     mode: Literal["failed", "all"] = "failed"
 
 

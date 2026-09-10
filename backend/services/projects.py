@@ -357,6 +357,7 @@ def clear_project_extractions(
         "bom_summary.json",
         "derating.json",
         "report.json",
+        "review_fingerprints.json",
         "api_logs.jsonl",
         "graph_voltage_updates.json",
     ):
@@ -390,6 +391,7 @@ def reopen_project(
         "bom_summary.json",
         "derating.json",
         "report.json",
+        "review_fingerprints.json",
         "api_logs.jsonl",
         "graph_voltage_updates.json",
     ):
@@ -611,7 +613,13 @@ def save_bom(
     return key
 
 
-_NETLIST_EXT = {"pads": "asc", "edif": "edn"}
+_NETLIST_EXT = {
+    "pads": "asc",
+    "edif": "edn",
+    "kicad_xml": "xml",
+    "kicad_sexp": "kicad_net",
+    "kicad_sch": "kicad_sch",
+}
 
 
 def _netlist_key(user_id: str, project_id: str, fmt: str) -> str:
@@ -629,16 +637,17 @@ def save_netlist(
 ) -> str:
     """Persist the uploaded netlist with the extension matching ``fmt``.
 
-    Also clears any previously-saved netlist in the *other* format so we
-    never have stale ``.asc`` and ``.edn`` files side-by-side (e.g. user
-    re-uploads with a different format).
+    Also clears any previously-saved netlist in another format so we
+    never have stale files side-by-side (e.g. user re-uploads KiCad after PADS).
     """
     key = _netlist_key(user_id, project_id, fmt)
     storage.write_bytes(key, data)
-    other_fmt = "edif" if fmt == "pads" else "pads"
-    other_key = _netlist_key(user_id, project_id, other_fmt)
-    if storage.exists(other_key):
-        storage.delete_key(other_key)
+    for other in _NETLIST_EXT:
+        if other == fmt:
+            continue
+        other_key = _netlist_key(user_id, project_id, other)
+        if storage.exists(other_key):
+            storage.delete_key(other_key)
     # Reset sub-design selection on every upload — the prior selection may
     # reference IDs that no longer exist in the new file. Frontend resets
     # the picker after upload too; this keeps backend in sync.
@@ -690,7 +699,7 @@ def get_netlist_key(
     storage: StorageBackend, user_id: str, project_id: str
 ) -> str | None:
     """Return the storage key of whichever netlist file exists (.asc or .edn)."""
-    for fmt in ("pads", "edif"):
+    for fmt in _NETLIST_EXT:
         key = _netlist_key(user_id, project_id, fmt)
         if storage.exists(key):
             return key

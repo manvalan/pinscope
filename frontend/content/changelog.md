@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.11.0 — 2026-09-10 — DeepSeek V4.1 and re-analyze
+
+Pinscope now defaults to DeepSeek-V4.1-Flash (`deepseek-flash`) for every LLM stage, shows API cost in dollars, and lets you replace the BOM and netlist on an existing project without deleting it.
+
+- [New] Default model is `deepseek-flash` (native vision). Legacy `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` names still work; they route to V4.1.
+- [New] Replace BOM & netlist on a finished project and re-run the analysis. History, library cache, and prior spend stay on the same project.
+- [Improved] API cost uses V4.1 Flash peak rates and is shown on the report, logs tab, and run estimate (not only credits).
+
 ## 2.10.0 — 2026-08-27 — Deeper datasheet review
 
 Each IC review now sees more of the datasheet and starts from a structured abs-max table, so voltage, decoupling, and interface checks are less likely to stop at "Unverified".

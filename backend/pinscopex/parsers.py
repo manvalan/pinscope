@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-NetlistFormat = Literal["pads", "edif"]
+NetlistFormat = Literal["pads", "edif", "kicad_xml", "kicad_sexp", "kicad_sch"]
 
 
 def parse_netlist(
@@ -158,25 +158,26 @@ def _parse_pin_tokens(
 
 
 def detect_netlist_format(content: bytes | str) -> NetlistFormat:
-    """Sniff the first chunk of a netlist to decide whether it's PADS or EDIF.
+    """Sniff the first chunk of a netlist to decide the format.
 
-    EDIF s-expressions start with ``(edif …`` (with possible leading whitespace
-    or BOM); PADS-PCB ASCII files start with ``*PADS-PCB*``. The "pads" branch
-    is the default when no clear marker is found — preserves the old behavior
-    where the parser raises a friendly error on unrecognised input.
+    EDIF starts with ``(edif``; KiCad XML with ``<export`` / ``<?xml``;
+    KiCad s-expr netlist with ``(export``; schematic with ``(kicad_sch``.
+    PADS-PCB ASCII (``*PADS-PCB*``) is the default when no marker is found.
     """
     if isinstance(content, bytes):
-        try:
-            text = content[:1024].decode("utf-8", errors="replace")
-        except Exception:
-            text = ""
+        text = content[:2048].decode("utf-8", errors="replace")
     else:
-        text = content[:1024]
-    head = text.lstrip("﻿").lstrip()
-    # Case-insensitive match — EDIF spec allows different capitalisations
-    # (KiCad emits lowercase; xDX Designer emits lowercase too).
-    if head[:5].lower() == "(edif":
+        text = content[:2048]
+    head = text.lstrip("\ufeff").lstrip()
+    low = head[:40].lower()
+    if low.startswith("(edif"):
         return "edif"
+    if low.startswith("(kicad_sch"):
+        return "kicad_sch"
+    if low.startswith("(export"):
+        return "kicad_sexp"
+    if low.startswith("<?xml") or low.startswith("<export"):
+        return "kicad_xml"
     return "pads"
 
 
@@ -196,11 +197,14 @@ def parse_netlist_any(
     their nets land in the output (PADS netlists have no sub-design concept).
     """
     p = Path(path)
-    sample = p.read_bytes()[:1024]
+    sample = p.read_bytes()[:2048]
     fmt = detect_netlist_format(sample)
     if fmt == "edif":
         from backend.pinscopex.parsers_edif import parse_edif_netlist
         parts, nets = parse_edif_netlist(p, include_subdesigns=include_subdesigns)
+    elif fmt.startswith("kicad"):
+        from backend.pinscopex.parsers_kicad import parse_kicad
+        parts, nets, _ = parse_kicad(p)
     else:
         parts, nets = parse_netlist(p, known_refs=known_refs)
     return parts, nets, fmt
@@ -211,7 +215,10 @@ def validate_netlist(parts: dict, nets: dict) -> list[str]:
     errors: list[str] = []
 
     if not parts:
-        errors.append("No components found — is this a PADS-PCB (.asc) or EDIF (.edn) netlist?")
+        errors.append(
+            "No components found — is this a PADS-PCB (.asc), EDIF (.edn), "
+            "or KiCad netlist / .kicad_sch?"
+        )
         return errors  # further checks are meaningless without parts
 
     if not nets:

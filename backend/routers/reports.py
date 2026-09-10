@@ -138,6 +138,19 @@ async def get_project_logs(project_id: str, request: Request):
         return JSONResponse([])
     text = storage.read_text(key)
     entries = [json.loads(line) for line in text.strip().split("\n") if line.strip()]
+    from backend.services.llm.pricing import cost_for_entry
+
+    for entry in entries:
+        if any(
+            entry.get(k)
+            for k in (
+                "input_tokens",
+                "output_tokens",
+                "cache_read_input_tokens",
+                "cache_creation_input_tokens",
+            )
+        ):
+            entry["cost_usd"] = round(cost_for_entry(entry), 6)
     return JSONResponse(entries)
 
 

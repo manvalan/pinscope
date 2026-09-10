@@ -49,8 +49,9 @@ def test_extract_pdf_text_includes_page_markers(sample_pdf: Path):
 
 def test_vision_model_detection():
     assert _is_vision_model("deepseek-v4-flash-vision-exp")
+    assert _is_vision_model("deepseek-flash")
+    assert _is_vision_model("deepseek-v4-flash")
     assert not _is_vision_model("deepseek-v4-pro")
-    assert not _is_vision_model("deepseek-v4-flash")
 
 
 def test_messages_to_openai_pdf_becomes_text(sample_pdf: Path):
@@ -329,14 +330,17 @@ def test_factory_routes_deepseek(monkeypatch):
 
 
 def test_config_defaults_are_deepseek():
-    assert settings.provider_default == "deepseek"
-    assert settings.model_for_stage("validation") == settings.model_validation_deepseek
-    assert "vision" in settings.model_for_stage("pintable")
+    from backend.config import Settings
+
+    assert Settings.model_fields["provider_default"].default == "deepseek"
+    assert Settings.model_fields["deepseek_model"].default == "deepseek-flash"
+    assert Settings.model_fields["model_pintable_deepseek"].default == "deepseek-flash"
+    assert Settings.model_fields["model_validation_deepseek"].default == "deepseek-flash"
     assert settings.provider_for_stage("pintable") == "deepseek"
 
 
 def test_deepseek_pricing_positive():
-    cost = cost_for_entry({
+    pro = cost_for_entry({
         "provider": "deepseek",
         "model": "deepseek-v4-pro",
         "input_tokens": 1_000_000,
@@ -344,5 +348,24 @@ def test_deepseek_pricing_positive():
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
     })
-    assert cost == pytest.approx(1.32)
+    assert pro == pytest.approx(1.32)
+    flash = cost_for_entry({
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "input_tokens": 1_000_000,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+    })
+    assert flash == pytest.approx(0.30)
+    cached = cost_for_entry({
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 1_000_000,
+    })
+    assert cached == pytest.approx(0.006)
     assert "default" in PRICING["deepseek"]
+    assert "deepseek-flash" in PRICING["deepseek"]

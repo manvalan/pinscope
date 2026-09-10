@@ -231,6 +231,7 @@ export interface Project {
   userId?: string;
   collaborators?: string[];
   creditsSpent?: number;
+  totalCostUsd?: number | null;
   pauseCheckpoint?: PauseCheckpoint | null;
   pauseReason?: string | null;
   bomColumns?: { reference: string; mpn: string } | null;
@@ -243,9 +244,9 @@ export interface Project {
   lcscPayloads?: Record<string, LcscPayload> | null;
   componentMpns?: ComponentMpnBuckets | null;
   pinscopeVersion?: string | null;
-  // "pads" | "edif" — what kind of netlist file the user uploaded. null on
+  // "pads" | "edif" | "kicad_*" — netlist the user uploaded. null on legacy projects.
   // projects predating EDIF support; treat null as PADS for rendering.
-  netlistFormat?: "pads" | "edif" | null;
+  netlistFormat?: "pads" | "edif" | "kicad_xml" | "kicad_sexp" | "kicad_sch" | null;
   // Sub-design IDs (e.g. ["&0441"]) the user chose to include in the review.
   // null means "include every sub-design found in the file" — the default
   // for single-sub-design EDIFs and all PADS netlists.

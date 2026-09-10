@@ -260,6 +260,7 @@ class PipelineWorkspace:
             self._upload_file("bom_summary.json")
             self._upload_file("derating.json")
             self._upload_file("report.json")
+            self._upload_file("review_fingerprints.json")
             self._upload_file("api_logs.jsonl")
 
             # Merge taxonomy: read current from storage, add any new entries
@@ -324,7 +325,7 @@ class PipelineWorkspace:
         code will raise a clearer error when it tries to read the missing
         file than a ``None`` return would.
         """
-        for ext in ("asc", "edn"):
+        for ext in ("asc", "edn", "xml", "kicad_net", "kicad_sch"):
             p = self.local_dir / "uploads" / f"netlist.{ext}"
             if p.exists():
                 return p
@@ -1679,7 +1680,37 @@ async def _stage_validation(ctx: PipelineContext) -> None:
         if private is not None:
             _charge_private_logger(ctx, private)
 
-    # Resume-aware: skip ICs that were already reviewed in a previous pass
+    skip_refs = set(ctx.completed_review_refs)
+    fp_path = ctx.ws.local_path("review_fingerprints.json")
+    current_fp: dict[str, str] = {}
+    try:
+        from backend.pinscopex.review_fingerprint import (
+            graph_ic_fingerprints,
+            skip_unchanged_ics,
+        )
+        from backend.pinscopex.validate import _build_constraints_map, _load_datasheets
+
+        cmap = _build_constraints_map(_load_datasheets(extracted_dir))
+        current_fp = graph_ic_fingerprints(ctx.graph, cmap)
+        previous_fp: dict[str, str] = {}
+        if fp_path.is_file():
+            try:
+                previous_fp = json.loads(fp_path.read_text())
+            except json.JSONDecodeError:
+                previous_fp = {}
+        if previous_fp:
+            skip_refs = skip_unchanged_ics(skip_refs, previous_fp, current_fp)
+        for ref in sorted(skip_refs):
+            broker.publish(
+                ctx.project_id, "step_update",
+                {"stage": "validation", "substep": ref, "status": "complete",
+                 "detail": "unchanged since last review"},
+            )
+    except Exception:
+        logger.exception("review fingerprints failed — reviewing all kept refs")
+
+    # Resume-aware: skip ICs that were already reviewed and whose
+    # neighborhood fingerprint is unchanged.
     ctx.report = await validate_design_async(
         str(graph_path),
         str(report_path),
@@ -1688,7 +1719,7 @@ async def _stage_validation(ctx: PipelineContext) -> None:
         on_progress=on_validation_progress,
         api_logger=ctx.api_logger,
         storage=ctx.storage,
-        skip_refs=set(ctx.completed_review_refs),
+        skip_refs=skip_refs,
         before_ic=before_ic,
         on_ic_done=on_ic_done,
         on_ic_error=on_ic_error,
@@ -1696,6 +1727,9 @@ async def _stage_validation(ctx: PipelineContext) -> None:
         project_prefix=proj_svc.project_prefix(ctx.user_id, ctx.project_id),
         run_meta={"git_commit": _git_commit()},
     )
+
+    if current_fp:
+        fp_path.write_text(json.dumps(current_fp, indent=2) + "\n")
 
     if ctx.paused:
         return

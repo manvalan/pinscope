@@ -36,6 +36,13 @@ export function ProjectCard({
   const checkedCount = useReviewedCount(project.id);
   const isCancelled = project.status === "cancelled";
   const isDraft = project.status === "draft";
+  const canReplaceFiles =
+    !isShared &&
+    onRerun != null &&
+    (project.status === "complete" ||
+      project.status === "error" ||
+      project.status === "cancelled" ||
+      project.status === "draft");
   const opensModalOnClick = isDraft && !isShared && onRerun != null;
 
   async function handleDelete(e: React.MouseEvent) {
@@ -79,10 +86,10 @@ export function ProjectCard({
               <Badge variant="outline" className={cn("text-xs capitalize", STATUS_STYLES[project.status])}>
                 {project.status}
               </Badge>
-              {isCancelled && !isShared && onRerun && (
+              {canReplaceFiles && (
                 <button
                   onClick={handleRerun}
-                  title="Rerun project"
+                  title="Replace files and re-analyze"
                   className="p-1 rounded-md text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />

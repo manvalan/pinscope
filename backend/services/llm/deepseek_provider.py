@@ -38,11 +38,21 @@ from backend.services.llm.types import (
 
 log = logging.getLogger(__name__)
 
-_VISION_HINT = "vision"
+# V4.1 Flash is natively multimodal. Legacy flash / vision-exp names
+# still route there. v4-pro does not accept images until it is retired
+# onto Flash (2026-09-14).
+_VISION_MODELS = {
+    "deepseek-flash",
+    "deepseek-v4-flash",
+    "deepseek-v4-flash-vision-exp",
+}
 
 
 def _is_vision_model(model: str) -> bool:
-    return _VISION_HINT in model.lower()
+    name = (model or "").strip().lower()
+    if name in _VISION_MODELS or "vision" in name:
+        return True
+    return name.startswith("deepseek-flash")
 
 
 def _to_openai_tool(t: ToolSchema) -> dict:

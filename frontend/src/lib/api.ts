@@ -67,6 +67,7 @@ function mapProject(p: Record<string, unknown>): Project {
     userId: p.user_id as string | undefined,
     collaborators: (p.collaborators as string[] | null) ?? undefined,
     creditsSpent: (p.credits_spent as number | undefined) ?? undefined,
+    totalCostUsd: (p.total_cost_usd as number | null | undefined) ?? null,
     pauseCheckpoint: (p.pause_checkpoint as PauseCheckpoint | null) ?? null,
     pauseReason: (p.pause_reason as string | null | undefined) ?? null,
     bomColumns: (p.bom_columns as { reference: string; mpn: string } | null) ?? null,
@@ -79,7 +80,7 @@ function mapProject(p: Record<string, unknown>): Project {
     lcscPayloads: (p.lcsc_payloads as Record<string, LcscPayload> | null) ?? null,
     componentMpns: (p.component_mpns as ComponentMpnBuckets | null) ?? null,
     pinscopeVersion: (p.pinscope_version as string | null | undefined) ?? null,
-    netlistFormat: (p.netlist_format as "pads" | "edif" | null | undefined) ?? null,
+    netlistFormat: (p.netlist_format as Project["netlistFormat"]) ?? null,
     netlistSubdesigns: (p.netlist_subdesigns as string[] | null) ?? null,
   };
 }
@@ -268,7 +269,7 @@ export interface UploadNetlistResult {
   path: string;
   parts: number;
   nets: number;
-  format: "pads" | "edif";
+  format: "pads" | "edif" | "kicad_xml" | "kicad_sexp" | "kicad_sch";
   sub_designs: EdifSubDesign[]; // empty for PADS / single-sub-design EDIF
   // EDIF only: server-built designator→pins preview, same shape as the
   // browser-side PADS parser produces. Empty list for PADS uploads (the
@@ -294,7 +295,7 @@ export async function uploadNetlist(
     path: data.path as string,
     parts: data.parts as number,
     nets: data.nets as number,
-    format: data.format as "pads" | "edif",
+    format: data.format as UploadNetlistResult["format"],
     sub_designs: (data.sub_designs as EdifSubDesign[] | undefined) ?? [],
     designator_pins:
       (data.designator_pins as NetlistPreviewDesignator[] | undefined) ?? [],

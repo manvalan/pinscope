@@ -22,12 +22,14 @@ class Settings(BaseSettings):
     # DeepSeek (default provider — OpenAI-compatible Chat Completions)
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-v4-flash"
-    deepseek_vision_model: str = "deepseek-v4-flash-vision-exp"
+    deepseek_model: str = "deepseek-flash"
+    deepseek_vision_model: str = "deepseek-flash"
     # "enabled" (default) or "disabled". DeepSeek V4 thinks by default;
     # disable to cut cost on simple mapping calls.
     deepseek_thinking: str = "enabled"
-    deepseek_reasoning_effort: str = "medium"
+    # Official values: low | high | max. Review sessions with
+    # max_tokens >= 16000 still bump to "high" in the provider.
+    deepseek_reasoning_effort: str = "high"
     # PDF ingest: DeepSeek does not accept native PDFs. Text is always
     # extracted; page images are attached only when the stage model is a
     # vision model (see model_*_deepseek defaults below).
@@ -35,12 +37,12 @@ class Settings(BaseSettings):
     deepseek_pdf_image_pages: int = 32
 
     # Per-stage DeepSeek model overrides (fall back to deepseek_model)
-    model_pintable_deepseek: str = "deepseek-v4-flash-vision-exp"
-    model_pattern_deepseek: str = "deepseek-v4-flash"
-    model_specs_deepseek: str = "deepseek-v4-flash-vision-exp"
-    model_validation_deepseek: str = "deepseek-v4-pro"
-    model_auto_resolve_deepseek: str = "deepseek-v4-flash"
-    model_normalize_deepseek: str = "deepseek-v4-flash"
+    model_pintable_deepseek: str = "deepseek-flash"
+    model_pattern_deepseek: str = "deepseek-flash"
+    model_specs_deepseek: str = "deepseek-flash"
+    model_validation_deepseek: str = "deepseek-flash"
+    model_auto_resolve_deepseek: str = "deepseek-flash"
+    model_normalize_deepseek: str = "deepseek-flash"
 
     # Anthropic (optional fallback)
     anthropic_api_key: str = ""

@@ -463,6 +463,8 @@ interface CreateProjectDialogProps {
   onRerunDone?: () => void;
   cloneAsNewProject?: Project | null;
   onCloneAsNewDone?: () => void;
+  /** Hide the "New Project" trigger — used when the parent opens rerun mode. */
+  hideTrigger?: boolean;
 }
 
 function countNetsInNetlist(text: string): number {
@@ -473,6 +475,16 @@ function countNetsInNetlist(text: string): number {
 // PADS-shape preview functions don't, so detect early and skip them.
 function isEdifNetlist(text: string): boolean {
   return text.slice(0, 1024).trimStart().slice(0, 5).toLowerCase() === "(edif";
+}
+
+function isKicadNetlist(text: string): boolean {
+  const head = text.slice(0, 2048).trimStart().slice(0, 40).toLowerCase();
+  return (
+    head.startsWith("(kicad_sch") ||
+    head.startsWith("(export") ||
+    head.startsWith("<?xml") ||
+    head.startsWith("<export")
+  );
 }
 
 function SuggestedDatasheetLinks({ urls }: { urls: string[] }) {
@@ -512,6 +524,7 @@ export function CreateProjectDialog({
   onRerunDone,
   cloneAsNewProject,
   onCloneAsNewDone,
+  hideTrigger = false,
 }: CreateProjectDialogProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>("details");
@@ -889,6 +902,12 @@ export function CreateProjectDialog({
         setNetlistIsEdif(true);
         return;
       }
+      if (isKicadNetlist(text)) {
+        setNetlistNetCount(null);
+        setNetlistPreview([]);
+        setNetlistIsEdif(false);
+        return;
+      }
       setNetlistIsEdif(false);
       setNetlistNetCount(countNetsInNetlist(text));
       try {
@@ -1152,20 +1171,20 @@ export function CreateProjectDialog({
   // the user just uploaded a new BOM via the modal haven't been pushed
   // to the backend yet, so skip until there's something to estimate.
   useEffect(() => {
-    if (!authEnabled) return; // OSS mode: no credits — no estimate UI
     if (!existingProjectId) return;
     if (step !== activeSteps[activeSteps.length - 1]?.key) return;
     if (!initialBomFile) return;
     let cancelled = false;
     setEstimateLoading(true);
-    Promise.all([
-      fetchPipelineEstimate(existingProjectId),
-      fetchCredits(),
-    ])
-      .then(([est, cr]) => {
+    const jobs: Promise<unknown>[] = [fetchPipelineEstimate(existingProjectId)];
+    if (authEnabled) jobs.push(fetchCredits());
+    Promise.all(jobs)
+      .then((results) => {
         if (cancelled) return;
-        setEstimate(est);
-        setBalance(cr.balance);
+        setEstimate(results[0] as CostEstimate);
+        if (authEnabled && results[1]) {
+          setBalance((results[1] as { balance: number }).balance);
+        }
       })
       .catch(() => {
         /* Estimate is best-effort; swallow so the Run button still works. */
@@ -1940,7 +1959,7 @@ export function CreateProjectDialog({
         else resetAndClose();
       }}
     >
-      {disabled ? (
+      {hideTrigger ? null : disabled ? (
         <Tooltip>
           <TooltipTrigger
             render={
@@ -2060,8 +2079,8 @@ export function CreateProjectDialog({
                 </div>
                 <div className="space-y-1.5">
                   <FileUploadZone
-                    label="Netlist (.asc / .net / .txt / .edn)"
-                    accept=".asc,.net,.NET,.txt,.edn,.edif,.edf"
+                    label="Netlist (.asc / .net / .edn / .kicad_sch)"
+                    accept=".asc,.net,.NET,.txt,.edn,.edif,.edf,.xml,.kicad_sch,.kicad_net"
                     files={netlistFile ? [netlistFile] : []}
                     onFilesChange={handleNetlistChange}
                   />
@@ -2076,11 +2095,11 @@ export function CreateProjectDialog({
                     </p>
                   ) : netlistFile ? (
                     <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                      EDIF detected — net count will appear after upload.
+                      Net count will appear after upload.
                     </p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                      PADS-PCB ASCII or EDIF 2.0.0. .asc / .net / .txt / .edn all work.{" "}
+                      PADS-PCB, EDIF, or KiCad netlist / .kicad_sch.{" "}
                       <a
                         href="/file-guide#the-netlist"
                         target="_blank"
@@ -3056,20 +3075,27 @@ export function CreateProjectDialog({
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Estimating…
                 </span>
-              ) : estimate && balance !== null ? (
+              ) : estimate ? (
                 <>
-                  <span>
-                    Balance:{" "}
-                    <span className="font-mono text-foreground">
-                      {balance.toFixed(2)}
+                  {balance !== null && (
+                    <span>
+                      Balance:{" "}
+                      <span className="font-mono text-foreground">
+                        {balance.toFixed(2)}
+                      </span>
                     </span>
-                  </span>
+                  )}
                   <span>
                     Est:{" "}
                     <span className="font-mono text-foreground">
-                      {estimate.credits_low.toFixed(2)}–{estimate.credits_high.toFixed(2)}
-                    </span>{" "}
-                    credits
+                      ${estimate.api_cost_low.toFixed(2)}–${estimate.api_cost_high.toFixed(2)}
+                    </span>
+                    {authEnabled && (
+                      <>
+                        {" "}
+                        ({estimate.credits_low.toFixed(2)}–{estimate.credits_high.toFixed(2)} credits)
+                      </>
+                    )}
                   </span>
                   {!canRunRerun && (
                     <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">

@@ -37,6 +37,7 @@ function ReportContent({ projectId }: { projectId: string }) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [comments, setComments] = useState<Record<string, FindingComment[]>>({});
   const [creditsSpent, setCreditsSpent] = useState<number | undefined>();
+  const [totalCostUsd, setTotalCostUsd] = useState<number | null>(null);
   const [projectName, setProjectName] = useState<string>("");
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -70,6 +71,7 @@ function ReportContent({ projectId }: { projectId: string }) {
     fetchProject(projectId)
       .then((p) => {
         setCreditsSpent(p.creditsSpent);
+        setTotalCostUsd(p.totalCostUsd ?? null);
         setProjectName(p.name);
       })
       .catch(() => {});
@@ -249,6 +251,7 @@ function ReportContent({ projectId }: { projectId: string }) {
           summary={report.summary}
           reviewedCount={reviewedCount}
           creditsSpent={creditsSpent}
+          totalCostUsd={totalCostUsd}
         />
         {report.review_errors && Object.keys(report.review_errors).length > 0 && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 space-y-2">

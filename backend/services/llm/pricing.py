@@ -11,15 +11,22 @@ from __future__ import annotations
 #   DeepSeek:  https://api-docs.deepseek.com/quick_start/pricing
 #   Anthropic: https://docs.anthropic.com/en/docs/about-claude/pricing
 #   Google:    https://ai.google.dev/pricing
-# Last updated: 2026-08-27
+# Last updated: 2026-09-10
+#
+# DeepSeek: peak weekday rates (conservative). Off-peak is 50% of these.
+# Cache-hit input is billed via CACHE_RATES["deepseek"]["read"] as a
+# multiplier on the miss input rate (0.006 / 0.30 = 0.02).
+_DEEPSEEK_FLASH = {"input": 0.30, "output": 1.20}
+_DEEPSEEK_PRO = {"input": 1.32, "output": 3.96}
+
 PRICING: dict[str, dict[str, dict[str, float]]] = {
     "deepseek": {
-        # Peak-hour rates (conservative). Off-peak is 50% of these.
-        # Cache-hit input is billed via CACHE_RATES["deepseek"]["read"].
-        "deepseek-v4-flash":              {"input": 0.44, "output": 1.32},
-        "deepseek-v4-flash-vision-exp":   {"input": 0.44, "output": 1.32},
-        "deepseek-v4-pro":                {"input": 1.32, "output": 3.96},
-        "default":                        {"input": 0.44, "output": 1.32},
+        "deepseek-flash":                 _DEEPSEEK_FLASH,
+        "deepseek-v4-flash":              _DEEPSEEK_FLASH,
+        "deepseek-v4-flash-vision-exp":   _DEEPSEEK_FLASH,
+        # Billed at Pro until 2026-09-14 04:00 UTC, then routed to Flash.
+        "deepseek-v4-pro":                _DEEPSEEK_PRO,
+        "default":                        _DEEPSEEK_FLASH,
     },
     "anthropic": {
         "claude-opus-4-6":            {"input": 5.00,  "output": 25.00},
@@ -63,7 +70,7 @@ PRICING: dict[str, dict[str, dict[str, float]]] = {
 #           normal input pass)
 #   read:   cost when a cached prefix is *reused* (much cheaper)
 CACHE_RATES: dict[str, dict[str, float]] = {
-    "deepseek":  {"create": 1.00, "read": 0.032},
+    "deepseek":  {"create": 1.00, "read": 0.02},
     "anthropic": {"create": 1.25, "read": 0.10},
     "gemini":    {"create": 1.00, "read": 0.25},
 }

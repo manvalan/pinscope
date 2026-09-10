@@ -269,11 +269,28 @@ def build_graph(
     # only tokenise correctly with the BOM's ref list as a lookup. EDIF
     # netlists ignore known_refs (designators are unambiguous tokens).
     bom = parse_bom(bom_path, reference_col=reference_col, mpn_col=mpn_col)
-    parts, raw_nets, _ = parse_netlist_any(
+    parts, raw_nets, fmt = parse_netlist_any(
         netlist_path,
         known_refs=set(bom.keys()),
         include_subdesigns=include_subdesigns,
     )
+    if fmt.startswith("kicad"):
+        from backend.pinscopex.parsers_kicad import kicad_part_fields
+        for ref, extra in kicad_part_fields(netlist_path).items():
+            entry = bom.setdefault(
+                ref,
+                {"value": "", "footprint": "", "mpn": None, "lcsc": None, "datasheet_url": None},
+            )
+            if extra.get("mpn") and (
+                not entry.get("mpn") or entry.get("mpn") == entry.get("value")
+            ):
+                entry["mpn"] = extra["mpn"]
+            if extra.get("lcsc") and not entry.get("lcsc"):
+                entry["lcsc"] = extra["lcsc"]
+            if extra.get("value") and not entry.get("value"):
+                entry["value"] = extra["value"]
+            if extra.get("footprint") and not entry.get("footprint"):
+                entry["footprint"] = extra["footprint"]
     datasheets = _load_datasheets(datasheets_dir)
 
     # --- Resolve passive specs ------------------------------------------------
