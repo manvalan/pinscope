@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -661,6 +662,34 @@ def save_netlist(
         has_netlist=True, netlist_format=fmt, netlist_subdesigns=None,
     )
     return key
+
+
+def clear_companion_sheets(
+    storage: StorageBackend, user_id: str, project_id: str,
+) -> None:
+    prefix = f"{_project_prefix(user_id, project_id)}/uploads/"
+    for key in storage.list_recursive(prefix):
+        rel = key[len(prefix):]
+        if rel.endswith(".kicad_sch") and rel != "netlist.kicad_sch":
+            storage.delete_key(key)
+
+
+def save_companion_sheets(
+    storage: StorageBackend,
+    user_id: str,
+    project_id: str,
+    root: Path,
+    extras: list[Path],
+) -> None:
+    """Keep Sheetfile children next to ``uploads/netlist.kicad_sch``."""
+    clear_companion_sheets(storage, user_id, project_id)
+    parent = root.parent
+    prefix = f"{_project_prefix(user_id, project_id)}/uploads/"
+    for extra in extras:
+        rel = extra.relative_to(parent).as_posix()
+        if rel == "netlist.kicad_sch":
+            continue
+        storage.write_bytes(prefix + rel, extra.read_bytes())
 
 
 def save_pcb(

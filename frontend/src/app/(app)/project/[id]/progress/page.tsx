@@ -20,7 +20,7 @@ import {
 import { PipelineStepper } from "@/components/progress/pipeline-stepper";
 import { PausedRunBanner } from "@/components/billing/paused-run-banner";
 import { usePipelineProgress } from "@/hooks/use-pipeline-progress";
-import { cancelPipeline, fetchProject, resumePipeline, reprocessPipeline } from "@/lib/api";
+import { cancelPipeline, fetchProject, fetchReport, resumePipeline, reprocessPipeline } from "@/lib/api";
 import type { PauseCheckpoint } from "@/lib/types";
 import {
   AlertTriangle,
@@ -107,14 +107,24 @@ export default function ProgressPage({
     }
   };
 
-  // Auto-navigate to report when pipeline completes successfully
+  // Auto-navigate to report when pipeline completes and the file exists
   useEffect(() => {
-    if (done && !error && !cancelled && !projectPaused) {
-      const timer = setTimeout(() => {
-        router.push(`/project/${id}/report`);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
+    if (!done || error || cancelled || projectPaused) return;
+    let stopped = false;
+    (async () => {
+      for (let i = 0; i < 8; i++) {
+        try {
+          await fetchReport(id);
+          if (!stopped) router.push(`/project/${id}/report`);
+          return;
+        } catch {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
   }, [done, error, cancelled, projectPaused, id, router]);
 
   // Auto-navigate to dashboard when pipeline is cancelled

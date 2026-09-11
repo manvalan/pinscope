@@ -220,8 +220,18 @@ function ReportContent({ projectId }: { projectId: string }) {
 
   if (error || !report || !graph) {
     return (
-      <div className="p-6 max-w-5xl mx-auto w-full text-center py-12 text-sm text-muted-foreground">
-        {error ?? "Report not found."}
+      <div className="p-6 max-w-5xl mx-auto w-full text-center py-12 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          {error ?? "Report not found."}
+        </p>
+        <p className="text-sm">
+          <a
+            href={`/project/${projectId}/progress`}
+            className="text-blue-600 dark:text-blue-500 hover:underline"
+          >
+            Open pipeline progress
+          </a>
+        </p>
       </div>
     );
   }

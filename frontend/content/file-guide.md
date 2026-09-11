@@ -1,9 +1,10 @@
 # File Upload Guide
 
-Pinscope needs two files from your EDA tool to review a design:
+Pinscope needs two files from your EDA tool to review a schematic, and an optional KiCad board for layout:
 
 - A **PADS-PCB ASCII netlist** or an **EDIF 2.0.0 netlist** — the circuit's connectivity. Pinscope accepts `.asc`, `.net`, `.NET`, `.txt` (PADS-PCB) and `.edn`, `.edif`, `.edf` (EDIF); the format is auto-detected from the file's first bytes.
 - A **Bill of Materials** (CSV or XLSX) — mapping each reference designator to a manufacturer part number.
+- Optional: a **KiCad PCB** (`.kicad_pcb`) — placement, keepout, pair length, and net Z0. Schematic review still runs without it.
 
 ## Example files
 
@@ -178,5 +179,9 @@ For both EasyEDA Standard and EasyEDA Pro.
 - **"No components found"** — your netlist is missing the `*PART*` section. Re-export specifically in PADS-PCB format (not Spice, Protel, or a generic text netlist). If the first line is `!PADS-POWERPCB-V…`, you uploaded the PCB layout dump instead of the schematic netlist — re-export from the schematic side.
 - **"No ground net found"** — your netlist has no net named `GND`, `VSS`, `AGND`, `DGND`, or similar. If you exported a sub-sheet, re-export the top sheet instead.
 - **Unresolved parts after the pipeline runs** — a BOM row has no MPN, or the MPN wasn't found on DigiKey. Add the MPN, or rely on Pinscope's value fallback (fills in from the `Value` / `Comment` column).
+
+## The KiCad PCB (optional)
+
+Drop the KiCad **project folder** (or a zip of it) on Schematic — Pinscope takes the sheets and the `.kicad_pcb` if it is there. You can also add the board later.
 
 Still stuck? [Contact us](/contact) with your netlist and BOM attached and we'll take a look.

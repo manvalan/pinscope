@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.26.1 — 2026-09-11 — Ask for the KiCad board
+
+The create-project wizard has a dedicated PCB step (skip still allowed). Report load errors show the API detail instead of a generic fetch failure.
+
+- [New] Wizard step for `.kicad_pcb`. Upload later from Settings or Impedance.
+- [Improved] Report page retries briefly and links back to pipeline progress when `report.json` is missing.
+- [New] Drop the KiCad project folder (or a zip). Extra library junk is ignored; the board is picked up if present.
+
 ## 2.26.0 — 2026-09-11 — ImpedenceFinder Z0 on PCB nets
 
 A pipeline run with `.kicad_pcb` + stackup samples routed **signal** nets (power/ground skipped). Extra net names can be analyzed from the Impedance tab. Z0 is ImpedenceFinder net_walk/zsolver; no invented εr.

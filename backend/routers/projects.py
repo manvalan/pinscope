@@ -1,7 +1,10 @@
 """Project CRUD and file upload endpoints."""
 
+import json
+from pathlib import Path
+
 import httpx
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -462,51 +465,80 @@ async def upload_bom(
 
 
 @router.post("/projects/{project_id}/upload/netlist")
-async def upload_netlist(project_id: str, file: UploadFile, request: Request):
+async def upload_netlist(
+    project_id: str,
+    request: Request,
+    file: UploadFile | None = File(default=None),
+    files: list[UploadFile] | None = File(default=None),
+    paths: str | None = Form(default=None),
+):
     storage = get_storage(request)
     result = proj_svc.resolve_project_access(storage, get_user_id(request), project_id)
     if not result:
         raise HTTPException(404, "Project not found")
     user_id = result[0]  # owner_user_id for storage paths
-    data = await file.read()
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // 1024 // 1024} MB)")
 
-    # Auto-detect PADS vs EDIF from the file's first bytes — users don't pick
-    # a format, the wizard accepts either.
-    from backend.pinscopex.parsers import (
-        detect_netlist_format, parse_netlist_any, validate_netlist,
-    )
+    from backend.pinscopex.netlist_bundle import materialize_netlist_upload
+    from backend.pinscopex.parsers import parse_netlist_any, validate_netlist
     from backend.pinscopex.parsers_edif import list_edif_subdesigns
-    import tempfile, os
+    import tempfile
 
-    fmt = detect_netlist_format(data)
-    suffix = {
-        "edif": ".edn",
-        "kicad_xml": ".xml",
-        "kicad_sexp": ".kicad_net",
-        "kicad_sch": ".kicad_sch",
-    }.get(fmt, ".asc")
+    blobs: list[tuple[str, bytes]] = []
+    seen: set[tuple[str, int]] = set()
+    uploads = list(files or []) if files else ([file] if file is not None else [])
+    rels: list[str] | None = None
+    if paths:
+        try:
+            parsed_paths = json.loads(paths)
+        except json.JSONDecodeError:
+            parsed_paths = None
+        if isinstance(parsed_paths, list) and all(isinstance(x, str) for x in parsed_paths):
+            rels = parsed_paths
+    for i, uf in enumerate(uploads):
+        data = await uf.read()
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                413,
+                f"File too large (max {MAX_UPLOAD_BYTES // 1024 // 1024} MB)",
+            )
+        name = (
+            rels[i]
+            if rels is not None and i < len(rels)
+            else (uf.filename or "netlist")
+        )
+        mark = (name, len(data))
+        if mark in seen:
+            continue
+        seen.add(mark)
+        blobs.append((name, data))
+    if not blobs:
+        raise HTTPException(400, "No netlist file uploaded")
+
     sub_designs: list[dict] = []
     try:
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        tmp.write(data)
-        tmp.close()
-        parts, nets, _ = parse_netlist_any(tmp.name)
-        # For EDIF, also surface the sub-design layout so the wizard can
-        # decide whether to prompt the user. Cheap second parse — same file.
-        if fmt == "edif":
-            sub_designs = list_edif_subdesigns(tmp.name)
-        os.unlink(tmp.name)
+        with tempfile.TemporaryDirectory() as tmp:
+            parsed = materialize_netlist_upload(blobs, Path(tmp) / "work")
+            parts, nets, fmt = parse_netlist_any(parsed.root)
+            if fmt == "edif":
+                sub_designs = list_edif_subdesigns(parsed.root)
+            issues = validate_netlist(parts, nets)
+            if issues:
+                raise ValueError("; ".join(issues))
+            root_bytes = parsed.root.read_bytes()
+            key = proj_svc.save_netlist(storage, user_id, project_id, root_bytes, fmt=fmt)
+            if fmt == "kicad_sch":
+                proj_svc.save_companion_sheets(
+                    storage, user_id, project_id, parsed.root, parsed.extra_sch,
+                )
+            else:
+                proj_svc.clear_companion_sheets(storage, user_id, project_id)
+            if parsed.pcb is not None:
+                proj_svc.save_pcb(storage, user_id, project_id, parsed.pcb.read_bytes())
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(400, f"Invalid netlist: {e}")
-    issues = validate_netlist(parts, nets)
-    if issues:
-        raise HTTPException(400, f"Netlist failed sanity check: {'; '.join(issues)}")
-    key = proj_svc.save_netlist(storage, user_id, project_id, data, fmt=fmt)
-    # EDIF: emit a designator→pins preview matching the PADS browser-side
-    # shape, so the wizard's power-sources step can render its dropdowns
-    # without re-parsing the (s-expression-heavy) file in the browser.
+        raise HTTPException(400, f"Netlist failed sanity check: {e}") from e
+
     designator_pins: list[dict] = []
     if fmt != "pads":
         designator_pins = _build_designator_pins(parts, nets)

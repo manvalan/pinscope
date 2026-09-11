@@ -556,7 +556,10 @@ def parse_kicad_sch_project(
         if path in seen:
             raise ValueError(f"Cyclic sheet include: {path.name}")
         if not path.is_file():
-            raise ValueError(f"Missing sheet file: {path.name}")
+            raise ValueError(
+                f"Missing sheet file: {path.name}. Drop the whole KiCad "
+                "project folder, not a single sheet."
+            )
         seen.add(path)
         text = path.read_text(encoding="utf-8", errors="replace")
         tree = _parse_sexp(text)

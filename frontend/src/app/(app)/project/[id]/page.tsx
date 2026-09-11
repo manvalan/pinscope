@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { useOptionalUser } from "@/hooks/use-optional-auth";
 import { ImpedancePanel } from "@/components/project/impedance-panel";
+import { PcbUploadButton } from "@/components/project/pcb-upload";
 
 export default function ProjectDetailPage({
   params,
@@ -190,6 +191,11 @@ export default function ProjectDetailPage({
           <h1 className="text-lg font-semibold">{project.name}</h1>
           <p className="text-sm text-muted-foreground">
             {new Date(project.created).toLocaleDateString()}
+            {project.hasPcb ? (
+              <span className="ml-2">· PCB uploaded</span>
+            ) : (
+              <span className="ml-2">· no PCB</span>
+            )}
             {typeof project.totalCostUsd === "number" && project.totalCostUsd > 0 && (
               <span className="ml-2 font-mono tabular-nums text-foreground">
                 ${project.totalCostUsd.toFixed(4)}
@@ -348,7 +354,11 @@ export default function ProjectDetailPage({
       )}
 
       {tab === "impedance" && (
-        <ImpedancePanel projectId={id} hasPcb={Boolean(project.hasPcb)} />
+        <ImpedancePanel
+          projectId={id}
+          hasPcb={Boolean(project.hasPcb)}
+          onPcbUploaded={reload}
+        />
       )}
 
       {tab === "logs" && (
@@ -357,6 +367,19 @@ export default function ProjectDetailPage({
 
       {tab === "settings" && (
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">KiCad PCB</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {project.hasPcb
+                  ? "A .kicad_pcb is on this project. Replace it here, then re-run the pipeline for layout and net Z0."
+                  : "No board yet. Schematic review does not need one. Layout checks and net Z0 do."}
+              </p>
+              <PcbUploadButton projectId={id} onUploaded={reload} />
+            </CardContent>
+          </Card>
           <CollaboratorsSection projectId={id} />
           <SkippedComponentsSection skipped={project.skippedComponents} />
           <ReportVersionSection pinscopeVersion={project.pinscopeVersion} />

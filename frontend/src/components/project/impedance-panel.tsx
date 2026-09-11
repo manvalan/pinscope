@@ -10,6 +10,7 @@ import {
   computeImpedance,
   fetchImpedanceNets,
 } from "@/lib/api";
+import { PcbUploadButton } from "@/components/project/pcb-upload";
 import type {
   ImpedanceKind,
   ImpedanceNetsReport,
@@ -29,9 +30,11 @@ function fmt(n: number | null | undefined, digits = 2): string {
 export function ImpedancePanel({
   projectId,
   hasPcb,
+  onPcbUploaded,
 }: {
   projectId: string;
   hasPcb: boolean;
+  onPcbUploaded?: () => void;
 }) {
   const [kind, setKind] = useState<ImpedanceKind>("microstrip");
   const [h, setH] = useState("0.20");
@@ -225,10 +228,13 @@ export function ImpedancePanel({
         </CardHeader>
         <CardContent className="space-y-3">
           {!hasPcb && (
-            <p className="text-sm text-muted-foreground">
-              Upload a `.kicad_pcb` and run analysis. Power/ground nets are
-              skipped; signal traces with stackup εr/h are sampled.
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Upload a `.kicad_pcb`, then re-run the pipeline. Power/ground
+                nets are skipped; signal traces with stackup εr/h are sampled.
+              </p>
+              <PcbUploadButton projectId={projectId} onUploaded={onPcbUploaded} />
+            </div>
           )}
           {hasPcb && boardNets?.skipped && (
             <p className="text-sm text-muted-foreground">{boardNets.skipped}</p>

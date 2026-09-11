@@ -56,6 +56,19 @@ async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, { ...init, headers });
 }
 
+async function throwHttpError(res: Response, fallback: string): Promise<never> {
+  let detail: unknown;
+  try {
+    const body = await res.json();
+    detail = (body as { detail?: unknown; error?: unknown }).detail
+      ?? (body as { error?: unknown }).error;
+  } catch {
+    detail = undefined;
+  }
+  const msg = typeof detail === "string" && detail.trim() ? detail : fallback;
+  throw new Error(msg);
+}
+
 // --- Projects ---
 
 function mapProject(p: Record<string, unknown>): Project {
@@ -301,10 +314,19 @@ export async function uploadPcb(
 }
 
 export async function uploadNetlist(
-  projectId: string, file: File,
+  projectId: string, files: File | File[],
 ): Promise<UploadNetlistResult> {
+  const list = Array.isArray(files) ? files : [files];
   const form = new FormData();
-  form.append("file", file);
+  const rels = list.map((f) => {
+    const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
+    return rel && rel.length > 0 ? rel : f.name;
+  });
+  if (list[0]) form.append("file", list[0], list[0].name);
+  if (list.length > 1) {
+    for (const f of list) form.append("files", f, f.name);
+    form.append("paths", JSON.stringify(rels));
+  }
   const res = await authFetch(
     `${BASE}/api/projects/${projectId}/upload/netlist`,
     { method: "POST", body: form },
@@ -651,7 +673,14 @@ export async function fetchReport(
   projectId: string,
 ): Promise<ValidationReport> {
   const res = await authFetch(`${BASE}/api/report/${projectId}`);
-  if (!res.ok) throw new Error("Failed to fetch report");
+  if (!res.ok) {
+    await throwHttpError(
+      res,
+      res.status === 404
+        ? "Report not found — the pipeline has not finished, or it failed before writing a report."
+        : "Failed to fetch report",
+    );
+  }
   return res.json();
 }
 
@@ -723,7 +752,14 @@ export async function deleteComment(
 
 export async function fetchGraph(projectId: string): Promise<DesignGraph> {
   const res = await authFetch(`${BASE}/api/graph/${projectId}`);
-  if (!res.ok) throw new Error("Failed to fetch graph");
+  if (!res.ok) {
+    await throwHttpError(
+      res,
+      res.status === 404
+        ? "Design graph not found — the pipeline has not finished, or it failed during graph build."
+        : "Failed to fetch graph",
+    );
+  }
   return res.json();
 }
 
