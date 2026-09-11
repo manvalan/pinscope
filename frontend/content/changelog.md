@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.26.5 — 2026-09-11 — Prefer PCB nets for connectivity
+
+When a `.kicad_pcb` is present, pad nets from the board drive the design graph. Schematic geometry alone was inventing swapped rails (GND↔3V3) and floating pins on good KiCad 10 designs.
+
+- [Fixed] KiCad 10 `(net "Name")` pad form.
+- [Fixed] Graph build overrides sch nets with board connectivity; `/NET` → `NET`.
+- [Test] PCB nets beat a misleading schematic.
+
 ## 2.26.4 — 2026-09-11 — KiCad power nets merge
 
 `.kicad_sch` connectivity treated every `GND` power flag as its own island (`GND_`, `GND__`…), so the reviewer invented swapped rails and floating pins on good designs.

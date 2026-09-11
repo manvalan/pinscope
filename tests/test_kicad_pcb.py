@@ -84,6 +84,84 @@ def test_empty_board_parses(tmp_path: Path):
     assert g.segments == []
 
 
+_PCB_V10 = """(kicad_pcb (version 20260206) (generator pcbnew)
+  (footprint "Package_TO_SOT_SMD:SOT-23-5"
+    (layer "F.Cu")
+    (at 0 0 0)
+    (property "Reference" "U3" (at 0 0 0) (effects (font (size 1 1))))
+    (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "VSYS"))
+    (pad "2" smd rect (at 1 0) (size 1 1) (layers "F.Cu") (net "GND"))
+    (pad "5" smd rect (at 2 0) (size 1 1) (layers "F.Cu") (net "3V3_DIGITAL"))
+  )
+  (footprint "RF_Module:ESP"
+    (layer "F.Cu")
+    (at 10 0 0)
+    (property "Reference" "U5" (at 0 0 0) (effects (font (size 1 1))))
+    (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "GND"))
+    (pad "2" smd rect (at 1 0) (size 1 1) (layers "F.Cu") (net "3V3_DIGITAL"))
+    (pad "3" smd rect (at 2 0) (size 1 1) (layers "F.Cu") (net "/ESP32_EN"))
+  )
+)
+"""
+
+
+def test_kicad10_pad_net_string_form(tmp_path: Path):
+    from backend.pinscopex.parsers_kicad_pcb import nets_from_pcb
+
+    p = tmp_path / "v10.kicad_pcb"
+    p.write_text(_PCB_V10)
+    g = parse_kicad_pcb(p)
+    assert g.footprints["U3"].pads[1].net == "GND"
+    nets = nets_from_pcb(g)
+    assert ("U3", "2") in nets["GND"]
+    assert ("U3", "5") in nets["3V3_DIGITAL"]
+    assert ("U5", "3") in nets["ESP32_EN"]  # leading / stripped
+
+
+def test_build_graph_prefers_pcb_nets_over_sch(tmp_path: Path):
+    """Board pad nets win when sch geometry would swap rails."""
+    from backend.pinscopex.graph import build_graph
+
+    sch = tmp_path / "netlist.kicad_sch"
+    # Minimal sch: only needs to parse as kicad_sch with some parts.
+    sch.write_text("""(kicad_sch (version 20250114) (uuid "1")
+  (lib_symbols
+    (symbol "Device:R"
+      (pin passive (at 0 3.81 90) (length 2.54)
+        (name "~" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive (at 0 -3.81 90) (length 2.54)
+        (name "~" (effects (font (size 1.27 1.27))))
+        (number "2" (effects (font (size 1.27 1.27))))
+      )
+    )
+  )
+  (symbol (lib_id "Device:R") (at 0 0 0) (unit 1) (uuid "a")
+    (property "Reference" "R1" (at 0 0 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "10k" (at 0 0 0) (effects (font (size 1.27 1.27))))
+    (pin "1" (uuid "p1")) (pin "2" (uuid "p2"))
+  )
+  (global_label "GND" (at 0 3.81 0) (uuid "b"))
+)
+""")
+    pcb = tmp_path / "pcb.kicad_pcb"
+    pcb.write_text(_PCB_V10)
+    bom = tmp_path / "bom.csv"
+    bom.write_text(
+        "Reference,Value,Footprint,Manufacturer Part Number\n"
+        "U3,AP2112,SOT23,\nU5,ESP32,,\nR1,10k,,\n"
+    )
+    g = build_graph(
+        sch, bom, tmp_path / "ex", tmp_path / "pat", tmp_path / "mod",
+        pcb_path=pcb,
+    )
+    assert g.components["U3"].pins["2"] == "GND"
+    assert g.components["U3"].pins["5"] == "3V3_DIGITAL"
+    assert g.components["U5"].pins["1"] == "GND"
+    assert g.components["U5"].pins["2"] == "3V3_DIGITAL"
+
+
 def test_upload_pcb_sets_has_pcb(tmp_path: Path):
     from fastapi.testclient import TestClient
     from backend.main import app

@@ -45,9 +45,45 @@ def _prop(node: object, key: str) -> str:
 
 def _pad_net(pad: object) -> str:
     n = _kid(pad, "net")
-    if n and len(n) >= 3:
+    if not n or len(n) < 2:
+        return ""
+    # KiCad 9/10 often stores ``(net "GND")`` without a numeric code.
+    if len(n) == 2 and not isinstance(n[1], list):
+        return str(n[1])
+    # Legacy ``(net 3 "GND")``.
+    if len(n) >= 3:
         return str(n[2])
     return ""
+
+
+def _normalize_pcb_net_name(name: str) -> str:
+    """Strip KiCad root-sheet ``/`` prefixes; keep empty / unconnected as-is."""
+    n = (name or "").strip()
+    if not n:
+        return ""
+    while n.startswith("/"):
+        n = n[1:]
+    return n
+
+
+def nets_from_pcb(layout: LayoutGraph) -> dict[str, list[tuple[str, str]]]:
+    """Pad connectivity from a parsed board — authoritative when sch geometry fails."""
+    nets: dict[str, list[tuple[str, str]]] = {}
+    seen: set[tuple[str, str, str]] = set()
+    for ref, fp in layout.footprints.items():
+        for pad in fp.pads:
+            raw = pad.net or ""
+            if not raw:
+                continue
+            name = _normalize_pcb_net_name(raw)
+            if not name:
+                continue
+            key = (name, ref, pad.number)
+            if key in seen:
+                continue
+            seen.add(key)
+            nets.setdefault(name, []).append((ref, pad.number))
+    return nets
 
 
 def _net_name(node: object, nets: dict[str, int]) -> str:
@@ -55,6 +91,16 @@ def _net_name(node: object, nets: dict[str, int]) -> str:
     if not n or len(n) < 2:
         named = _val(node, "net_name")
         return named
+    # ``(net "GND")`` or ``(net 1)`` or ``(net 1 "GND")``
+    if len(n) == 2 and not isinstance(n[1], list):
+        token = n[1]
+        if isinstance(token, str) and not str(token).replace(".", "", 1).isdigit():
+            return str(token)
+        try:
+            code = int(_fnum(token))
+        except (TypeError, ValueError):
+            return str(token)
+        return next((name for name, c in nets.items() if c == code), str(code))
     if len(n) >= 3:
         return str(n[2])
     try:

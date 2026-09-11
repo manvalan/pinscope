@@ -254,6 +254,7 @@ def build_graph(
     mpn_col: str = "Manufacturer Part Number",
     skipped: list[SkippedItem] | None = None,
     include_subdesigns: set[str] | None = None,
+    pcb_path: str | Path | None = None,
 ) -> DesignGraph:
     """Build a DesignGraph deterministically from project files.
 
@@ -264,6 +265,9 @@ def build_graph(
         4. Resolve passive specs from patterns + cached component models
         5. Assemble components with classified type, linked constraints, and specs
         6. Assemble nets with inferred type/voltage and enriched pin names
+
+    When ``pcb_path`` points at a ``.kicad_pcb``, pad nets from the board replace
+    schematic-derived connectivity (KiCad board nets are authoritative).
     """
     # Parse BOM first so we can feed known refs into the netlist parser —
     # PADS-PCB netlists allow multi-word designators (e.g. "CV GND"), which
@@ -284,6 +288,17 @@ def build_graph(
         known_refs=set(bom.keys()),
         include_subdesigns=include_subdesigns,
     )
+    if pcb_path is not None:
+        pcb = Path(pcb_path)
+        if pcb.is_file():
+            from backend.pinscopex.parsers_kicad_pcb import nets_from_pcb, parse_kicad_pcb
+
+            layout = parse_kicad_pcb(pcb)
+            pcb_nets = nets_from_pcb(layout)
+            if pcb_nets:
+                raw_nets = pcb_nets
+                for ref, fp in layout.footprints.items():
+                    parts.setdefault(ref, fp.footprint or "")
     if fmt.startswith("kicad"):
         from backend.pinscopex.parsers_kicad import kicad_part_fields
         for ref, extra in kicad_part_fields(netlist_path).items():

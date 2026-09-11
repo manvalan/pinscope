@@ -1565,6 +1565,7 @@ async def _stage_graph_build(ctx: PipelineContext) -> None:
             if ctx.meta.netlist_subdesigns is not None
             else None
         ),
+        pcb_path=ctx.ws.local_path("uploads/pcb.kicad_pcb"),
     )
 
     graph_path = ctx.ws.local_path("design_graph.json")
@@ -2130,6 +2131,7 @@ async def run_regen_pipeline(
                     if meta.netlist_subdesigns is not None
                     else None
                 ),
+                pcb_path=ws.local_path("uploads/pcb.kicad_pcb"),
             )
 
             graph_path = ws.local_path("design_graph.json")
