@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.26.4 — 2026-09-11 — KiCad power nets merge
+
+`.kicad_sch` connectivity treated every `GND` power flag as its own island (`GND_`, `GND__`…), so the reviewer invented swapped rails and floating pins on good designs.
+
+- [Fixed] Same-name power symbols and global/local labels merge within a sheet (KiCad semantics).
+- [Fixed] Pins sitting mid-wire attach to that net; `mirror x`/`y` handled correctly.
+- [Test] Disconnected GND flags, local labels, mid-segment wire.
+
 ## 2.26.3 — 2026-09-11 — KiCad project zip upload
 
 One zip (or every `.kicad_sch`) covers hierarchical sheets. If the zip has `bom.csv` and `.kicad_pcb`, those are taken too. Pipeline re-reads companions from storage.

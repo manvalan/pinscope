@@ -259,6 +259,45 @@ def _rotate(px: float, py: float, deg: float) -> tuple[float, float]:
     return px * c + py * s, -px * s + py * c
 
 
+def _mirror_axes(sym: Any) -> tuple[bool, bool]:
+    """KiCad ``(mirror x)`` / ``(mirror y)`` — flip symbol-local axes."""
+    m = _kid(sym, "mirror")
+    if not m:
+        return False, False
+    axes = {str(item) for item in m[1:]}
+    if not axes:
+        # Legacy bare ``(mirror)`` — treat as X flip (historical eeschema).
+        return True, False
+    return ("x" in axes), ("y" in axes)
+
+
+def _point_on_segment(
+    p: tuple[int, int],
+    a: tuple[int, int],
+    b: tuple[int, int],
+    tol: int = 2,
+) -> bool:
+    """True if snapped point ``p`` lies on segment ``ab`` (inclusive)."""
+    ax, ay = a
+    bx, by = b
+    px, py = p
+    if px < min(ax, bx) - tol or px > max(ax, bx) + tol:
+        return False
+    if py < min(ay, by) - tol or py > max(ay, by) + tol:
+        return False
+    dx, dy = bx - ax, by - ay
+    len2 = dx * dx + dy * dy
+    if len2 == 0:
+        return abs(px - ax) <= tol and abs(py - ay) <= tol
+    # Distance from p to infinite line, then clamp to segment.
+    t = ((px - ax) * dx + (py - ay) * dy) / len2
+    if t < -0.01 or t > 1.01:
+        return False
+    qx = ax + t * dx
+    qy = ay + t * dy
+    return (px - qx) ** 2 + (py - qy) ** 2 <= tol * tol
+
+
 def _lib_pins(sym: Any) -> dict[tuple[int, str], tuple[float, float]]:
     """(unit, pin_number) -> (x, y) in symbol space. unit 0 = common."""
     out: dict[tuple[int, str], tuple[float, float]] = {}
@@ -345,6 +384,7 @@ def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
     dsu = _DSU()
     labels: dict[tuple[int, int], tuple[str, str]] = {}
     power_pts: list[tuple[tuple[int, int], str]] = []
+    wire_segs: list[tuple[tuple[int, int], tuple[int, int]]] = []
 
     def prop(sym: Any, key: str) -> str:
         for p in _kids(sym, "property"):
@@ -359,20 +399,26 @@ def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
         if prev is None or _KIND_RANK[kind] >= _KIND_RANK[prev[1]]:
             labels[pt] = (name, kind)
 
+    def apply_sym_xy(px: float, py: float, rot: float, mx: bool, my: bool) -> tuple[float, float]:
+        rx, ry = _rotate(px, py, rot)
+        if mx:
+            rx = -rx
+        if my:
+            ry = -ry
+        return rx, ry
+
     for sym in _kids(tree, "symbol"):
         lib_id = _val(sym, "lib_id")
         ix, iy, rot = _at(sym)
         unit = int(_fnum(_val(sym, "unit") or "1") or 1)
-        mirror = bool(_kid(sym, "mirror"))
+        mx, my = _mirror_axes(sym)
         ref = prop(sym, "Reference")
         if ref.startswith("#"):
             # power flag / graphic
             val = prop(sym, "Value") or lib_id.rsplit(":", 1)[-1]
             lp = lib_pins.get(lib_id, {})
             xy = lp.get((unit, "1")) or lp.get((0, "1")) or (0.0, 0.0)
-            px, py = _rotate(xy[0], xy[1], rot)
-            if mirror:
-                px = -px
+            px, py = apply_sym_xy(xy[0], xy[1], rot, mx, my)
             pt = _snap(ix + px, iy + py)
             dsu.add(pt)
             if val:
@@ -404,9 +450,7 @@ def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
             if not num:
                 continue
             xy = lp.get((unit, num)) or lp.get((0, num)) or (0.0, 0.0)
-            px, py = _rotate(xy[0], xy[1], rot)
-            if mirror:
-                px = -px
+            px, py = apply_sym_xy(xy[0], xy[1], rot, mx, my)
             pt = _snap(ix + px, iy + py)
             pin_at[(ref, num)] = pt
             dsu.add(pt)
@@ -426,6 +470,7 @@ def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
                         coords.append(pt)
             for a, b in zip(coords, coords[1:]):
                 dsu.union(a, b)
+                wire_segs.append((a, b))
             return
         if tag == "label":
             name = str(node[1]) if len(node) > 1 else ""
@@ -470,6 +515,30 @@ def _parse_kicad_sch_sheet(tree: Any) -> _SchSheet:
         dsu.add(pt)
     for pt, _name in power_pts:
         dsu.add(pt)
+
+    # Pins / labels / power on the middle of a wire share that net.
+    attach_pts = list(pin_at.values()) + list(labels.keys()) + [pt for pt, _ in power_pts]
+    for pt in attach_pts:
+        for a, b in wire_segs:
+            if _point_on_segment(pt, a, b):
+                dsu.union(pt, a)
+                dsu.union(pt, b)
+
+    # KiCad semantics: same-name global labels and power symbols are one net
+    # even when not geometrically connected. Same-name local labels merge
+    # within a single sheet.
+    by_name: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    for pt, (name, kind) in labels.items():
+        if kind in ("global", "local", "hier"):
+            by_name.setdefault((kind, name), []).append(pt)
+    for pt, name in power_pts:
+        by_name.setdefault(("global", name), []).append(pt)
+    for pts in by_name.values():
+        if len(pts) < 2:
+            continue
+        head = pts[0]
+        for p in pts[1:]:
+            dsu.union(head, p)
 
     root_name: dict[tuple[int, int], str] = {}
     root_kind: dict[tuple[int, int], str] = {}

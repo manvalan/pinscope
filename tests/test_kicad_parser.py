@@ -132,6 +132,13 @@ _LIB_R = """
         (number "2" (effects (font (size 1.27 1.27))))
       )
     )
+    (symbol "power:GND"
+      (power)
+      (pin power_in (at 0 0 270) (length 0)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27))))
+      )
+    )
   )
 """
 
@@ -152,8 +159,81 @@ def _resistor(ref: str, value: str, x: float = 0, y: float = 0) -> str:
 """
 
 
+def _power_gnd(x: float, y: float, suffix: str = "1") -> str:
+    uid = f"bbbbbbbb-bbbb-bbbb-bbbb-{suffix.zfill(12)}"
+    return f"""
+  (symbol
+    (lib_id "power:GND")
+    (at {x} {y} 0)
+    (unit 1)
+    (uuid "{uid}")
+    (property "Reference" "#{suffix}" (at 0 0 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "GND" (at 0 0 0) (effects (font (size 1.27 1.27))))
+    (pin "1" (uuid "pgnd{suffix}"))
+  )
+"""
+
+
 def _sch(*body: str) -> str:
     return "(kicad_sch (version 20250114) (uuid \"11111111-1111-1111-1111-111111111111\")" + _LIB_R + "".join(body) + "\n)\n"
+
+
+def test_power_symbols_same_name_merge_without_wires(tmp_path: Path):
+    """KiCad power flags are global: two GND symbols share one net even if islands."""
+    from backend.pinscopex.parsers import parse_netlist_any
+
+    p = tmp_path / "power.kicad_sch"
+    # R1 and R2 far apart, each with GND on pin 1, no wires between them.
+    p.write_text(_sch(
+        _resistor("R1", "10k", x=0, y=0),
+        _power_gnd(0, 3.81, "1"),
+        _resistor("R2", "10k", x=100, y=0),
+        _power_gnd(100, 3.81, "2"),
+    ))
+    _parts, nets, fmt = parse_netlist_any(p)
+    assert fmt == "kicad_sch"
+    assert "GND" in nets
+    assert ("R1", "1") in nets["GND"]
+    assert ("R2", "1") in nets["GND"]
+    gnd_like = [n for n in nets if n.rstrip("_") == "GND"]
+    assert gnd_like == ["GND"], gnd_like
+
+
+def test_local_labels_same_name_merge_on_same_sheet(tmp_path: Path):
+    from backend.pinscopex.parsers import parse_netlist_any
+
+    p = tmp_path / "local.kicad_sch"
+    p.write_text(_sch(
+        _resistor("R1", "10k", x=0, y=0),
+        """
+  (label "NETA" (at 0 3.81 0) (uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"))
+""",
+        _resistor("R2", "10k", x=100, y=0),
+        """
+  (label "NETA" (at 100 3.81 0) (uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"))
+""",
+    ))
+    _parts, nets, _fmt = parse_netlist_any(p)
+    assert ("R1", "1") in nets["NETA"]
+    assert ("R2", "1") in nets["NETA"]
+
+
+def test_pin_on_mid_wire_segment_connects(tmp_path: Path):
+    from backend.pinscopex.parsers import parse_netlist_any
+
+    p = tmp_path / "midwire.kicad_sch"
+    # Horizontal wire from (-10,3.81) to (10,3.81); R1 pin1 at (0,3.81) sits mid-segment.
+    p.write_text(_sch(
+        _resistor("R1", "10k", x=0, y=0),
+        _resistor("R2", "10k", x=10, y=0),
+        """
+  (wire (pts (xy -10 3.81) (xy 10 3.81)))
+  (global_label "SIG" (at -10 3.81 0) (uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
+""",
+    ))
+    _parts, nets, _fmt = parse_netlist_any(p)
+    assert ("R1", "1") in nets["SIG"]
+    assert ("R2", "1") in nets["SIG"]
 
 
 def test_parse_single_sheet_kicad_sch(tmp_path: Path):
