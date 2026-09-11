@@ -6,7 +6,8 @@
 import Link from "next/link";
 import { useOptionalAuth, useOptionalUser } from "@/hooks/use-optional-auth";
 import { authEnabled, localAuthEnabled } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function SidebarCredits() {
   return null;
@@ -27,12 +28,18 @@ export function SidebarUserButton() {
   if (!isSignedIn || !user) {
     return (
       <div className="flex flex-col gap-1 px-1">
-        <Button asChild size="sm" variant="outline" className="w-full justify-start">
-          <Link href="/sign-in">Sign in</Link>
-        </Button>
-        <Button asChild size="sm" variant="ghost" className="w-full justify-start">
-          <Link href="/sign-up">Create account</Link>
-        </Button>
+        <Link
+          href="/sign-in"
+          className={cn(buttonVariants({ size: "sm", variant: "outline" }), "w-full justify-start")}
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/sign-up"
+          className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "w-full justify-start")}
+        >
+          Create account
+        </Link>
       </div>
     );
   }
@@ -43,17 +50,19 @@ export function SidebarUserButton() {
       {user.email && user.name ? (
         <div className="truncate text-[11px] text-muted-foreground">{user.email}</div>
       ) : null}
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 justify-start px-0 text-xs text-muted-foreground"
+      <button
+        type="button"
+        className={cn(
+          buttonVariants({ size: "sm", variant: "ghost" }),
+          "h-7 justify-start px-0 text-xs text-muted-foreground",
+        )}
         onClick={() => {
           signOut?.();
           window.location.href = "/sign-in";
         }}
       >
         Sign out
-      </Button>
+      </button>
     </div>
   );
 }

@@ -118,13 +118,6 @@ upsert_env NEXT_PUBLIC_API_URL "$SITE" .env
 # JSON list — keep it a single line so docker compose / pydantic-settings parse it.
 upsert_env CORS_ORIGINS "[\"$SITE\"]" .env
 
-# Self-host multi-user auth (Pinscope accounts). Generate a secret once if missing.
-if [[ -z "$(read_env AUTH_JWT_SECRET .env || true)" ]]; then
-  log "Generating AUTH_JWT_SECRET for local multi-user auth"
-  upsert_env AUTH_JWT_SECRET "$(openssl rand -hex 32)" .env
-fi
-upsert_env NEXT_PUBLIC_AUTH_MODE "local" .env
-
 KEY="$(read_env DEEPSEEK_API_KEY .env || true)"
 if [[ -z "$KEY" || "$KEY" == "sk-..." ]]; then
   die "Set a real DEEPSEEK_API_KEY in $ROOT/.env before updating."
@@ -143,6 +136,13 @@ if [[ "$DO_PULL" -eq 1 ]]; then
 else
   log "Skipping git pull (--no-pull)"
 fi
+
+# Self-host multi-user auth — after pull so this script's upsert logic is current.
+if [[ -z "$(read_env AUTH_JWT_SECRET .env || true)" ]]; then
+  log "Generating AUTH_JWT_SECRET for local multi-user auth"
+  upsert_env AUTH_JWT_SECRET "$(openssl rand -hex 32)" .env
+fi
+upsert_env NEXT_PUBLIC_AUTH_MODE "local" .env
 
 log "docker compose up -d --build (data/ is kept)"
 compose up -d --build
