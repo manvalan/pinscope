@@ -25,6 +25,7 @@ class NetlistUpload:
     work_dir: Path
     pcb: Path | None
     extra_sch: list[Path]
+    bom: Path | None = None
 
 
 def sniff_netlist_kind(content: bytes) -> str:
@@ -68,6 +69,8 @@ _KEEP_SUFFIX = {
     ".edf",
     ".asc",
     ".net",
+    ".csv",
+    ".xlsx",
 }
 
 
@@ -126,6 +129,18 @@ def _write_named(name: str, data: bytes, dest: Path) -> None:
 def find_kicad_pcb(work: Path) -> Path | None:
     hits = sorted(p for p in work.rglob("*.kicad_pcb") if p.is_file())
     return hits[0] if hits else None
+
+
+def find_bom(work: Path) -> Path | None:
+    """Prefer a shallow BOM path (KiCad project root over nested copies)."""
+    hits = [
+        p for p in work.rglob("*")
+        if p.is_file() and p.suffix.lower() in {".csv", ".xlsx"}
+    ]
+    if not hits:
+        return None
+    hits.sort(key=lambda p: (len(p.relative_to(work).parts), p.name.lower()))
+    return hits[0]
 
 
 def _sheetfiles_of(path: Path) -> list[str]:
@@ -222,11 +237,14 @@ def materialize_netlist_upload(
 
     root = _pick_root(dest)
     pcb = find_kicad_pcb(dest)
+    bom = find_bom(dest)
     extras = [
         p for p in work_sch_files(dest)
         if p.resolve() != root.resolve()
     ]
-    return NetlistUpload(root=root, work_dir=dest, pcb=pcb, extra_sch=extras)
+    return NetlistUpload(
+        root=root, work_dir=dest, pcb=pcb, extra_sch=extras, bom=bom,
+    )
 
 
 def work_sch_files(dest: Path) -> list[Path]:

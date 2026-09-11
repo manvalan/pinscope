@@ -590,6 +590,8 @@ export function CreateProjectDialog({
   const [netlistFiles, setNetlistFiles] = useState<File[]>([]);
   const netlistFile = netlistFiles[0] ?? null;
   const [pcbFile, setPcbFile] = useState<File | null>(null);
+  const [bomFromBundle, setBomFromBundle] = useState(false);
+  const [pcbFromBundle, setPcbFromBundle] = useState(false);
   const [netlistNetCount, setNetlistNetCount] = useState<number | null>(null);
   const [netlistError, setNetlistError] = useState<string | null>(null);
 
@@ -922,8 +924,15 @@ export function CreateProjectDialog({
   }, []);
 
   const handleNetlistChange = useCallback((incoming: File[]) => {
-    const { netlist, pcb } = splitProjectFiles(incoming);
-    if (pcb[0]) setPcbFile(pcb[0]);
+    const { netlist, pcb, bom } = splitProjectFiles(incoming);
+    if (pcb[0]) {
+      setPcbFile(pcb[0]);
+      setPcbFromBundle(false);
+    }
+    if (bom[0]) {
+      handleBomChange([bom[0]]);
+      setBomFromBundle(false);
+    }
     const files = netlist;
     const file = files[0] || null;
     setNetlistFiles(files);
@@ -969,7 +978,7 @@ export function CreateProjectDialog({
         );
       }
     });
-  }, []);
+  }, [handleBomChange]);
 
   const resetAndClose = useCallback(() => {
     setOpen(false);
@@ -978,6 +987,8 @@ export function CreateProjectDialog({
     setBomFile(null);
     setNetlistFiles([]);
     setPcbFile(null);
+    setBomFromBundle(false);
+    setPcbFromBundle(false);
     setNetlistNetCount(null);
     setNetlistError(null);
     setCsvData(null);
@@ -1584,6 +1595,8 @@ export function CreateProjectDialog({
   const runEarlyNetlistUpload = useCallback(async (): Promise<{
     ok: boolean;
     subDesigns: EdifSubDesign[];
+    bomSaved?: boolean;
+    pcbSaved?: boolean;
   }> => {
     if (!netlistFile) return { ok: false, subDesigns: [] };
     setEarlyUploading(true);
@@ -1602,12 +1615,23 @@ export function CreateProjectDialog({
       if (result.designator_pins.length > 0) {
         setNetlistPreview(result.designator_pins);
       }
+      if (result.nets > 0) setNetlistNetCount(result.nets);
+      if (result.pcb_saved) setPcbFromBundle(true);
+      if (result.bom_saved) {
+        const bom = await downloadProjectBom(projectId);
+        handleBomChange([bom]);
+        setBomFromBundle(true);
+        setBomUploadedEarly(true);
+      }
       setNetlistUploadedEarly(true);
       setInitialNetlistFiles(netlistFiles);
-      return { ok: true, subDesigns: result.sub_designs };
+      return {
+        ok: true,
+        subDesigns: result.sub_designs,
+        bomSaved: Boolean(result.bom_saved),
+        pcbSaved: Boolean(result.pcb_saved),
+      };
     } catch (e) {
-      // Only delete the project if we created it just now — leave LCSC's
-      // earlier draft alone.
       if (createdProjectIdHere) {
         try {
           await deleteProject(createdProjectIdHere);
@@ -1623,8 +1647,14 @@ export function CreateProjectDialog({
     } finally {
       setEarlyUploading(false);
     }
-  }, [netlistFile, netlistFiles, existingProjectId, name]);
+  }, [netlistFile, netlistFiles, existingProjectId, name, handleBomChange]);
 
+  const needsEarlyKiCadUpload = Boolean(
+    netlistFile &&
+      (netlistFile.name.toLowerCase().endsWith(".zip") ||
+        netlistFiles.length > 1 ||
+        netlistFiles.some((f) => f.name.toLowerCase().endsWith(".kicad_sch"))),
+  );
   // ---- LCSC per-row passive resolve ----
   //
   // Walks the lcscPassives list in batches of LCSC_RESOLVE_CONCURRENCY,
@@ -1738,7 +1768,13 @@ export function CreateProjectDialog({
   }, [step, lcscResolving, lcscPassives.length, hasIcs, hasSimple, hasPassives]);
 
   const canAdvance = (): boolean => {
-    if (step === "details") return !!(name.trim() && bomFile && netlistFile && !netlistError);
+    if (step === "details") {
+      const hasBomSlot =
+        Boolean(bomFile) ||
+        bomFromBundle ||
+        Boolean(netlistFile?.name.toLowerCase().endsWith(".zip"));
+      return !!(name.trim() && hasBomSlot && netlistFile && !netlistError);
+    }
     if (step === "columns") return !!(refCol && mpnCol);
     if (step === "subdesigns")
       return !!(selectedSubdesignIds && selectedSubdesignIds.size > 0);
@@ -1772,12 +1808,18 @@ export function CreateProjectDialog({
       // the server) and when already done.
       if (
         !rerunProject &&
-        netlistIsEdif &&
         !netlistUploadedEarly &&
-        netlistFile
+        netlistFile &&
+        (netlistIsEdif || needsEarlyKiCadUpload)
       ) {
         const res = await runEarlyNetlistUpload();
         if (!res.ok) return;
+        if (needsEarlyKiCadUpload && !bomFile && !res.bomSaved) {
+          setEarlyUploadError(
+            "No BOM in that zip. Add a .csv in the BOM box, or include bom.csv in the project zip.",
+          );
+          return;
+        }
       }
       setStep("columns");
     }
@@ -1917,21 +1959,39 @@ export function CreateProjectDialog({
       // projects, the project already owns prior artifacts and should be
       // preserved on failure.
       try {
-        if (!projectAlreadyExists || bomFile !== initialBomFile) {
+        if (
+          bomFile &&
+          (!projectAlreadyExists || bomFile !== initialBomFile) &&
+          !bomFromBundle
+        ) {
           setProgress("Uploading BOM...");
           await uploadBom(
             project.id,
-            bomFile!,
+            bomFile,
             refCol || undefined,
             mpnCol || undefined,
           );
+        } else if (bomFromBundle && existingProjectId && refCol && mpnCol) {
+          // Columns may have been adjusted after the zip BOM was saved —
+          // re-upload so the pipeline uses the confirmed mapping.
+          if (bomFile) {
+            setProgress("Uploading BOM...");
+            await uploadBom(
+              project.id,
+              bomFile,
+              refCol || undefined,
+              mpnCol || undefined,
+            );
+          }
         }
 
         if (!projectAlreadyExists || netlistFiles !== initialNetlistFiles) {
-          setProgress("Uploading netlist...");
-          await uploadNetlist(project.id, netlistFiles);
+          if (!netlistUploadedEarly) {
+            setProgress("Uploading netlist...");
+            await uploadNetlist(project.id, netlistFiles);
+          }
         }
-        if (pcbFile) {
+        if (pcbFile && !pcbFromBundle) {
           setProgress("Uploading PCB...");
           await uploadPcb(project.id, pcbFile);
         }
@@ -2118,15 +2178,20 @@ export function CreateProjectDialog({
                     label="BOM"
                     accept=".csv,.xlsx"
                     files={bomFile ? [bomFile] : []}
-                    onFilesChange={handleBomChange}
+                    onFilesChange={(files) => {
+                      setBomFromBundle(false);
+                      handleBomChange(files);
+                    }}
                   />
                   <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                    .csv or .xlsx
+                    {bomFromBundle
+                      ? "Taken from the KiCad zip"
+                      : ".csv / .xlsx — or inside the KiCad zip"}
                   </p>
                 </div>
                 <div className="space-y-1.5">
                   <FileUploadZone
-                    label="Schematic"
+                    label="KiCad / netlist"
                     accept=".asc,.net,.NET,.txt,.edn,.edif,.edf,.xml,.kicad_sch,.kicad_net,.zip"
                     multiple
                     files={netlistFiles}
@@ -2143,7 +2208,7 @@ export function CreateProjectDialog({
                     </p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                      Netlist or .kicad_sch
+                      Zip del progetto, o tutti i .kicad_sch
                     </p>
                   )}
                 </div>
@@ -2153,16 +2218,21 @@ export function CreateProjectDialog({
                     accept=".kicad_pcb"
                     files={pcbFile ? [pcbFile] : []}
                     onFilesChange={(files) => {
-                      const picked = splitProjectFiles(files).pcb[0] ?? files[0] ?? null;
+                      setPcbFromBundle(false);
+                      const picked =
+                        splitProjectFiles(files).pcb[0] ?? files[0] ?? null;
                       setPcbFile(
                         picked?.name.toLowerCase().endsWith(".kicad_pcb")
                           ? picked
                           : null,
                       );
                     }}
+                    preloaded={
+                      pcbFromBundle && !pcbFile ? ["from project zip"] : undefined
+                    }
                   />
                   <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                    Optional .kicad_pcb
+                    Optional — or inside the zip
                   </p>
                 </div>
               </div>

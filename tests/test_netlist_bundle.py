@@ -193,6 +193,67 @@ def test_api_accepts_multiple_sch_files(tmp_path: Path):
     assert resp.json()["parts"] == 2
 
 
+def test_zip_pipeline_workspace_reparses_hierarchy(tmp_path: Path):
+    """Upload → storage → local workspace layout must still see child sheets."""
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.services.storage import LocalStorageBackend
+
+    app.state.storage = LocalStorageBackend(tmp_path)
+    client = TestClient(app)
+    pid = client.post("/api/projects", json={"name": "pipe"}).json()["id"]
+    root, child = _root_with_child()
+    root_nested = root.replace(
+        'Sheetfile" "child.kicad_sch"',
+        'Sheetfile" "sheets/child.kicad_sch"',
+    )
+    pcb = b'(kicad_pcb (version 20240108) (generator pcbnew)\n  (net 0 "")\n)\n'
+    bom = (
+        b"Reference,Value,Manufacturer Part Number\n"
+        b"R1,10k,RC0603FR-0710KL\n"
+        b"C1,100n,CL10B104KB8NNNC\n"
+    )
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("proj/root.kicad_sch", root_nested)
+        zf.writestr("proj/sheets/child.kicad_sch", child)
+        zf.writestr("proj/board.kicad_pcb", pcb)
+        zf.writestr("proj/bom.csv", bom)
+
+    resp = client.post(
+        f"/api/projects/{pid}/upload/netlist",
+        files={"file": ("board.zip", buf.getvalue(), "application/zip")},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["parts"] == 2
+    assert body["sheets"] == 2
+    assert body["pcb_saved"] is True
+    assert body["bom_saved"] is True
+
+    storage = client.app.state.storage
+    prefix = f"users/local/projects/{pid}/uploads/"
+    ws = tmp_path / "ws" / "uploads"
+    ws.mkdir(parents=True)
+    for key in storage.list_recursive(prefix):
+        rel = key[len(prefix):]
+        dest = ws / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(storage.read_bytes(key))
+
+    parts, nets, fmt = parse_netlist_any(ws / "netlist.kicad_sch")
+    assert fmt == "kicad_sch"
+    assert "R1" in parts and "C1" in parts
+    assert ("R1", "1") in nets["GND"] and ("C1", "1") in nets["GND"]
+    assert (ws / "pcb.kicad_pcb").is_file()
+    assert (ws / "bom.csv").is_file()
+    meta = client.get(f"/api/projects/{pid}").json()
+    assert meta["has_pcb"] is True
+    assert meta["has_bom"] is True
+    assert meta["has_netlist"] is True
+
 
 def test_kicad_pcb_bytes_are_not_parsed_as_pads(tmp_path: Path):
     with pytest.raises(ValueError, match="board"):

@@ -295,6 +295,9 @@ export interface UploadNetlistResult {
   // browser-side PADS parser produces. Empty list for PADS uploads (the
   // browser parses those locally).
   designator_pins: NetlistPreviewDesignator[];
+  pcb_saved?: boolean;
+  bom_saved?: boolean;
+  sheets?: number;
 }
 
 export async function uploadPcb(
@@ -344,6 +347,9 @@ export async function uploadNetlist(
     sub_designs: (data.sub_designs as EdifSubDesign[] | undefined) ?? [],
     designator_pins:
       (data.designator_pins as NetlistPreviewDesignator[] | undefined) ?? [],
+    pcb_saved: Boolean(data.pcb_saved),
+    bom_saved: Boolean(data.bom_saved),
+    sheets: typeof data.sheets === "number" ? data.sheets : undefined,
   };
 }
 

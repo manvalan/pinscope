@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.26.3 — 2026-09-11 — KiCad project zip upload
+
+One zip (or every `.kicad_sch`) covers hierarchical sheets. If the zip has `bom.csv` and `.kicad_pcb`, those are taken too. Pipeline re-reads companions from storage.
+
+- [New] Zip → sheets + optional BOM/PCB. Nested `Sheetfile` paths kept.
+- [Test] Upload → workspace re-parse finds child sheet parts.
+
 ## 2.26.2 — 2026-09-11 — Three file boxes
 
 New project: BOM, schematic, and PCB on the first screen. PCB is optional.

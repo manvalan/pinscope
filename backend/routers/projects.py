@@ -18,6 +18,32 @@ from backend.services import projects as proj_svc
 router = APIRouter(tags=["projects"])
 
 
+def _bom_file_to_csv_bytes(path: Path) -> bytes | None:
+    """Normalize a BOM found inside a KiCad zip/folder to CSV bytes."""
+    suffix = path.suffix.lower()
+    raw = path.read_bytes()
+    if suffix == ".csv":
+        return raw
+    if suffix == ".xlsx":
+        try:
+            import csv as csv_mod
+            import io
+
+            import openpyxl
+
+            wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+            ws = wb.active
+            out = io.StringIO()
+            writer = csv_mod.writer(out)
+            for row in ws.iter_rows(values_only=True):
+                writer.writerow([("" if c is None else str(c)) for c in row])
+            wb.close()
+            return out.getvalue().encode("utf-8")
+        except Exception:
+            return None
+    return None
+
+
 # --- Library check ---
 
 
@@ -515,6 +541,9 @@ async def upload_netlist(
         raise HTTPException(400, "No netlist file uploaded")
 
     sub_designs: list[dict] = []
+    bom_saved = False
+    pcb_saved = False
+    sheets = 1
     try:
         with tempfile.TemporaryDirectory() as tmp:
             parsed = materialize_netlist_upload(blobs, Path(tmp) / "work")
@@ -530,10 +559,24 @@ async def upload_netlist(
                 proj_svc.save_companion_sheets(
                     storage, user_id, project_id, parsed.root, parsed.extra_sch,
                 )
+                sheets = 1 + len(parsed.extra_sch)
             else:
                 proj_svc.clear_companion_sheets(storage, user_id, project_id)
             if parsed.pcb is not None:
                 proj_svc.save_pcb(storage, user_id, project_id, parsed.pcb.read_bytes())
+                pcb_saved = True
+            if parsed.bom is not None:
+                bom_bytes = _bom_file_to_csv_bytes(parsed.bom)
+                if bom_bytes:
+                    proj_svc.save_bom(storage, user_id, project_id, bom_bytes)
+                    proj_svc.update_project(
+                        storage, user_id, project_id,
+                        bom_columns={
+                            "reference": "Reference",
+                            "mpn": "Manufacturer Part Number",
+                        },
+                    )
+                    bom_saved = True
     except HTTPException:
         raise
     except Exception as e:
@@ -549,6 +592,9 @@ async def upload_netlist(
         "format": fmt,
         "sub_designs": sub_designs,
         "designator_pins": designator_pins,
+        "pcb_saved": pcb_saved,
+        "bom_saved": bom_saved,
+        "sheets": sheets,
     }
 
 
