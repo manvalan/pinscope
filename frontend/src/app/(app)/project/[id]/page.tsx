@@ -42,6 +42,7 @@ import {
 import { useOptionalUser } from "@/hooks/use-optional-auth";
 import { ImpedancePanel } from "@/components/project/impedance-panel";
 import { PcbUploadButton } from "@/components/project/pcb-upload";
+import { PdfViewerSheet } from "@/components/pdf/pdf-viewer-sheet";
 
 export default function ProjectDetailPage({
   params,
