@@ -2,6 +2,12 @@
 
 What's new in Pinscope.
 
+## 2.26.2 — 2026-09-11 — Three file boxes
+
+New project: BOM, schematic, and PCB on the first screen. PCB is optional.
+
+- [Changed] No extra wizard step for the board.
+
 ## 2.26.1 — 2026-09-11 — Ask for the KiCad board
 
 The create-project wizard has a dedicated PCB step (skip still allowed). Report load errors show the API detail instead of a generic fetch failure.

@@ -352,7 +352,6 @@ function summarizeLcscModel(model: Record<string, unknown>): string {
 
 type WizardStep =
   | "details"
-  | "pcb"
   | "columns"
   | "subdesigns"
   | "lcsc-passives"
@@ -362,7 +361,6 @@ type WizardStep =
 
 const ALL_STEPS: { key: WizardStep; label: string }[] = [
   { key: "details", label: "Project Details" },
-  { key: "pcb", label: "Board (optional)" },
   { key: "columns", label: "BOM Columns" },
   { key: "subdesigns", label: "Sub-designs" },
   { key: "lcsc-passives", label: "Resolving Passive Specs" },
@@ -592,9 +590,6 @@ export function CreateProjectDialog({
   const [netlistFiles, setNetlistFiles] = useState<File[]>([]);
   const netlistFile = netlistFiles[0] ?? null;
   const [pcbFile, setPcbFile] = useState<File | null>(null);
-  const skipPcbStep =
-    Boolean(pcbFile) ||
-    netlistFiles.some((f) => f.name.toLowerCase().endsWith(".zip"));
   const [netlistNetCount, setNetlistNetCount] = useState<number | null>(null);
   const [netlistError, setNetlistError] = useState<string | null>(null);
 
@@ -885,7 +880,6 @@ export function CreateProjectDialog({
       // lcsc-passives drains to zero before the auto-advance effect
       // moves us off the step on the next tick).
       if (s.key === step) return true;
-      if (s.key === "pcb") return !skipPcbStep;
       if (s.key === "subdesigns") return hasSubdesignChoice;
       if (s.key === "lcsc-passives") return hasLcscPassives;
       if (s.key === "datasheets") return hasIcs;
@@ -893,7 +887,7 @@ export function CreateProjectDialog({
       if (s.key === "passives") return hasPassives;
       return true;
     });
-  }, [step, skipPcbStep, hasSubdesignChoice, hasLcscPassives, hasIcs, hasSimple, hasPassives]);
+  }, [step, hasSubdesignChoice, hasLcscPassives, hasIcs, hasSimple, hasPassives]);
 
   const stepIndex = activeSteps.findIndex((s) => s.key === step);
 
@@ -928,9 +922,8 @@ export function CreateProjectDialog({
   }, []);
 
   const handleNetlistChange = useCallback((incoming: File[]) => {
-    const { netlist, pcb, bom } = splitProjectFiles(incoming);
+    const { netlist, pcb } = splitProjectFiles(incoming);
     if (pcb[0]) setPcbFile(pcb[0]);
-    if (bom[0]) handleBomChange([bom[0]]);
     const files = netlist;
     const file = files[0] || null;
     setNetlistFiles(files);
@@ -976,7 +969,7 @@ export function CreateProjectDialog({
         );
       }
     });
-  }, [handleBomChange]);
+  }, []);
 
   const resetAndClose = useCallback(() => {
     setOpen(false);
@@ -1746,7 +1739,6 @@ export function CreateProjectDialog({
 
   const canAdvance = (): boolean => {
     if (step === "details") return !!(name.trim() && bomFile && netlistFile && !netlistError);
-    if (step === "pcb") return true;
     if (step === "columns") return !!(refCol && mpnCol);
     if (step === "subdesigns")
       return !!(selectedSubdesignIds && selectedSubdesignIds.size > 0);
@@ -1787,9 +1779,6 @@ export function CreateProjectDialog({
         const res = await runEarlyNetlistUpload();
         if (!res.ok) return;
       }
-      setStep(skipPcbStep ? "columns" : "pcb");
-    }
-    else if (step === "pcb") {
       setStep("columns");
     }
     else if (step === "columns") {
@@ -1867,8 +1856,7 @@ export function CreateProjectDialog({
 
   const goBack = () => {
     setError(null);
-    if (step === "pcb") setStep("details");
-    else if (step === "columns") setStep(skipPcbStep ? "details" : "pcb");
+    if (step === "columns") setStep("details");
     else if (step === "subdesigns") setStep("columns");
     else if (step === "lcsc-passives") {
       if (hasSubdesignChoice) setStep("subdesigns");
@@ -2046,7 +2034,7 @@ export function CreateProjectDialog({
         </DialogTrigger>
       )}
       <DialogContent
-        className="sm:max-w-2xl"
+        className="sm:max-w-3xl"
         showCloseButton={!creating}
       >
         <DialogHeader>
@@ -2124,7 +2112,7 @@ export function CreateProjectDialog({
                   onKeyDown={(e) => e.key === "Enter" && canAdvance() && goNext()}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <FileUploadZone
                     label="BOM"
@@ -2133,15 +2121,7 @@ export function CreateProjectDialog({
                     onFilesChange={handleBomChange}
                   />
                   <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                    CSV or Excel.{" "}
-                    <a
-                      href="/file-guide#the-bom"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 dark:text-blue-500 hover:underline"
-                    >
-                      How to export →
-                    </a>
+                    .csv or .xlsx
                   </p>
                 </div>
                 <div className="space-y-1.5">
@@ -2159,45 +2139,33 @@ export function CreateProjectDialog({
                     </p>
                   ) : netlistNetCount !== null ? (
                     <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                      {netlistNetCount} nets detected
-                    </p>
-                  ) : netlistFiles.length > 0 ? (
-                    <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                      {pcbFile
-                        ? "Board included."
-                        : netlistFiles.length > 1
-                          ? `${netlistFiles.length} schematic files.`
-                          : "Ready."}
+                      {netlistNetCount} nets
                     </p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground leading-tight px-1">
-                      Drop the KiCad folder, or one netlist.{" "}
-                      <a
-                        href="/file-guide#the-netlist"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 dark:text-blue-500 hover:underline"
-                      >
-                        How to export →
-                      </a>
+                      Netlist or .kicad_sch
                     </p>
                   )}
                 </div>
+                <div className="space-y-1.5">
+                  <FileUploadZone
+                    label="PCB"
+                    accept=".kicad_pcb"
+                    files={pcbFile ? [pcbFile] : []}
+                    onFilesChange={(files) => {
+                      const picked = splitProjectFiles(files).pcb[0] ?? files[0] ?? null;
+                      setPcbFile(
+                        picked?.name.toLowerCase().endsWith(".kicad_pcb")
+                          ? picked
+                          : null,
+                      );
+                    }}
+                  />
+                  <p className="text-[11px] text-muted-foreground leading-tight px-1">
+                    Optional .kicad_pcb
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-
-          {step === "pcb" && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Optional. Skip if you only want schematic review.
-              </p>
-              <FileUploadZone
-                label="KiCad board (.kicad_pcb)"
-                accept=".kicad_pcb"
-                files={pcbFile ? [pcbFile] : []}
-                onFilesChange={(files) => setPcbFile(files[0] ?? null)}
-              />
             </div>
           )}
 
