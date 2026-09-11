@@ -119,10 +119,17 @@ class Settings(BaseSettings):
     # GCS (if set, use GCSStorageBackend; otherwise LocalStorageBackend)
     gcs_bucket: str = ""
 
-    # Clerk authentication
+    # Clerk authentication (cloud). When set, takes priority over local auth.
     clerk_secret_key: str = ""
     clerk_publishable_key: str = ""
     clerk_jwks_url: str = ""
+
+    # Local Pinscope auth (self-host). Set AUTH_JWT_SECRET to enable email/password
+    # accounts and multi-user project collaborators without Clerk.
+    auth_jwt_secret: str = ""
+    # Comma-separated emails that become admin on register (in addition to the
+    # first account, which is always admin).
+    auth_admin_emails: str = ""
 
     # DigiKey API (optional — enables auto-fetch datasheets)
     digikey_client_id: str = ""
@@ -212,8 +219,17 @@ class Settings(BaseSettings):
         return bool(self.gcs_bucket)
 
     @property
-    def use_auth(self) -> bool:
+    def use_clerk(self) -> bool:
         return bool(self.clerk_secret_key and self.clerk_jwks_url)
+
+    @property
+    def use_local_auth(self) -> bool:
+        """Self-host email/password auth when JWT secret is set and Clerk is not."""
+        return bool(self.auth_jwt_secret) and not self.use_clerk
+
+    @property
+    def use_auth(self) -> bool:
+        return self.use_clerk or self.use_local_auth
 
     @property
     def use_email(self) -> bool:

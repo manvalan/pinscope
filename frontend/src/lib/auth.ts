@@ -1,13 +1,19 @@
 /**
  * Open-core auth switch.
  *
- * When NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is unset the app runs in local/OSS
- * mode: no ClerkProvider, pass-through middleware, a stubbed signed-in
- * "local" user (matching the backend's LOCAL_DEV_USER), and all credits /
- * billing UI hidden. Pairs with BILLING_ENABLED=false on the backend —
- * mixed modes (key set but billing off, or the inverse) are unsupported.
+ * - Clerk: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY set (cloud build).
+ * - Local: NEXT_PUBLIC_AUTH_MODE=local (self-host Pinscope accounts).
+ * - Off: neither — signed-in stub user "local", matching backend.
  *
- * NEXT_PUBLIC_* vars are inlined at build time, so this is a build-time
- * constant — changing it requires a rebuild / dev-server restart.
+ * NEXT_PUBLIC_* vars are inlined at build time.
  */
-export const authEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+export const authEnabled = Boolean(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_AUTH_MODE === "local",
+);
+
+export const localAuthEnabled =
+  process.env.NEXT_PUBLIC_AUTH_MODE === "local" &&
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+export const TOKEN_STORAGE_KEY = "pinscope_token";

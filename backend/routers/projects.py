@@ -716,27 +716,17 @@ async def list_collaborators(project_id: str, request: Request):
     all_user_ids = [owner_user_id] + [c for c in meta.collaborators if c != owner_user_id]
     collaborators = []
     if settings.use_auth:
-        async with httpx.AsyncClient() as client:
-            for uid in all_user_ids:
-                entry: dict = {"user_id": uid, "name": None, "email": None, "image_url": None,
-                               "role": "owner" if uid == owner_user_id else "collaborator"}
-                try:
-                    resp = await client.get(
-                        f"https://api.clerk.com/v1/users/{uid}",
-                        headers={"Authorization": f"Bearer {settings.clerk_secret_key}"},
-                    )
-                    if resp.status_code == 200:
-                        clerk = resp.json()
-                        first = clerk.get("first_name") or ""
-                        last = clerk.get("last_name") or ""
-                        entry["name"] = f"{first} {last}".strip() or None
-                        emails = clerk.get("email_addresses", [])
-                        if emails:
-                            entry["email"] = emails[0].get("email_address")
-                        entry["image_url"] = clerk.get("image_url")
-                except Exception:
-                    pass
-                collaborators.append(entry)
+        from backend.services.user_directory import get_user_profile
+
+        for uid in all_user_ids:
+            profile = await get_user_profile(uid)
+            collaborators.append({
+                "user_id": uid,
+                "name": profile.get("name"),
+                "email": profile.get("email"),
+                "image_url": profile.get("image_url"),
+                "role": "owner" if uid == owner_user_id else "collaborator",
+            })
     else:
         # Local dev — just return user_ids without enrichment
         collaborators = [
@@ -762,22 +752,9 @@ async def add_collaborator(project_id: str, req: AddCollaboratorRequest, request
     if not settings.use_auth:
         raise HTTPException(400, "Collaboration requires authentication to be enabled")
 
-    # Look up user by email via Clerk Backend API
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.clerk.com/v1/users",
-            params={"email_address": [req.email]},
-            headers={"Authorization": f"Bearer {settings.clerk_secret_key}"},
-        )
-    if resp.status_code != 200:
-        raise HTTPException(502, "Failed to look up user")
+    from backend.services.user_directory import find_user_id_by_email, get_user_profile
 
-    users = resp.json()
-    if not users:
-        raise HTTPException(404, "No user found with that email")
-
-    clerk_user = users[0]
-    collab_user_id = clerk_user.get("id")
+    collab_user_id = await find_user_id_by_email(req.email)
     if not collab_user_id:
         raise HTTPException(404, "No user found with that email")
 
@@ -791,15 +768,12 @@ async def add_collaborator(project_id: str, req: AddCollaboratorRequest, request
 
     proj_svc.add_collaborator(storage, user_id, project_id, collab_user_id)
 
-    # Return the collaborator info
-    first = clerk_user.get("first_name") or ""
-    last = clerk_user.get("last_name") or ""
-    emails = clerk_user.get("email_addresses", [])
+    profile = await get_user_profile(collab_user_id)
     return {
         "user_id": collab_user_id,
-        "name": f"{first} {last}".strip() or None,
-        "email": emails[0].get("email_address") if emails else None,
-        "image_url": clerk_user.get("image_url"),
+        "name": profile.get("name"),
+        "email": profile.get("email"),
+        "image_url": profile.get("image_url"),
     }
 
 

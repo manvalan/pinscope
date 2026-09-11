@@ -41,6 +41,14 @@ async def is_admin(request: Request) -> bool:
         request.state._is_admin = True
         return True
 
+    if settings.use_local_auth:
+        from backend.services import local_users
+
+        user = local_users.get_user(user_id)
+        result = bool(user and user.is_admin)
+        request.state._is_admin = result
+        return result
+
     # Fetch user from Clerk Backend API and check public_metadata.role
     try:
         async with httpx.AsyncClient() as client:

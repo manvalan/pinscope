@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.27.0 — 2026-09-11 — Local multi-user auth
+
+Self-host Pinscope accounts (email + password) so several people can share a project. Invite collaborators by email from the project page — same flow as cloud, without Clerk.
+
+- [New] `AUTH_JWT_SECRET` enables register/login; first user is admin and inherits `users/local` projects.
+- [New] `/sign-in` and `/sign-up`; sidebar account menu. Set `NEXT_PUBLIC_AUTH_MODE=local` on the frontend build.
+- [Changed] Collaborator lookup works for local users; Clerk still used when its keys are set.
+
 ## 2.26.5 — 2026-09-11 — Prefer PCB nets for connectivity
 
 When a `.kicad_pcb` is present, pad nets from the board drive the design graph. Schematic geometry alone was inventing swapped rails (GND↔3V3) and floating pins on good KiCad 10 designs.

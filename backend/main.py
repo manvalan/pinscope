@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.config import settings
-from backend.routers import admin, contact, feedback, impedance, pipeline, projects, reports, survey
+from backend.routers import admin, auth, contact, feedback, impedance, pipeline, projects, reports, survey
 from backend.services.projects import ProjectNotFound
 from backend.services.storage import LocalStorageBackend
 
@@ -35,14 +35,18 @@ async def lifespan(app: FastAPI):
     env = os.getenv("ENVIRONMENT", "").lower()
     if env == "production" and not settings.use_auth:
         raise RuntimeError(
-            "CLERK_JWKS_URL and CLERK_SECRET_KEY must be set in production. "
-            "Authentication cannot be disabled in production."
+            "Production requires authentication: set AUTH_JWT_SECRET "
+            "(local Pinscope accounts) or CLERK_JWKS_URL + CLERK_SECRET_KEY."
         )
     if not settings.use_auth:
         logger.warning(
             "Authentication is DISABLED — all users have full access. "
             "This is only safe for local development."
         )
+    elif settings.use_local_auth:
+        logger.info("Local Pinscope authentication enabled (AUTH_JWT_SECRET)")
+    elif settings.use_clerk:
+        logger.info("Clerk authentication enabled")
     if not settings.billing_enabled:
         logger.warning(
             "Billing is DISABLED — pipelines run free and the billing/credits "
@@ -55,6 +59,8 @@ async def lifespan(app: FastAPI):
     if isinstance(app.state.storage, LocalStorageBackend):
         base = settings.data_dir
         (base / "users").mkdir(parents=True, exist_ok=True)
+        (base / "auth" / "users").mkdir(parents=True, exist_ok=True)
+        (base / "auth" / "by_email").mkdir(parents=True, exist_ok=True)
         (base / "library" / "extracted").mkdir(parents=True, exist_ok=True)
         (base / "library" / "patterns").mkdir(parents=True, exist_ok=True)
         (base / "library" / "models").mkdir(parents=True, exist_ok=True)
@@ -84,31 +90,37 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    """Extract user_id from Clerk JWT or default to local dev user."""
+    """Extract user_id from JWT (Clerk or local) or default to local dev user."""
 
     async def dispatch(self, request: Request, call_next):
         # Let CORS preflight through — browsers send OPTIONS without credentials
         if request.method == "OPTIONS":
             return await call_next(request)
         # Public endpoints that don't require authentication
-        if request.url.path == "/api/contact":
+        if request.url.path in {
+            "/api/contact",
+            "/api/auth/mode",
+            "/api/auth/register",
+            "/api/auth/login",
+        }:
             request.state.user_id = LOCAL_DEV_USER
             return await call_next(request)
         if settings.use_auth:
-            from backend.middleware.auth import verify_clerk_token
+            from backend.middleware.auth import verify_request_user
 
-            user_id = await verify_clerk_token(request)
+            user_id = await verify_request_user(request)
             if user_id is None:
                 is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
-                if is_production:
+                # Local auth (and production) require a valid token for API routes.
+                if is_production or settings.use_local_auth:
                     from fastapi.responses import JSONResponse
 
                     return JSONResponse(
                         status_code=401,
                         content={"detail": "Authentication required"},
                     )
-                # Non-production: fall back to local dev user so Clerk config
-                # doesn't block local development when no token is present.
+                # Non-production Clerk: fall back so missing token doesn't block
+                # local development when Clerk is configured but unused.
                 user_id = LOCAL_DEV_USER
             request.state.user_id = user_id
         else:
@@ -149,6 +161,7 @@ app.include_router(pipeline.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(impedance.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 if settings.billing_enabled:
     # Import guarded too: with billing disabled the core never loads the
     # billing/credits routers (or, transitively, the Stripe SDK).

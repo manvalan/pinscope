@@ -1,12 +1,7 @@
-"""Clerk JWT verification for FastAPI.
-
-Validates JWT tokens from the Authorization header against Clerk's JWKS endpoint.
-Extracts user_id (sub claim) for per-user storage scoping.
-"""
+"""JWT verification for FastAPI (Clerk JWKS or local Pinscope HS256)."""
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 import jwt
@@ -16,7 +11,17 @@ from backend.config import settings
 
 # JWKS cache
 _jwks_client: jwt.PyJWKClient | None = None
-_SKIP_PATHS = {"/docs", "/openapi.json", "/redoc", "/health", "/api/billing/webhook"}
+_SKIP_PATHS = {
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/health",
+    "/api/billing/webhook",
+    "/api/auth/mode",
+    "/api/auth/register",
+    "/api/auth/login",
+    "/api/contact",
+}
 
 
 def _get_jwks_client() -> jwt.PyJWKClient:
@@ -24,38 +29,30 @@ def _get_jwks_client() -> jwt.PyJWKClient:
     if _jwks_client is None:
         jwks_url = settings.clerk_jwks_url
         if not jwks_url:
-            # Default Clerk JWKS URL derived from publishable key
-            # Clerk publishable keys start with pk_test_ or pk_live_
-            # JWKS is at https://{clerk-frontend-api}/.well-known/jwks.json
-            # The user must set CLERK_JWKS_URL explicitly
             raise RuntimeError(
-                "CLERK_JWKS_URL must be set for authentication. "
+                "CLERK_JWKS_URL must be set for Clerk authentication. "
                 "Find it in your Clerk dashboard under API Keys."
             )
         _jwks_client = jwt.PyJWKClient(jwks_url, cache_keys=True)
     return _jwks_client
 
 
-async def verify_clerk_token(request: Request) -> str | None:
-    """Verify Clerk JWT and return user_id, or None if invalid.
+def _bearer_or_query_token(request: Request) -> str | None:
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    # EventSource/SSE can't send headers
+    return request.query_params.get("token")
 
-    Returns None for:
-    - Missing Authorization header
-    - Invalid/expired token
-    - Skip paths (docs, health)
-    """
-    # Skip auth for docs/health endpoints
+
+async def verify_clerk_token(request: Request) -> str | None:
+    """Verify Clerk JWT and return user_id, or None if invalid."""
     if request.url.path in _SKIP_PATHS:
         return "anonymous"
 
-    auth_header = request.headers.get("authorization", "")
-    if not auth_header.startswith("Bearer "):
-        # Fallback: check query param (EventSource/SSE can't send headers)
-        token = request.query_params.get("token")
-        if not token:
-            return None
-    else:
-        token = auth_header[7:]
+    token = _bearer_or_query_token(request)
+    if not token:
+        return None
 
     try:
         client = _get_jwks_client()
@@ -67,19 +64,20 @@ async def verify_clerk_token(request: Request) -> str | None:
             algorithms=["RS256"],
             options={
                 "verify_exp": True,
-                "verify_aud": False,  # Clerk doesn't always set aud
+                "verify_aud": False,
                 "verify_iss": True,
             },
-            # Clerk tokens use the Clerk instance URL as issuer
-            # e.g. https://abc123.clerk.accounts.dev from https://abc123.clerk.accounts.dev/.well-known/jwks.json
-            issuer=settings.clerk_jwks_url.replace("/.well-known/jwks.json", "") if settings.clerk_jwks_url else None,
-            leeway=10,  # 10 second clock skew tolerance
+            issuer=(
+                settings.clerk_jwks_url.replace("/.well-known/jwks.json", "")
+                if settings.clerk_jwks_url
+                else None
+            ),
+            leeway=10,
         )
 
         user_id = payload.get("sub")
         if not user_id:
             return None
-
         return user_id
 
     except jwt.ExpiredSignatureError:
@@ -88,3 +86,30 @@ async def verify_clerk_token(request: Request) -> str | None:
         return None
     except Exception:
         return None
+
+
+async def verify_local_token(request: Request) -> str | None:
+    """Verify Pinscope local JWT and return user_id, or None if invalid."""
+    if request.url.path in _SKIP_PATHS:
+        return "anonymous"
+
+    token = _bearer_or_query_token(request)
+    if not token:
+        return None
+
+    from backend.services.local_jwt import decode_token
+
+    payload = decode_token(token)
+    if not payload:
+        return None
+    user_id = payload.get("sub")
+    return str(user_id) if user_id else None
+
+
+async def verify_request_user(request: Request) -> str | None:
+    """Dispatch to Clerk or local JWT verification."""
+    if settings.use_clerk:
+        return await verify_clerk_token(request)
+    if settings.use_local_auth:
+        return await verify_local_token(request)
+    return None
