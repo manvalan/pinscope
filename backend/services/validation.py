@@ -63,6 +63,8 @@ from backend.pinscopex.errata_check import check_errata
 from backend.pinscopex.internal_features_check import check_internal_features
 from backend.pinscopex.placement_check import check_placement
 from backend.pinscopex.si_check import check_si
+from backend.pinscopex.crystal_cl_check import check_crystal_cl
+from backend.pinscopex.nc_pin_check import check_nc_pins
 
 TRACE_VERSION = 1
 
@@ -100,6 +102,8 @@ def _run_deterministic_checks(
         ("internal_features_check", lambda: check_internal_features(graph, constraints_map)),
         ("placement_check", lambda: check_placement(graph, constraints_map, layout)),
         ("si_check", lambda: check_si(graph, constraints_map, layout)),
+        ("crystal_cl_check", lambda: check_crystal_cl(graph)),
+        ("nc_pin_check", lambda: check_nc_pins(graph, constraints_map)),
     ):
         try:
             out.extend(fn())

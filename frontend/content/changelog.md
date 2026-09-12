@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.0 — 2026-09-12 — Layout F1 topology + crystal/NC checks
+
+Routing-first floorplan foundation without inventing millimetres: domains and satellite role hints after graph build, plus deterministic crystal CL and NC-pin checks.
+
+- [New] `functional_groups.json` from `graph_build` (domains, IC groups, `role_hint`, attached `layout_rules`).
+- [New] `crystal_cl_check` (PS-XTAL-*) and `nc_pin_check` (PS-NC-001) in the deterministic suite.
+- [Docs] Piano §0c Placement F1/F2; packing mm stays Layout F2.
+
 ## 2.27.1 — 2026-09-12 — DeepSeek roadmap integrations
 
 Close the open P0/P2 items from the growth plan: offline smoke on `simple_project`, reviewer `shortest_path`, library promotion gate, PDF drop logging, per-stage cache hit-rate helper. IC placement stays Layout-product backlog.

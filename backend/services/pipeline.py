@@ -1538,6 +1538,24 @@ def _write_layout_graph(ws: PipelineWorkspace, project_id: str) -> None:
         logger.exception("kicad_pcb parse failed — continuing without layout")
 
 
+def _write_functional_groups(ws: PipelineWorkspace, graph) -> None:
+    """Layout F1: topology domains/groups (no mm). Fail-soft."""
+    try:
+        from backend.pinscopex.functional_groups import build_functional_groups
+        from backend.pinscopex.validate import _build_constraints_map, _load_datasheets
+
+        extracted_dir = ws.local_path("extracted")
+        cmap = {}
+        if extracted_dir.is_dir():
+            cmap = _build_constraints_map(_load_datasheets(extracted_dir))
+        report = build_functional_groups(graph, cmap)
+        out = ws.local_path("functional_groups.json")
+        out.write_text(report.model_dump_json(indent=2) + "\n")
+        ws._upload_file("functional_groups.json")
+    except Exception:
+        logger.exception("functional_groups.json write failed — continuing")
+
+
 def _write_impedance_nets(ws: PipelineWorkspace, graph) -> None:
     """ImpedenceFinder Z0 on routed signal nets. Skip without PCB stackup."""
     path = ws.local_path("layout_graph.json")
@@ -1592,6 +1610,7 @@ async def _stage_graph_build(ctx: PipelineContext) -> None:
     graph_path.write_text(ctx.graph.model_dump_json(indent=2) + "\n")
     _write_layout_graph(ctx.ws, ctx.project_id)
     _write_impedance_nets(ctx.ws, ctx.graph)
+    _write_functional_groups(ctx.ws, ctx.graph)
 
     broker.publish(ctx.project_id, "step_update",
                    {"stage": "graph_build", "status": "complete",
@@ -2158,6 +2177,7 @@ async def run_regen_pipeline(
             graph_path.write_text(graph.model_dump_json(indent=2) + "\n")
             _write_layout_graph(ws, project_id)
             _write_impedance_nets(ws, graph)
+            _write_functional_groups(ws, graph)
 
             broker.publish(project_id, "step_update",
                            {"stage": "graph_build", "status": "complete",

@@ -20,11 +20,29 @@ Fonte originale: canvas *Pinscope: crescita e DeepSeek*. Qui lo stato operativo.
 | P1 | Thinking vs tools | Partial — review auto fino ultimo turno |
 | P2 | Eval, fingerprint, KiCad GA, PCB nets | **Done** |
 | P2 | `shortest_path` tool + library write gate | **Done** |
-| P2 | Crystal CL / abs-max numerici | Todo |
+| P2 | Crystal CL + NC pin | **Done** — check deterministici (numeri solo se presenti) |
 | P3 | Plugin CI / chat report | Todo |
-| Layout | Placement IC (mm) | **Dopo** — prodotto Layout, non questo sprint |
+| Layout F1 | Domini / gruppi / satelliti | **Done** — `functional_groups.json` (no mm) |
+| Layout F2 | Placement IC packing mm | **Dopo** — gated `.kicad_pcb` + `layout_rules` numerici |
 
-**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; 1–2 check crystal/NC nuovi.
+**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; pipeline Placement parallela (API dedicata).
+
+---
+
+## 0c. Placement / floorplan (routing-first)
+
+Obiettivo unico: **routing migliore** (loop corti, meno crossing, canali liberi) — non bellezza dei footprint.
+
+| Step | Cosa | Artefatto / stato |
+| --- | --- | --- |
+| 1 | Chip chiave (`ComponentType.IC`, rank per subtype) | F1 |
+| 2 | Domini = isole sulle **power nets** (non geometria) | F1 |
+| 3 | Gruppi minori: decoupling, bulk, load_cap, filter, pullup, … | F1 `role_hint` |
+| 4 | `layout_rules` già estratti sull’IC (nessun mm inventato) | F1 attach |
+| 5 | `assemble_order` dominio → chip → gruppi (contratto packer) | F1 metadato |
+| 6 | Packing mm / zone PCB / export | **F2** |
+
+Output F1: `functional_groups.json` scritto in `graph_build`. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
 
 ---
 
