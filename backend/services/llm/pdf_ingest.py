@@ -133,6 +133,16 @@ def render_pdf_page_jpegs(
         return []
 
     try:
+        total = len(doc)
+        omitted = [i + 1 for i in range(total) if i not in set(page_indices)]
+        if omitted:
+            log.info(
+                "PDF page images: %s rendering %d/%d pages; omitted e.g. %s",
+                pdf_path.name,
+                min(len(page_indices), max_pages),
+                total,
+                omitted[:12],
+            )
         matrix = fitz.Matrix(zoom, zoom)
         for i in page_indices:
             if i < 0 or i >= len(doc):

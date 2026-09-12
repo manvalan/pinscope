@@ -256,6 +256,104 @@ def get_net_for_pin(
     return f"Pin {pin}{pin_name} on {designator} -> {net_name} [{net.net_type.value}{voltage_str}]"
 
 
+def shortest_path(
+    graph: DesignGraph,
+    constraints_map: ConstraintsMap,
+    designator_a: str,
+    pin_a: str,
+    designator_b: str,
+    pin_b: str,
+    *,
+    max_hops: int = 12,
+) -> str:
+    """BFS through the bipartite graph from A.pin to B.pin.
+
+    Hops alternate component→net→component. Returns the hop list or a
+    clear miss message. Caps depth so the reviewer cannot explode memory
+    on dense power nets.
+    """
+    a = graph.components.get(designator_a)
+    b = graph.components.get(designator_b)
+    if not a:
+        return f"Component '{designator_a}' not found."
+    if not b:
+        return f"Component '{designator_b}' not found."
+
+    net_a = a.pins.get(str(pin_a))
+    net_b = b.pins.get(str(pin_b))
+    if not net_a:
+        return f"Pin {pin_a} on {designator_a} is not connected in the netlist."
+    if not net_b:
+        return f"Pin {pin_b} on {designator_b} is not connected in the netlist."
+
+    if designator_a == designator_b and str(pin_a) == str(pin_b):
+        return f"Same endpoint: {designator_a}.{pin_a} on {net_a}."
+
+    if net_a == net_b:
+        return (
+            f"Direct (same net): {designator_a}.{pin_a} —[{net_a}]— "
+            f"{designator_b}.{pin_b}"
+        )
+
+    # BFS on component nodes; edges are nets shared between components.
+    from collections import deque
+
+    start = designator_a
+    goal = designator_b
+    queue: deque[str] = deque([start])
+    # prev[ref] = (previous_ref, via_net)
+    prev: dict[str, tuple[str, str] | None] = {start: None}
+    hops = 0
+    found = False
+    while queue and hops < max_hops:
+        hops += 1
+        for _ in range(len(queue)):
+            cur = queue.popleft()
+            for net_name, others in graph.neighbors(cur).items():
+                for other in others:
+                    if other in prev:
+                        continue
+                    prev[other] = (cur, net_name)
+                    if other == goal:
+                        found = True
+                        queue.clear()
+                        break
+                    queue.append(other)
+                if found:
+                    break
+            if found:
+                break
+
+    if not found or goal not in prev:
+        return (
+            f"No path within {max_hops} hops from "
+            f"{designator_a}.{pin_a} ({net_a}) to "
+            f"{designator_b}.{pin_b} ({net_b})."
+        )
+
+    # Reconstruct component chain, then decorate endpoints with pins.
+    chain_refs: list[str] = []
+    via_nets: list[str] = []
+    node = goal
+    while node != start:
+        chain_refs.append(node)
+        parent, via = prev[node]  # type: ignore[misc]
+        via_nets.append(via)
+        node = parent
+    chain_refs.append(start)
+    chain_refs.reverse()
+    via_nets.reverse()
+
+    parts: list[str] = [f"{designator_a}.{pin_a}"]
+    for i, via in enumerate(via_nets):
+        nxt = chain_refs[i + 1]
+        if nxt == designator_b:
+            parts.append(f"—[{via}]— {designator_b}.{pin_b}")
+        else:
+            parts.append(f"—[{via}]— {nxt}")
+    return f"Path ({len(via_nets)} hop(s)): " + " ".join(parts)
+
+
 def get_pintable(
     graph: DesignGraph,
     constraints_map: ConstraintsMap,
@@ -590,6 +688,38 @@ GET_NET_FOR_PIN_SCHEMA = {
     },
 }
 
+SHORTEST_PATH_SCHEMA = {
+    "name": "shortest_path",
+    "description": (
+        "Find the shortest hop path through the netlist between two pins "
+        "(component.pin → nets → components). Use to verify whether two "
+        "pins share a rail path, or how a signal reaches another IC, "
+        "instead of guessing from neighborhood context."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "designator_a": {
+                "type": "string",
+                "description": "Start component reference, e.g. 'U1'",
+            },
+            "pin_a": {
+                "type": "string",
+                "description": "Start pin number, e.g. '12'",
+            },
+            "designator_b": {
+                "type": "string",
+                "description": "End component reference, e.g. 'U3'",
+            },
+            "pin_b": {
+                "type": "string",
+                "description": "End pin number, e.g. '5'",
+            },
+        },
+        "required": ["designator_a", "pin_a", "designator_b", "pin_b"],
+    },
+}
+
 GET_PINTABLE_SCHEMA = {
     "name": "get_pintable",
     "description": (
@@ -727,6 +857,7 @@ GET_DATASHEET_EXCERPT_SCHEMA = {
 GRAPH_TOOLS = [
     FIND_CONNECTED_COMPONENTS_SCHEMA,
     GET_NET_FOR_PIN_SCHEMA,
+    SHORTEST_PATH_SCHEMA,
     GET_PINTABLE_SCHEMA,
     GET_DATASHEET_EXCERPT_SCHEMA,
 ]
@@ -767,6 +898,17 @@ def execute_tool(
                 graph, constraints_map,
                 tool_input["designator"],
                 tool_input["pin"],
+            ),
+            None,
+        )
+    if tool_name == "shortest_path":
+        return (
+            shortest_path(
+                graph, constraints_map,
+                tool_input["designator_a"],
+                tool_input["pin_a"],
+                tool_input["designator_b"],
+                tool_input["pin_b"],
             ),
             None,
         )

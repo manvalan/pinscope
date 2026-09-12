@@ -104,3 +104,27 @@ class ApiLogger:
 
         key = f"{project_prefix(user_id, project_id)}/api_logs.jsonl"
         storage.write_text(key, text)
+
+
+def cache_stats_by_stage(entries: list[dict]) -> dict[str, dict]:
+    """Roll up prompt-cache hit rate per pipeline stage.
+
+    Returns ``{stage: {calls, input_tokens, cache_read_tokens, hit_ratio}}``.
+    ``hit_ratio`` is cache_read / input when input > 0, else 0.
+    """
+    out: dict[str, dict] = {}
+    for e in entries:
+        stage = str(e.get("stage") or "unknown")
+        bucket = out.setdefault(
+            stage,
+            {"calls": 0, "input_tokens": 0, "cache_read_tokens": 0, "hit_ratio": 0.0},
+        )
+        bucket["calls"] += 1
+        bucket["input_tokens"] += int(e.get("input_tokens") or 0)
+        bucket["cache_read_tokens"] += int(e.get("cache_read_input_tokens") or 0)
+    for bucket in out.values():
+        inp = bucket["input_tokens"]
+        bucket["hit_ratio"] = (
+            round(bucket["cache_read_tokens"] / inp, 4) if inp else 0.0
+        )
+    return out

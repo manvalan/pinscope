@@ -2,6 +2,15 @@
 
 What's new in Pinscope.
 
+## 2.27.1 — 2026-09-12 — DeepSeek roadmap integrations
+
+Close the open P0/P2 items from the growth plan: offline smoke on `simple_project`, reviewer `shortest_path`, library promotion gate, PDF drop logging, per-stage cache hit-rate helper. IC placement stays Layout-product backlog.
+
+- [New] `scripts/smoke_simple_project.py` + `simple_project/smoke_baseline.json`.
+- [New] Graph tool `shortest_path`; `library_gate` before shared extracted/.
+- [New] `cache_stats_by_stage()`; PDF truncate/omit page logs.
+- [Test] `tests/test_roadmap_integrations.py`.
+
 ## 2.27.0 — 2026-09-11 — Local multi-user auth
 
 Self-host Pinscope accounts (email + password) so several people can share a project. Invite collaborators by email from the project page — same flow as cloud, without Clerk.

@@ -839,10 +839,30 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
                     api_logger=private,
                 )
 
-                # Upload to storage, then copy to library
+                # Upload to storage, then copy to library only if pintable is usable
                 extracted_key = f"{ctx.ws.prefix}/extracted/{safe}.json"
                 ctx.storage.upload_from_local(json_path, extracted_key)
-                proj_svc.save_to_library(ctx.storage, extracted_key, "extracted", f"{safe}.json")
+                try:
+                    from backend.pinscopex.library_gate import should_promote_extraction
+
+                    payload = json.loads(json_path.read_text(encoding="utf-8"))
+                    ok, reason = should_promote_extraction(payload)
+                    if ok:
+                        proj_svc.save_to_library(
+                            ctx.storage, extracted_key, "extracted", f"{safe}.json",
+                        )
+                    else:
+                        logger.warning(
+                            "Skipping library promote for %s: %s (kept project-local)",
+                            mpn, reason,
+                        )
+                except Exception:
+                    logger.exception(
+                        "Library gate failed for %s — promoting anyway", mpn,
+                    )
+                    proj_svc.save_to_library(
+                        ctx.storage, extracted_key, "extracted", f"{safe}.json",
+                    )
 
                 # Upload source datasheet PDF to library (content-addressed)
                 store_datasheet(ctx.storage, pdf_path, mpn)

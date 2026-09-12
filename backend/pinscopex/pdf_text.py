@@ -35,6 +35,12 @@ def extract_pdf_document_text(pdf_path: Path | str, *, max_chars: int) -> str:
         parts.append(f"--- page {i} ---\n{body}")
     blob = "\n\n".join(parts)
     if len(blob) > max_chars:
+        # Count how many page markers survive the cut for observability.
+        kept = blob[:max_chars].count("--- page ")
+        log.info(
+            "PDF text truncated: %s full=%d chars cap=%d kept_pages≈%d/%d",
+            path.name, len(blob), max_chars, kept, n,
+        )
         blob = blob[:max_chars] + "\n\n[truncated: remaining pages omitted]"
     return blob
 

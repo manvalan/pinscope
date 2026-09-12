@@ -4,7 +4,27 @@ Documento di lavoro **prima dello sviluppo**. La lista dell’utente è il minim
 
 **Questo piano copre due prodotti.** Pinscope originale resta il primo. Layout/plugin/placement mm sono il secondo. Non mescolare i changelog né vendere il secondo come “un po’ di Pinscope in più”.
 
-Stato del codice di riferimento: branch `cursor/deepseek-71c5` (post DeepSeek V4.1, costi USD, replace BOM/netlist, parser KiCad, fingerprint review).
+Stato del codice di riferimento: branch `cursor/deepseek-71c5` (post DeepSeek V4.1, costi USD, replace BOM/netlist, parser KiCad, fingerprint review, auth multi-utente, PCB pad nets).
+
+---
+
+## 0b. Roadmap DeepSeek / crescita (integrata)
+
+Fonte originale: canvas *Pinscope: crescita e DeepSeek*. Qui lo stato operativo.
+
+| Fase | Voce | Stato |
+| --- | --- | --- |
+| P0 | `deepseek-flash`, vision, pricing USD, effort | **Done** |
+| P0-5 | Smoke `simple_project` | **Done** offline — `scripts/smoke_simple_project.py` (+ `--live`) |
+| P1 | PDF drop log + cache hit-rate/stage | **Done** (parziale: cap ancora 500k; no off-peak/web_search) |
+| P1 | Thinking vs tools | Partial — review auto fino ultimo turno |
+| P2 | Eval, fingerprint, KiCad GA, PCB nets | **Done** |
+| P2 | `shortest_path` tool + library write gate | **Done** |
+| P2 | Crystal CL / abs-max numerici | Todo |
+| P3 | Plugin CI / chat report | Todo |
+| Layout | Placement IC (mm) | **Dopo** — prodotto Layout, non questo sprint |
+
+**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; 1–2 check crystal/NC nuovi.
 
 ---
 
