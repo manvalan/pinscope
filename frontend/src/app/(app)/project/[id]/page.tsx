@@ -16,6 +16,7 @@ import {
   removeCollaborator,
   makeCollaboratorOwner,
   startPipeline,
+  startPlacementPipeline,
   reprocessPipeline,
   resumePipeline,
   fetchPipelineEstimate,
@@ -38,6 +39,7 @@ import {
   Copy,
   Check,
   Upload,
+  LayoutGrid,
 } from "lucide-react";
 import { useOptionalUser } from "@/hooks/use-optional-auth";
 import { ImpedancePanel } from "@/components/project/impedance-panel";
@@ -106,9 +108,20 @@ export default function ProjectDetailPage({
     }
   }, [project?.status, id, router]);
 
+  // Placement progress page when placement is active
+  useEffect(() => {
+    if (
+      project?.placementStatus === "running" ||
+      project?.placementStatus === "queued"
+    ) {
+      router.replace(`/project/${id}/placement`);
+    }
+  }, [project?.placementStatus, id, router]);
+
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") ?? "bom";
   const [starting, setStarting] = useState(false);
+  const [startingPlacement, setStartingPlacement] = useState(false);
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
   const [rerunProject, setRerunProject] = useState<Project | null>(null);
 
@@ -180,6 +193,26 @@ export default function ProjectDetailPage({
     } catch (e) {
       setStarting(false);
       alert(e instanceof Error ? e.message : "Failed to reprocess");
+    }
+  };
+
+  const analysisBusy =
+    project?.status === "running" || project?.status === "queued";
+  const placementBusy =
+    project?.placementStatus === "running" ||
+    project?.placementStatus === "queued";
+  const canStartPlacement =
+    Boolean(canRun) && !analysisBusy && !placementBusy;
+
+  const handlePlacement = async () => {
+    if (!canStartPlacement) return;
+    setStartingPlacement(true);
+    try {
+      await startPlacementPipeline(id);
+      router.push(`/project/${id}/placement`);
+    } catch (e) {
+      setStartingPlacement(false);
+      alert(e instanceof Error ? e.message : "Failed to start placement");
     }
   };
 
@@ -271,6 +304,26 @@ export default function ProjectDetailPage({
                     <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
                 </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!canStartPlacement || startingPlacement}
+                  onClick={handlePlacement}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  {startingPlacement
+                    ? "Starting…"
+                    : project.placementStatus === "complete"
+                      ? "Rebuild placement"
+                      : "Build placement plan"}
+                </Button>
+                {project.placementStatus === "complete" && (
+                  <Link href={`/project/${id}/placement`}>
+                    <Button size="sm" variant="ghost">
+                      View placement
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           ) : isPaused ? (
@@ -305,6 +358,19 @@ export default function ProjectDetailPage({
                     {starting ? "Starting..." : "Run Pipeline"}
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!canStartPlacement || startingPlacement}
+                  onClick={handlePlacement}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  {startingPlacement
+                    ? "Starting…"
+                    : project.placementStatus === "complete"
+                      ? "Rebuild placement"
+                      : "Build placement plan"}
+                </Button>
                 {!canRun && (
                   <span className="text-xs text-muted-foreground">
                     Upload BOM and netlist to enable

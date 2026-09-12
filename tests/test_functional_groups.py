@@ -56,3 +56,11 @@ def test_domains_cover_all_ics():
     covered = {r for d in report.domains for r in d.ic_refs}
     assert covered == {"U1", "U2", "U3"}
     assert all(d.assemble_order for d in report.domains)
+
+
+def test_build_placement_plan_alias():
+    from backend.pinscopex.functional_groups import build_placement_plan
+    report = build_placement_plan(_graph())
+    assert report.objective == "routing"
+    assert {g.ref for g in report.groups} >= {"U1", "U2", "U3"}
+

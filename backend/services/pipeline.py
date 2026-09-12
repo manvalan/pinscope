@@ -259,6 +259,8 @@ class PipelineWorkspace:
             self._upload_file("design_graph.json")
             self._upload_file("layout_graph.json")
             self._upload_file("impedance_nets.json")
+            self._upload_file("functional_groups.json")
+            self._upload_file("placement_plan.json")
             self._upload_file("bom_summary.json")
             self._upload_file("derating.json")
             self._upload_file("report.json")

@@ -46,6 +46,9 @@ TERMINAL_EVENTS = frozenset({
     "pipeline_error",
     "pipeline_cancelled",
     "pipeline_paused",
+    "placement_complete",
+    "placement_error",
+    "placement_cancelled",
 })
 
 
@@ -131,19 +134,19 @@ async def tail_events(
     *,
     poll_interval: float = 0.5,
     heartbeat_interval: float = 15.0,
+    terminal_events: frozenset[str] | None = None,
 ) -> AsyncIterator[dict]:
     """Yield events from the GCS-backed event log in order.
 
-    Stops yielding after a terminal event (``pipeline_complete``,
-    ``pipeline_error``, ``pipeline_cancelled``). Emits a
-    ``{"event": "heartbeat", "data": {}}`` synthetic event roughly every
-    ``heartbeat_interval`` seconds when no real events arrive, matching
-    the behaviour of the in-memory broker's SSE loop.
+    Stops yielding after a terminal event (default ``TERMINAL_EVENTS``).
+    Emits a ``{"event": "heartbeat", "data": {}}`` synthetic event roughly
+    every ``heartbeat_interval`` seconds when no real events arrive.
 
     The caller is expected to handle disconnects/cancellations and
     secondary terminal-detection (``meta.status``, Cloud Run execution
     state) on top of this iterator.
     """
+    stop_on = terminal_events if terminal_events is not None else TERMINAL_EVENTS
     prefix = _events_prefix(user_id, project_id)
     last_seen_key: str | None = None
     last_emit_ts = 0.0
@@ -166,7 +169,7 @@ async def tail_events(
             emitted_any = True
             last_seen_key = key
             last_emit_ts = asyncio.get_event_loop().time()
-            if msg.get("event") in TERMINAL_EVENTS:
+            if msg.get("event") in stop_on:
                 return
 
         now = asyncio.get_event_loop().time()

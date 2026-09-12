@@ -101,8 +101,11 @@ async def _run() -> None:
         await pipeline_svc.run_regen_pipeline(
             storage, user_id, project_id, stages,
         )
+    elif mode == "placement":
+        from backend.services import placement_pipeline as placement_svc
+        await placement_svc.run_placement_pipeline(storage, user_id, project_id)
     else:
-        raise SystemExit(f"unknown MODE={mode!r}; expected 'run' or 'regen'")
+        raise SystemExit(f"unknown MODE={mode!r}; expected 'run', 'regen', or 'placement'")
 
 
 def main() -> None:

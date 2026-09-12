@@ -280,6 +280,9 @@ export interface Project {
   // null means "include every sub-design found in the file" — the default
   // for single-sub-design EDIFs and all PADS netlists.
   netlistSubdesigns?: string[] | null;
+  // Placement pipeline (parallel to analysis — topology only).
+  placementStatus?: "draft" | "queued" | "running" | "complete" | "error" | "cancelled";
+  placementState?: Record<string, unknown> | null;
 }
 
 // One entry per EDIF sub-design (`&NNNN` ID prefix). Returned by the upload

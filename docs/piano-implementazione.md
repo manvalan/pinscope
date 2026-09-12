@@ -23,9 +23,10 @@ Fonte originale: canvas *Pinscope: crescita e DeepSeek*. Qui lo stato operativo.
 | P2 | Crystal CL + NC pin | **Done** — check deterministici (numeri solo se presenti) |
 | P3 | Plugin CI / chat report | Todo |
 | Layout F1 | Domini / gruppi / satelliti | **Done** — `functional_groups.json` (no mm) |
+| Layout F1b | Pipeline Placement parallela | **Done** — API/UI `placement_*`, `placement_plan.json` |
 | Layout F2 | Placement IC packing mm | **Dopo** — gated `.kicad_pcb` + `layout_rules` numerici |
 
-**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; pipeline Placement parallela (API dedicata).
+**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; packing mm (F2) gated.
 
 ---
 
@@ -42,7 +43,7 @@ Obiettivo unico: **routing migliore** (loop corti, meno crossing, canali liberi)
 | 5 | `assemble_order` dominio → chip → gruppi (contratto packer) | F1 metadato |
 | 6 | Packing mm / zone PCB / export | **F2** |
 
-Output F1: `functional_groups.json` scritto in `graph_build`. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
+Output F1: `functional_groups.json` scritto in `graph_build`. Pipeline parallela Placement (`POST …/placement/start`) riscrive anche `placement_plan.json` senza toccare lo `status` di analisi. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
 
 ---
 

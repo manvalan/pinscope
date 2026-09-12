@@ -492,7 +492,202 @@ async def status(project_id: str, request: Request):
         "summary": meta.summary,
         "pipeline_state": meta.pipeline_state,
         "running": meta.status in (proj_svc.STATUS_RUNNING, proj_svc.STATUS_QUEUED),
+        "placement_status": meta.placement_status,
+        "placement_state": meta.placement_state,
+        "placement_running": (meta.placement_status or "draft") in ("queued", "running"),
     }
+
+
+# ---------------------------------------------------------------------------
+# Placement pipeline (parallel — topology only, no LLM / no credits)
+# ---------------------------------------------------------------------------
+
+
+_PLACEMENT_START_OK = frozenset({"draft", "complete", "error", "cancelled"})
+_PLACEMENT_SSE_TERMINAL = frozenset({
+    "placement_complete",
+    "placement_error",
+    "placement_cancelled",
+})
+
+
+@router.post("/pipeline/{project_id}/placement/start", status_code=202)
+async def start_placement(project_id: str, request: Request):
+    """Enqueue the Placement topology pipeline (free, no analysis status change)."""
+    from backend.services.placement_pipeline import analysis_busy, placement_busy
+
+    storage = get_storage(request)
+    owner_user_id, meta = await resolve_or_404(request, project_id)
+    if not meta.has_bom or not meta.has_netlist:
+        raise HTTPException(400, "Upload BOM and netlist before starting placement")
+    if analysis_busy(meta):
+        raise HTTPException(409, "Analysis pipeline is running; wait or cancel it first")
+    if placement_busy(meta):
+        raise HTTPException(409, "Placement pipeline already running or queued")
+    if (meta.placement_status or "draft") not in _PLACEMENT_START_OK:
+        raise HTTPException(
+            409,
+            f"Cannot start placement from placement_status={meta.placement_status}",
+        )
+
+    proj_svc.update_project(
+        storage, owner_user_id, project_id,
+        placement_status="queued",
+        placement_cancel_requested=False,
+        placement_state=None,
+        placement_execution_name=None,
+    )
+    # Clear before enqueue so the placement SSE client never stops on a
+    # leftover analysis ``pipeline_complete`` in the shared event log.
+    try:
+        event_bridge.GCSEventBroker(storage, owner_user_id).clear_history(project_id)
+    except Exception:
+        logger.exception("failed to clear events before placement start for %s", project_id)
+
+    try:
+        execution_name = job_runner.enqueue_placement_pipeline(
+            project_id, owner_user_id,
+        )
+    except Exception:
+        logger.exception("enqueue_placement_pipeline failed for %s", project_id)
+        proj_svc.update_project(
+            storage, owner_user_id, project_id,
+            placement_status="error",
+            placement_state={"error": "Failed to enqueue placement worker"},
+        )
+        raise HTTPException(503, "Failed to enqueue placement worker; please retry")
+
+    proj_svc.update_project(
+        storage, owner_user_id, project_id,
+        placement_execution_name=execution_name,
+    )
+    return {"status": "started", "project_id": project_id}
+
+
+@router.post("/pipeline/{project_id}/placement/cancel")
+async def cancel_placement(project_id: str, request: Request):
+    """Soft-cancel the Placement pipeline via ``placement_cancel_requested``."""
+    from backend.services.placement_pipeline import placement_busy
+
+    storage = get_storage(request)
+    owner_user_id, meta = await resolve_or_404(request, project_id)
+    if not placement_busy(meta):
+        raise HTTPException(
+            409,
+            f"Placement is not running (placement_status={meta.placement_status})",
+        )
+    proj_svc.update_project(
+        storage, owner_user_id, project_id,
+        placement_cancel_requested=True,
+    )
+    return {"status": "cancel_requested", "project_id": project_id}
+
+
+@router.get("/pipeline/{project_id}/placement/plan")
+async def get_placement_plan(project_id: str, request: Request):
+    """Return ``placement_plan.json`` (F1 topology — no coordinates)."""
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    key = f"{proj_svc.project_prefix(owner_user_id, project_id)}/placement_plan.json"
+    if not storage.exists(key):
+        # Fallback for plans written only as functional_groups during analysis.
+        key = f"{proj_svc.project_prefix(owner_user_id, project_id)}/functional_groups.json"
+    if not storage.exists(key):
+        raise HTTPException(404, "Placement plan not found — run placement first")
+    return storage.read_json(key)
+
+
+@router.get("/pipeline/{project_id}/placement/events")
+async def placement_events(project_id: str, request: Request):
+    """SSE stream for Placement pipeline progress (watches placement_* only)."""
+    owner_user_id, meta = await resolve_or_404(request, project_id)
+    storage = get_storage(request)
+
+    async def event_generator():
+        execution_name = meta.placement_execution_name
+        crash_detected: dict[str, str | None] = {"reason": None}
+
+        async def watch_status() -> None:
+            poll_interval = 2.0
+            saw_active = (meta.placement_status or "draft") in ("queued", "running")
+            while True:
+                await asyncio.sleep(poll_interval)
+                try:
+                    cur = proj_svc.get_project(storage, owner_user_id, project_id)
+                except Exception:
+                    continue
+                if cur is None:
+                    continue
+                pst = cur.placement_status or "draft"
+                if pst in ("queued", "running"):
+                    saw_active = True
+                elif saw_active and pst in ("complete", "error", "cancelled"):
+                    # Worker wrote terminal status; if SSE missed the event,
+                    # surface a synthetic terminal after a short grace.
+                    crash_detected["reason"] = f"placement_status={pst} (terminal)"
+                    return
+                if execution_name:
+                    try:
+                        state = job_runner.get_execution_state(execution_name)
+                    except Exception:
+                        state = "unknown"
+                    if state in _EXEC_TERMINAL and (
+                        saw_active or pst in ("queued", "running")
+                    ):
+                        crash_detected["reason"] = f"execution state={state}"
+                        return
+
+        watcher = asyncio.create_task(watch_status())
+        try:
+            async for msg in event_bridge.tail_events(
+                storage, owner_user_id, project_id,
+                terminal_events=_PLACEMENT_SSE_TERMINAL,
+            ):
+                if crash_detected["reason"] is not None:
+                    break
+                ev = msg["event"]
+                # Skip leftover analysis events if the log was not cleared yet.
+                if not (
+                    ev.startswith("placement_")
+                    or ev == "heartbeat"
+                ):
+                    continue
+                yield {
+                    "event": ev,
+                    "data": json.dumps(msg.get("data", {})),
+                }
+                if ev in _PLACEMENT_SSE_TERMINAL:
+                    return
+
+            if crash_detected["reason"] is not None:
+                cur = proj_svc.get_project(storage, owner_user_id, project_id)
+                err = None
+                if cur and cur.placement_state:
+                    err = cur.placement_state.get("error")
+                yield {
+                    "event": "placement_error",
+                    "data": json.dumps({
+                        "error": err or crash_detected["reason"]
+                        or "placement worker terminated without a terminal event",
+                        "synthetic": True,
+                    }),
+                }
+        finally:
+            watcher.cancel()
+            try:
+                await watcher
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    return EventSourceResponse(
+        event_generator(),
+        ping=15,
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

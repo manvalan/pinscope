@@ -58,8 +58,11 @@ def _spawn_local_subprocess(
     free: bool,
     mode: str = "run",
     regen_stages: list[str] | None = None,
+    proc_key: str | None = None,
+    execution_name: str | None = None,
 ) -> str:
-    name = _local_execution_name(project_id)
+    key = proc_key or project_id
+    name = execution_name or _local_execution_name(project_id)
     env = os.environ.copy()
     env["PROJECT_ID"] = project_id
     env["USER_ID"] = user_id
@@ -74,17 +77,20 @@ def _spawn_local_subprocess(
         env=env,
         stdin=subprocess.DEVNULL,
     )
-    _write_pid(project_id, proc.pid)
+    _write_pid(key, proc.pid)
     with _local_procs_lock:
-        # Reap any old proc for the same project before tracking the new one.
-        prior = _local_procs.pop(project_id, None)
+        # Reap any old proc for the same key before tracking the new one.
+        prior = _local_procs.pop(key, None)
         if prior is not None:
             try:
                 prior.terminate()
             except Exception:
                 pass
-        _local_procs[project_id] = proc
-    logger.info("dev: spawned worker subprocess pid=%s for %s", proc.pid, project_id)
+        _local_procs[key] = proc
+    logger.info(
+        "dev: spawned worker subprocess pid=%s for %s mode=%s",
+        proc.pid, project_id, mode,
+    )
     return name
 
 
@@ -341,6 +347,9 @@ def get_execution_state(execution_name: str | None) -> ExecutionState:
     if execution_name.startswith("local/projects/"):
         project_id = execution_name.split("/", 2)[-1]
         return _local_state(project_id)
+    if execution_name.startswith("local/placement/"):
+        project_id = execution_name.split("/", 2)[-1]
+        return _local_state(f"placement:{project_id}")
     return _cloud_run_state(execution_name)
 
 
@@ -356,4 +365,21 @@ def cancel_execution(execution_name: str | None) -> None:
         project_id = execution_name.split("/", 2)[-1]
         _local_cancel(project_id)
         return
+    if execution_name.startswith("local/placement/"):
+        project_id = execution_name.split("/", 2)[-1]
+        _local_cancel(f"placement:{project_id}")
+        return
     _cloud_run_cancel(execution_name)
+
+
+def enqueue_placement_pipeline(project_id: str, user_id: str) -> str:
+    """Dispatch the parallel Placement pipeline (topology plan, no LLM)."""
+    if use_cloud_run_jobs():
+        return _enqueue_cloud_run_job(
+            project_id, user_id, resume=False, free=True, mode="placement",
+        )
+    return _spawn_local_subprocess(
+        project_id, user_id, resume=False, free=True, mode="placement",
+        proc_key=f"placement:{project_id}",
+        execution_name=f"local/placement/{project_id}",
+    )

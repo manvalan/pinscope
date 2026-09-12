@@ -132,6 +132,12 @@ def build_functional_groups(
     return FunctionalGroupsReport(objective="routing", domains=domains, groups=groups)
 
 
+# Alias used by the dedicated Placement pipeline (same topology artifact).
+build_placement_plan = build_functional_groups
+PlacementPlan = FunctionalGroupsReport
+
+
+
 def load_capacitance_farads(comp: Component) -> float | None:
     """Crystal CL from SimpleComponentSpecs.values, if present."""
     specs = comp.specs

@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.1 — 2026-09-12 — Placement pipeline (parallel)
+
+Dedicated Placement job builds the routing-first topology plan without touching the analysis pipeline status or spending credits. No millimetres — domains, IC groups, satellites only.
+
+- [New] `POST /api/pipeline/{id}/placement/start` (+ cancel, events SSE, get plan).
+- [New] Project page **Build placement plan** → `/project/{id}/placement` progress + topology viewer.
+- [New] Worker `MODE=placement` writes `placement_plan.json` (and refreshes `functional_groups.json`).
+
 ## 2.28.0 — 2026-09-12 — Layout F1 topology + crystal/NC checks
 
 Routing-first floorplan foundation without inventing millimetres: domains and satellite role hints after graph build, plus deterministic crystal CL and NC-pin checks.

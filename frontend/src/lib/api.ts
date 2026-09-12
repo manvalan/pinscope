@@ -102,6 +102,8 @@ function mapProject(p: Record<string, unknown>): Project {
     pinscopeVersion: (p.pinscope_version as string | null | undefined) ?? null,
     netlistFormat: (p.netlist_format as Project["netlistFormat"]) ?? null,
     netlistSubdesigns: (p.netlist_subdesigns as string[] | null) ?? null,
+    placementStatus: (p.placement_status as Project["placementStatus"]) ?? "draft",
+    placementState: (p.placement_state as Record<string, unknown> | null) ?? null,
   };
 }
 
@@ -575,6 +577,60 @@ export function pipelineEventsUrl(projectId: string): string {
 export async function fetchPipelineStatus(projectId: string) {
   const res = await authFetch(`${BASE}/api/pipeline/${projectId}/status`);
   if (!res.ok) throw new Error("Failed to fetch pipeline status");
+  return res.json();
+}
+
+export async function startPlacementPipeline(projectId: string) {
+  const res = await authFetch(
+    `${BASE}/api/pipeline/${projectId}/placement/start`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to start placement" }));
+    throw new Error(err.detail || "Failed to start placement");
+  }
+  return res.json();
+}
+
+export async function cancelPlacementPipeline(projectId: string) {
+  const res = await authFetch(
+    `${BASE}/api/pipeline/${projectId}/placement/cancel`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to cancel placement" }));
+    throw new Error(err.detail || "Failed to cancel placement");
+  }
+  return res.json();
+}
+
+export function placementEventsUrl(projectId: string): string {
+  return `${BASE}/api/pipeline/${projectId}/placement/events`;
+}
+
+export async function fetchPlacementPlan(projectId: string): Promise<{
+  objective?: string;
+  domains: Array<{
+    domain_id: string;
+    power_nets: string[];
+    ic_refs: string[];
+    assemble_order: string[];
+  }>;
+  groups: Array<{
+    ref: string;
+    mpn?: string | null;
+    component_subtype?: string | null;
+    rank?: number;
+    satellites: Array<{ ref: string; role_hint?: string; hop?: number }>;
+    layout_rules?: unknown[];
+    assemble_order?: string[];
+  }>;
+}> {
+  const res = await authFetch(`${BASE}/api/pipeline/${projectId}/placement/plan`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Placement plan not found" }));
+    throw new Error(err.detail || "Placement plan not found");
+  }
   return res.json();
 }
 

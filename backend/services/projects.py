@@ -132,6 +132,13 @@ class ProjectMeta(BaseModel):
     # gate (inside _charge_for_logs) and exits cleanly.
     cancel_requested: bool = False
 
+    # Placement pipeline (parallel to analysis — does not overwrite status).
+    # draft | queued | running | complete | error | cancelled
+    placement_status: str = "draft"
+    placement_state: dict[str, Any] | None = None
+    placement_execution_name: str | None = None
+    placement_cancel_requested: bool = False
+
 
 def completed_review_refs_for_retry(
     storage: StorageBackend, user_id: str, project_id: str,
