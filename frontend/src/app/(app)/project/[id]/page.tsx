@@ -101,9 +101,9 @@ export default function ProjectDetailPage({
     reload();
   }, [reload]);
 
-  // Redirect to progress page if pipeline is running
+  // Redirect to progress page if pipeline is running or queued
   useEffect(() => {
-    if (project?.status === "running") {
+    if (project?.status === "running" || project?.status === "queued") {
       router.replace(`/project/${id}/progress`);
     }
   }, [project?.status, id, router]);

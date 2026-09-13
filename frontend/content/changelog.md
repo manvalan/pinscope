@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.28.3 — 2026-09-13 — Stop progress→report bounce on finished projects
+
+Opening a finished project no longer flashes Processing and dumps you on the report. Progress only auto-opens the report after a live run on that visit.
+
+- [Fixed] `/progress` checks project status before SSE; finished projects go to the hub.
+- [Fixed] Analysis SSE ignores placement events and does not treat already-terminal status as a crash.
+
 ## 2.28.2 — 2026-09-13 — Fix project sidebar navigation
 
 Opening a finished project no longer dumps you on the report with a stuck left menu. Hub first; Report stays in the sidebar. Leaving `/report` for BOM/tabs uses a full navigation so the page actually changes.

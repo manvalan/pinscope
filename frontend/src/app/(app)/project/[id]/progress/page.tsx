@@ -34,6 +34,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+type ProgressGate = "loading" | "live" | "paused" | "idle";
+
 export default function ProgressPage({
   params,
 }: {
@@ -41,8 +43,12 @@ export default function ProgressPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  // Don't attach SSE until we know this is a live (or paused) run —
+  // otherwise a historical ``pipeline_complete`` in the event log
+  // immediately sets done and bounces the user to the report.
+  const [gate, setGate] = useState<ProgressGate>("loading");
   const { steps, done, cancelled, error, summary, autoTopupFailure, credits, started, paused } =
-    usePipelineProgress(id);
+    usePipelineProgress(gate === "live" ? id : null);
   const [topupDismissed, setTopupDismissed] = useState(false);
 
   const [projectName, setProjectName] = useState<string>("");
@@ -65,25 +71,43 @@ export default function ProgressPage({
     }
   }
 
-  // Fetch project name + initial paused state. The SSE stream only reports
-  // `pipeline_paused` if the page is open when it fires; landing on the
-  // progress page later, we need to read the persisted project status.
+  // Decide whether this visit is a live run before opening SSE / auto-redirect.
   useEffect(() => {
+    let cancelledFetch = false;
     fetchProject(id)
       .then((p) => {
+        if (cancelledFetch) return;
         setProjectName(p.name);
-        if (p.status === "paused_insufficient_credits") {
+        if (
+          p.status === "paused_insufficient_credits" ||
+          p.status === "paused_by_user"
+        ) {
           setProjectPaused(true);
           setProjectCheckpoint(p.pauseCheckpoint ?? null);
+          setGate("paused");
+          return;
         }
+        if (p.status === "running" || p.status === "queued") {
+          setGate("live");
+          return;
+        }
+        // Finished / draft — progress is the wrong page; go to the project hub.
+        setGate("idle");
+        router.replace(`/project/${id}`);
       })
-      .catch(() => {});
-  }, [id]);
+      .catch(() => {
+        if (!cancelledFetch) setGate("live");
+      });
+    return () => {
+      cancelledFetch = true;
+    };
+  }, [id, router]);
 
   // Live `pipeline_paused` event also flips the paused state.
   useEffect(() => {
     if (paused) {
       setProjectPaused(true);
+      setGate("paused");
       setProjectCheckpoint({
         paused_at: paused.unit_id,
         paused_stage: paused.stage,
@@ -107,8 +131,9 @@ export default function ProgressPage({
     }
   };
 
-  // Auto-navigate to report when pipeline completes and the file exists
+  // Auto-navigate to report only after a live run completes on this visit.
   useEffect(() => {
+    if (gate !== "live") return;
     if (!done || error || cancelled || projectPaused) return;
     let stopped = false;
     (async () => {
@@ -121,11 +146,13 @@ export default function ProgressPage({
           await new Promise((r) => setTimeout(r, 500));
         }
       }
+      // Report missing — still leave the progress spinner for the hub.
+      if (!stopped) router.replace(`/project/${id}`);
     })();
     return () => {
       stopped = true;
     };
-  }, [done, error, cancelled, projectPaused, id, router]);
+  }, [gate, done, error, cancelled, projectPaused, id, router]);
 
   // Auto-navigate to dashboard when pipeline is cancelled
   useEffect(() => {
@@ -150,8 +177,17 @@ export default function ProgressPage({
     }
   };
 
-  const isRunning = !done && !projectPaused;
+  const isRunning = gate === "live" && !done && !projectPaused;
   const isQueued = isRunning && !started;
+
+  if (gate === "loading" || gate === "idle") {
+    return (
+      <div className="flex-1 p-6 max-w-3xl mx-auto w-full flex items-center gap-3 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        {gate === "idle" ? "Opening project…" : "Checking pipeline status…"}
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-6 max-w-3xl mx-auto w-full space-y-6">

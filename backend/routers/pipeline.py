@@ -385,6 +385,12 @@ async def regen(project_id: str, req: RegenRequest, request: Request):
 
 
 _EXEC_TERMINAL = frozenset({"succeeded", "failed", "cancelled"})
+_ANALYSIS_SSE_TERMINAL = frozenset({
+    "pipeline_complete",
+    "pipeline_error",
+    "pipeline_cancelled",
+    "pipeline_paused",
+})
 
 
 @router.get("/pipeline/{project_id}/events")
@@ -392,20 +398,28 @@ async def events(project_id: str, request: Request):
     """SSE stream of pipeline progress events.
 
     Tails the GCS-backed event log written by the worker. Stops on
-    terminal events as today, but also has two hard-crash escape
-    hatches: the project's status reaching a terminal value, and the
-    Cloud Run execution reaching a terminal state. Either of those
-    triggers a synthetic ``pipeline_error`` so the SSE doesn't hang
-    forever when the worker dies without writing its terminal event.
+    analysis terminal events, but also has two hard-crash escape
+    hatches: the project's status reaching a terminal value *after*
+    having been active, and the Cloud Run execution reaching a
+    terminal state. Either of those triggers a synthetic
+    ``pipeline_error`` so the SSE doesn't hang forever when the worker
+    dies without writing its terminal event.
     """
     owner_user_id, meta = await resolve_or_404(request, project_id)
     storage = get_storage(request)
 
     async def event_generator():
         execution_name = meta.execution_name
-        # Drive the GCS tail and the escape-hatch poll concurrently. The
-        # tail yields events; the escape hatch flips a flag.
         crash_detected: dict[str, str | None] = {"reason": None}
+        # Only treat a terminal status as a crash if we observed the
+        # project as queued/running first — otherwise a finished project
+        # reconnecting to /events would immediately synthesize an error
+        # (or race with a historical pipeline_complete replay).
+        active_state = {
+            "saw": meta.status in (
+                proj_svc.STATUS_QUEUED, proj_svc.STATUS_RUNNING,
+            ),
+        }
 
         async def watch_status() -> None:
             poll_interval = 2.0
@@ -417,13 +431,18 @@ async def events(project_id: str, request: Request):
                     continue
                 if cur is None:
                     continue
-                if cur.status in proj_svc.TERMINAL_STATUSES:
+                if cur.status in (proj_svc.STATUS_QUEUED, proj_svc.STATUS_RUNNING):
+                    active_state["saw"] = True
+                elif active_state["saw"] and cur.status in proj_svc.TERMINAL_STATUSES:
                     crash_detected["reason"] = (
                         f"project status={cur.status} (terminal)"
                     )
                     return
                 # Cloud Run hard-crash detection
-                if execution_name:
+                if execution_name and (
+                    active_state["saw"]
+                    or cur.status in (proj_svc.STATUS_QUEUED, proj_svc.STATUS_RUNNING)
+                ):
                     try:
                         state = job_runner.get_execution_state(execution_name)
                     except Exception:
@@ -438,14 +457,19 @@ async def events(project_id: str, request: Request):
         try:
             async for msg in event_bridge.tail_events(
                 storage, owner_user_id, project_id,
+                terminal_events=_ANALYSIS_SSE_TERMINAL,
             ):
                 if crash_detected["reason"] is not None:
                     break
+                ev = msg["event"]
+                # Skip placement events in the shared log.
+                if ev.startswith("placement_"):
+                    continue
                 yield {
-                    "event": msg["event"],
+                    "event": ev,
                     "data": json.dumps(msg.get("data", {})),
                 }
-                if msg["event"] in event_bridge.TERMINAL_EVENTS:
+                if ev in _ANALYSIS_SSE_TERMINAL:
                     return
 
             # tail_events exited without a terminal event — escape hatch
