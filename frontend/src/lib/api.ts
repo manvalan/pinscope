@@ -14,6 +14,7 @@ import type {
   ImpedanceNetsReport,
   ImpedanceStackupResult,
   ImpedanceTraceResult,
+  AntennaReport,
   EdifSubDesign,
   FindingComment,
   FindingReview,
@@ -720,6 +721,46 @@ export async function analyzeImpedanceNets(
     const detail = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
       typeof detail.detail === "string" ? detail.detail : "Impedance nets failed",
+    );
+  }
+  return res.json();
+}
+
+export async function fetchAntennaReport(
+  projectId: string,
+): Promise<AntennaReport> {
+  const res = await authFetch(`${BASE}/api/projects/${projectId}/antenna`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(
+      typeof detail.detail === "string" ? detail.detail : "Antenna report failed",
+    );
+  }
+  return res.json();
+}
+
+export async function designAntenna(
+  projectId: string,
+  body: {
+    f0_mhz?: number | null;
+    target_z_ohm?: number;
+    h?: number | null;
+    er?: number | null;
+    t?: number | null;
+  },
+): Promise<AntennaReport> {
+  const res = await authFetch(
+    `${BASE}/api/projects/${projectId}/antenna/design`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(
+      typeof detail.detail === "string" ? detail.detail : "Antenna design failed",
     );
   }
   return res.json();

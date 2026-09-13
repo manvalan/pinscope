@@ -159,7 +159,7 @@ Passi:
 | 4 Filtri | `check_filters` (solo con poli/numeri in specs) | Niente \(f_c\) inventata | **OK** |
 | 5 Capacità PI | Decoupling sulla net; derating V; DC-bias/ESR se c’è il numero; mm sul PCB (`PS-PLC-001`) | — | **OK** |
 | 6 Elettrico | Pin mux; I2C/reset pull-up; LED; sequencing/IR/power margin se c’è il parametro | Senza numero in specs → skip | **OK** |
-| 7 RF | Tab impedenza 50 Ω; review ruolo parte | Nessun clearance CPW inventato | parziale |
+| 7 RF | Tab **RF / Impedance**: verify matching + design recipe (w 50 Ω, λ/4 se f0); Z0 feed se PCB | CPWG / auto-draw radiatore dopo | **Improved** |
 | 8 HV / isolation | — | Serve `layout_rules` + V/mm dal datasheet, non IEC inventato | — |
 | 9 Termico | `check_thermal` se θJA/I sono in specs; via courtyard vs `min_via_count` | Niente \(T_j\) senza parametro | **OK** |
 | 10 SI / DNP | DNP enable; `PS-SI-001` solo con `length_match` mm | Niente 3W/crosstalk inventati | **OK** |
@@ -426,9 +426,10 @@ Passi:
 
 Passi:
 
-1. Topologia π/T tra pin ANT e connettore/antenna (stesso matcher filtri).
-2. Target 50 Ω come **intento**, non misura: WARNING se manca rete e datasheet mostra matching.
-3. CPW clearance: **Wave G** (layout).
+1. Topologia π/T tra pin ANT e connettore/antenna (stesso matcher filtri). **OK** — sezione Verify in RF/Impedance.
+2. Target 50 Ω come **intento**, non misura: WARNING se manca rete. **OK** (status warning su `missing`).
+3. Utility Progetta: marker KiCad `ANT*` / `ANT_FEED` + stackup → `w` microstrip; `f0` → λ/4 stimata; zona `antenna` → bbox. **OK** (auto-draw rame = dopo).
+4. CPW clearance: **Wave G** (layout).
 
 ---
 

@@ -451,6 +451,52 @@ export interface ImpedanceNetsReport {
   skipped: string | null;
 }
 
+export interface AntennaVerifyRow {
+  ic_ref: string;
+  pin: string;
+  net: string;
+  topology: string;
+  parts: string[];
+  target_z_ohm: number;
+  status: "ok" | "warning" | "info";
+  detail: string;
+  feed_z0?: number | null;
+  feed_length_mm?: number | null;
+  marker_ref?: string | null;
+}
+
+export interface AntennaDesignRecipe {
+  status: "ready" | "need_pcb" | "need_stackup" | "need_marker";
+  feed_point?: Record<string, unknown> | null;
+  feed_line?: {
+    kind: string;
+    target_z_ohm: number;
+    w_mm?: number | null;
+    h_mm?: number | null;
+    er?: number | null;
+    t_mm?: number | null;
+  } | null;
+  radiator?: {
+    length_mm_suggest?: number | null;
+    f0_mhz?: number | null;
+    note?: string;
+  } | null;
+  zone?: {
+    net: string;
+    layer: string;
+    bbox_mm?: number[] | null;
+    area_mm2?: number | null;
+  } | null;
+  keepout_checklist: string[];
+  detail: string;
+}
+
+export interface AntennaReport {
+  verify: AntennaVerifyRow[];
+  design: AntennaDesignRecipe | null;
+  marker_help: string;
+}
+
 export interface NetlistPreviewDesignator {
   ref: string;
   pins: { number: string; net_name: string }[];

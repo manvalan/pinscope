@@ -191,7 +191,7 @@ const PROJECT_NAV_ITEMS: NavItem[] = [
   { type: "tab", tab: "domains", label: "Domains", icon: Boxes },
   { type: "tab", tab: "rails", label: "Power rails", icon: CircuitBoard },
   { type: "tab", tab: "derating", label: "Derating", icon: Zap },
-  { type: "tab", tab: "impedance", label: "Impedance", icon: Ruler },
+  { type: "tab", tab: "impedance", label: "RF / Impedance", icon: Ruler },
   { type: "tab", tab: "logs", label: "Logs", icon: ScrollText, adminOnly: true },
   { type: "tab", tab: "settings", label: "Settings", icon: Settings },
 ];

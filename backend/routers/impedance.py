@@ -25,6 +25,8 @@ from backend.pinscopex.impedance_traces import (
     NET_WALK_PITCH_MM,
     analyze_specified_nets,
 )
+from backend.pinscopex.antenna_rf import build_antenna_report, build_design_recipe
+from backend.pinscopex.models import DesignGraph, LayoutGraph
 from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
 from backend.routers.deps import get_storage, resolve_or_404
 from backend.services import projects as proj_svc
@@ -123,3 +125,80 @@ async def analyze_project_impedance_nets(
     except GeometryError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"pitch_mm": pitch, "nets": rows, "skipped": None}
+
+
+class AntennaDesignRequest(BaseModel):
+    f0_mhz: float | None = None
+    target_z_ohm: float = 50.0
+    h: float | None = None
+    er: float | None = None
+    t: float | None = None
+
+
+def _load_graph_layout(storage, prefix: str) -> tuple[DesignGraph | None, LayoutGraph | None, dict | None]:
+    graph = None
+    layout = None
+    znets = None
+    gk = f"{prefix}/design_graph.json"
+    if storage.exists(gk):
+        graph = DesignGraph.model_validate(storage.read_json(gk))
+    lk = f"{prefix}/layout_graph.json"
+    if storage.exists(lk):
+        layout = LayoutGraph.model_validate(storage.read_json(lk))
+    elif storage.exists(f"{prefix}/uploads/pcb.kicad_pcb"):
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".kicad_pcb")
+        try:
+            tmp.write(storage.read_bytes(f"{prefix}/uploads/pcb.kicad_pcb"))
+            tmp.close()
+            layout = parse_kicad_pcb(tmp.name)
+        finally:
+            os.unlink(tmp.name)
+    zk = f"{prefix}/impedance_nets.json"
+    if storage.exists(zk):
+        znets = storage.read_json(zk)
+    return graph, layout, znets
+
+
+@router.get("/projects/{project_id}/antenna")
+async def get_project_antenna(project_id: str, request: Request):
+    storage = get_storage(request)
+    owner, _ = await resolve_or_404(request, project_id)
+    prefix = proj_svc.project_prefix(owner, project_id)
+    graph, layout, znets = _load_graph_layout(storage, prefix)
+    if graph is None:
+        raise HTTPException(404, "design_graph.json not found — run analysis first")
+    report = build_antenna_report(graph, layout, impedance_nets=znets)
+    return report.model_dump(mode="json")
+
+
+@router.post("/projects/{project_id}/antenna/design")
+async def post_project_antenna_design(
+    project_id: str, body: AntennaDesignRequest, request: Request,
+):
+    storage = get_storage(request)
+    owner, _ = await resolve_or_404(request, project_id)
+    prefix = proj_svc.project_prefix(owner, project_id)
+    graph, layout, znets = _load_graph_layout(storage, prefix)
+    if graph is None:
+        raise HTTPException(404, "design_graph.json not found — run analysis first")
+    report = build_antenna_report(
+        graph,
+        layout,
+        impedance_nets=znets,
+        f0_mhz=body.f0_mhz,
+        target_z_ohm=body.target_z_ohm,
+        h_mm=body.h,
+        er=body.er,
+        t_mm=body.t,
+    )
+    # Recompute design with explicit params (same as report.design but ensure POST body wins)
+    report.design = build_design_recipe(
+        graph,
+        layout,
+        f0_mhz=body.f0_mhz,
+        target_z_ohm=body.target_z_ohm,
+        h_mm=body.h,
+        er=body.er,
+        t_mm=body.t,
+    )
+    return report.model_dump(mode="json")

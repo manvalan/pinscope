@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.11 — 2026-09-13 — RF / Impedance: verify antenna + design recipe
+
+Project tab renamed **RF / Impedance**. Verify matching from IC ANT/RF pins toward an `ANT*` / `ANT_FEED` marker; Progetta returns microstrip `w` for 50 Ω (stackup or UI h/εr), optional λ/4 length from `f0`, and antenna-zone bbox. Auto-draw copper comes later — no EM/VSWR invented.
+
+- [New] `antenna_rf.py` + `GET/POST /api/projects/{id}/antenna`.
+- [New] Verify + Progetta cards on the impedance panel.
+- [Changed] Sidebar label **RF / Impedance**.
+
 ## 2.28.10 — 2026-09-13 — Classify strap/bootstrap satellites; hide other
 
 Caps on EN/BOOT/REGN/PMID and bootstrap caps between IC pins get real roles. Unclassified `other` parts are dropped from satellites and assemble_order.
