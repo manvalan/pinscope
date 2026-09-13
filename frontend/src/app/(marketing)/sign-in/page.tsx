@@ -29,7 +29,14 @@ export default function SignInPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.detail || "Sign in failed");
+        const detail = data.detail;
+        const msg =
+          typeof detail === "string"
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join("; ")
+              : "Sign in failed";
+        throw new Error(msg);
       }
       storeAuthToken(data.token);
       router.replace("/");

@@ -32,14 +32,17 @@ def decode_token(token: str) -> dict[str, Any] | None:
     secret = settings.auth_jwt_secret
     if not secret:
         return None
-    try:
-        return jwt.decode(
-            token,
-            secret,
-            algorithms=[ALGORITHM],
-            issuer="periscope-local",
-            options={"verify_aud": False},
-            leeway=10,
-        )
-    except jwt.PyJWTError:
-        return None
+    # Accept pre-rebrand issuer so existing sessions keep working.
+    for issuer in ("periscope-local", "pinscope-local"):
+        try:
+            return jwt.decode(
+                token,
+                secret,
+                algorithms=[ALGORITHM],
+                issuer=issuer,
+                options={"verify_aud": False},
+                leeway=10,
+            )
+        except jwt.PyJWTError:
+            continue
+    return None

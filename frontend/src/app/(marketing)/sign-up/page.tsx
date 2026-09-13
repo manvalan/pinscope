@@ -35,9 +35,13 @@ export default function SignUpPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const detail = data.detail;
-        throw new Error(
-          typeof detail === "string" ? detail : "Could not create account",
-        );
+        const msg =
+          typeof detail === "string"
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join("; ")
+              : "Could not create account";
+        throw new Error(msg);
       }
       storeAuthToken(data.token);
       router.replace("/");

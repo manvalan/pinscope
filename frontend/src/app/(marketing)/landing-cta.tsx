@@ -22,12 +22,12 @@ export function NavAuthCluster() {
   }
   return (
     <>
-      <Link href="/login">
+      <Link href="/sign-in">
         <Button variant="ghost" size="sm">
           Sign in
         </Button>
       </Link>
-      <Link href="/login">
+      <Link href="/sign-up">
         <Button
           size="sm"
           className="bg-blue-600 hover:bg-blue-500 text-white border-0"
@@ -41,7 +41,7 @@ export function NavAuthCluster() {
 
 export function PrimaryCta() {
   const { isSignedIn } = useOptionalAuth();
-  const href = isSignedIn ? "/dashboard" : "/login";
+  const href = isSignedIn ? "/dashboard" : "/sign-up";
   const label = isSignedIn ? "Go to Dashboard" : "Start for free";
   return (
     <Link href={href}>
@@ -59,7 +59,7 @@ export function PrimaryCta() {
 export function PricingCta() {
   const { isSignedIn } = useOptionalAuth();
   return (
-    <Link href={isSignedIn ? "/billing" : "/login"}>
+    <Link href={isSignedIn ? "/billing" : "/sign-up"}>
       <Button
         size="sm"
         className="bg-blue-600 hover:bg-blue-500 text-white border-0 gap-1.5"

@@ -115,8 +115,8 @@ fi
 
 log "Ensuring public URL in .env ($SITE)"
 upsert_env NEXT_PUBLIC_API_URL "$SITE" .env
-# JSON list — keep it a single line so docker compose / pydantic-settings parse it.
-upsert_env CORS_ORIGINS "[\"$SITE\"]" .env
+# Allow both Periscope and legacy Pinscope host during transition.
+upsert_env CORS_ORIGINS "[\"$SITE\",\"https://pinscope.michelebigi.it\"]" .env
 
 KEY="$(read_env DEEPSEEK_API_KEY .env || true)"
 if [[ -z "$KEY" || "$KEY" == "sk-..." ]]; then

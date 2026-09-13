@@ -2,6 +2,14 @@
 
 What's new in Periscope.
 
+## 2.29.1 — 2026-09-13 — Fix sign-in /login 404 after rebrand
+
+Landing CTAs pointed at `/login`, which did not exist (page is `/sign-in`). Added redirects, accepted legacy JWT issuer `pinscope-local`, and CORS for both Periscope and Pinscope hosts.
+
+- [Fixed] `/login` → `/sign-in`, `/register` → `/sign-up`; marketing links updated.
+- [Fixed] JWT decode accepts `pinscope-local` issuer from pre-rebrand sessions.
+- [Fixed] Deploy script CORS includes both public hostnames.
+
 ## 2.29.0 — 2026-09-13 — Rebrand to Periscope
 
 Product name, package (`periscopex`), Docker containers, deploy script, and default site URL are now **Periscope** (`https://periscope.michelebigi.it`). Deterministic finding IDs use the `PE-*` prefix. Existing project.json `pinscope_version` and browser storage keys are still read.
