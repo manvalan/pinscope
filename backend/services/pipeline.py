@@ -1551,9 +1551,11 @@ def _write_functional_groups(ws: PipelineWorkspace, graph) -> None:
         if extracted_dir.is_dir():
             cmap = _build_constraints_map(_load_datasheets(extracted_dir))
         report = build_functional_groups(graph, cmap)
-        out = ws.local_path("functional_groups.json")
-        out.write_text(report.model_dump_json(indent=2) + "\n")
-        ws._upload_file("functional_groups.json")
+        payload = report.model_dump_json(indent=2) + "\n"
+        for name in ("functional_groups.json", "placement_plan.json"):
+            out = ws.local_path(name)
+            out.write_text(payload)
+            ws._upload_file(name)
     except Exception:
         logger.exception("functional_groups.json write failed — continuing")
 

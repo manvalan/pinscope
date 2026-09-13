@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.5 — 2026-09-13 — Domains & power-rail topology views
+
+Browse routing-first functional groups from the project sidebar: Domains (power-net islands) and Power rails, each highlighting IC groups and satellite roles.
+
+- [New] Sidebar tabs **Domains** and **Power rails** (from `placement_plan` / `functional_groups`).
+- [Changed] Analysis `graph_build` also writes `placement_plan.json`.
+- [Fixed] Heal stuck Placement `queued`/`running` when the worker is dead.
+
 ## 2.28.4 — 2026-09-13 — Unstick zombie running pipelines
 
 A finished run whose worker died before flipping meta stayed `running`, so Progress showed Review spinning forever. Heal those projects when the event log already ends with `pipeline_complete`.

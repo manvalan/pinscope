@@ -21,6 +21,7 @@ import type {
   LcscPayload,
   NetlistPreviewDesignator,
   PauseCheckpoint,
+  PlacementPlan,
   Project,
   SkippedComponent,
   ValidationReport,
@@ -608,24 +609,7 @@ export function placementEventsUrl(projectId: string): string {
   return `${BASE}/api/pipeline/${projectId}/placement/events`;
 }
 
-export async function fetchPlacementPlan(projectId: string): Promise<{
-  objective?: string;
-  domains: Array<{
-    domain_id: string;
-    power_nets: string[];
-    ic_refs: string[];
-    assemble_order: string[];
-  }>;
-  groups: Array<{
-    ref: string;
-    mpn?: string | null;
-    component_subtype?: string | null;
-    rank?: number;
-    satellites: Array<{ ref: string; role_hint?: string; hop?: number }>;
-    layout_rules?: unknown[];
-    assemble_order?: string[];
-  }>;
-}> {
+export async function fetchPlacementPlan(projectId: string): Promise<PlacementPlan> {
   const res = await authFetch(`${BASE}/api/pipeline/${projectId}/placement/plan`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Placement plan not found" }));

@@ -17,6 +17,8 @@ import {
   ScrollText,
   MessageSquareWarning,
   Library,
+  Boxes,
+  CircuitBoard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthApi } from "@/hooks/use-auth-api";
@@ -186,6 +188,8 @@ type NavItem =
 const PROJECT_NAV_ITEMS: NavItem[] = [
   { type: "route", path: "/report", label: "Report", icon: ClipboardList },
   { type: "tab", tab: "bom", label: "BOM", icon: TableProperties },
+  { type: "tab", tab: "domains", label: "Domains", icon: Boxes },
+  { type: "tab", tab: "rails", label: "Power rails", icon: CircuitBoard },
   { type: "tab", tab: "derating", label: "Derating", icon: Zap },
   { type: "tab", tab: "impedance", label: "Impedance", icon: Ruler },
   { type: "tab", tab: "logs", label: "Logs", icon: ScrollText, adminOnly: true },

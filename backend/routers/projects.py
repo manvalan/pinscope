@@ -143,7 +143,12 @@ async def get_project(project_id: str, request: Request):
     storage = get_storage(request)
     owner_user_id, meta = await resolve_or_404(request, project_id)
     healed = proj_svc.heal_if_pipeline_finished(storage, owner_user_id, project_id)
-    return (healed or meta).model_dump()
+    if healed is not None:
+        meta = healed
+    healed_pl = proj_svc.heal_if_placement_stuck(storage, owner_user_id, project_id)
+    if healed_pl is not None:
+        meta = healed_pl
+    return meta.model_dump()
 
 
 @router.delete("/projects/{project_id}")

@@ -11,16 +11,17 @@ import {
   cancelPlacementPipeline,
   fetchPlacementPlan,
   fetchProject,
+  startPlacementPipeline,
 } from "@/lib/api";
+import type { PlacementPlan } from "@/lib/types";
 import {
   ArrowLeft,
   CheckCircle2,
   Loader2,
   OctagonX,
   Ban,
+  LayoutGrid,
 } from "lucide-react";
-
-type Plan = Awaited<ReturnType<typeof fetchPlacementPlan>>;
 
 export default function PlacementPage({
   params,
@@ -31,13 +32,17 @@ export default function PlacementPage({
   const router = useRouter();
   const [projectName, setProjectName] = useState("");
   const [placementStatus, setPlacementStatus] = useState<string>("draft");
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plan, setPlan] = useState<PlacementPlan | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [statusLoaded, setStatusLoaded] = useState(false);
 
+  const active =
+    placementStatus === "queued" || placementStatus === "running";
   const alreadyDone = placementStatus === "complete";
   const { steps, done, cancelled, error, summary, started } = usePlacementProgress(
     id,
-    !alreadyDone && placementStatus !== "draft",
+    statusLoaded && active,
   );
 
   useEffect(() => {
@@ -45,16 +50,24 @@ export default function PlacementPage({
       .then((p) => {
         setProjectName(p.name);
         setPlacementStatus(p.placementStatus ?? "draft");
+        setStatusLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => setStatusLoaded(true));
   }, [id]);
 
   useEffect(() => {
-    if (!alreadyDone && !done) return;
+    if (done) setPlacementStatus("complete");
+  }, [done]);
+
+  useEffect(() => {
+    if (!statusLoaded) return;
+    if (!alreadyDone && !done && placementStatus !== "draft" && placementStatus !== "error") {
+      return;
+    }
     fetchPlacementPlan(id)
       .then(setPlan)
       .catch(() => setPlan(null));
-  }, [id, alreadyDone, done]);
+  }, [id, alreadyDone, done, placementStatus, statusLoaded]);
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -67,9 +80,21 @@ export default function PlacementPage({
     }
   };
 
+  const handleStart = async () => {
+    setStarting(true);
+    try {
+      await startPlacementPipeline(id);
+      setPlacementStatus("queued");
+      window.location.reload();
+    } catch (e) {
+      setStarting(false);
+      alert(e instanceof Error ? e.message : "Failed to start placement");
+    }
+  };
+
   const finished = alreadyDone || done;
-  const isRunning = !finished && !cancelled && !error;
-  const isQueued = isRunning && !started && !alreadyDone;
+  const isRunning = statusLoaded && active && !done && !cancelled && !error;
+  const isQueued = isRunning && !started;
 
   return (
     <div className="flex-1 p-6 max-w-3xl mx-auto w-full space-y-6">
@@ -81,13 +106,27 @@ export default function PlacementPage({
             Routing-first topology (no millimetres)
           </p>
         </div>
-        <Link href={`/project/${id}`}>
-          <Button size="sm" variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Project
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/project/${id}?tab=domains`}>
+            <Button size="sm" variant="ghost">
+              Domains
+            </Button>
+          </Link>
+          <Link href={`/project/${id}`}>
+            <Button size="sm" variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Project
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      {!statusLoaded && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Checking placement status…
+        </div>
+      )}
 
       {isQueued && (
         <div className="flex items-center gap-3 p-4 rounded-lg border border-blue-500/30 bg-blue-500/5">
@@ -133,25 +172,38 @@ export default function PlacementPage({
             size="sm"
             className="mt-3"
             variant="outline"
-            onClick={() => router.push(`/project/${id}`)}
+            disabled={starting}
+            onClick={handleStart}
           >
-            Back to project
+            <LayoutGrid className="h-4 w-4 mr-1" />
+            {starting ? "Starting…" : "Retry placement"}
           </Button>
         </div>
       )}
 
-      {finished && !error && !cancelled && (
+      {statusLoaded && !active && !error && !cancelled && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="h-4 w-4" />
-            Placement plan ready
-            {summary && (
+          {finished || plan ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+              Placement plan ready
               <span className="text-muted-foreground">
-                · {summary.domains ?? plan?.domains.length ?? "?"} domains,{" "}
-                {summary.groups ?? plan?.groups.length ?? "?"} IC groups
+                · {summary?.domains ?? plan?.domains.length ?? "?"} domains,{" "}
+                {summary?.groups ?? plan?.groups.length ?? "?"} IC groups
               </span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border p-4 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                No placement plan yet. Build one (free, no LLM) or open Domains
+                if analysis already wrote functional groups.
+              </p>
+              <Button size="sm" disabled={starting} onClick={handleStart}>
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                {starting ? "Starting…" : "Build placement plan"}
+              </Button>
+            </div>
+          )}
 
           {plan && (
             <Card>

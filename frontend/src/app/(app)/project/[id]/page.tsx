@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useOptionalUser } from "@/hooks/use-optional-auth";
 import { ImpedancePanel } from "@/components/project/impedance-panel";
+import { TopologyPanel } from "@/components/project/topology-panel";
 import { PcbUploadButton } from "@/components/project/pcb-upload";
 import { PdfViewerSheet } from "@/components/pdf/pdf-viewer-sheet";
 
@@ -399,6 +400,14 @@ export default function ProjectDetailPage({
           rows={bomRows}
           onViewDatasheet={(mpn) => setPdfState({ open: true, mpn })}
         />
+      )}
+
+      {tab === "domains" && (
+        <TopologyPanel projectId={id} mode="domains" />
+      )}
+
+      {tab === "rails" && (
+        <TopologyPanel projectId={id} mode="rails" />
       )}
 
       {tab === "derating" && (

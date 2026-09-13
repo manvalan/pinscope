@@ -326,6 +326,77 @@ def heal_if_pipeline_finished(
         return None
 
 
+def heal_if_placement_stuck(
+    storage: StorageBackend, user_id: str, project_id: str,
+) -> ProjectMeta | None:
+    """Unstick placement_status queued/running when the worker is gone.
+
+    - Last event ``placement_complete`` → ``complete``
+    - Dead worker + plan artifact present → ``complete``
+    - Dead worker otherwise → ``error``
+    """
+    meta = get_project(storage, user_id, project_id)
+    if meta is None:
+        return None
+    pst = meta.placement_status or "draft"
+    if pst not in ("queued", "running"):
+        return None
+
+    prefix = _project_prefix(user_id, project_id)
+    events_prefix = f"{prefix}/events/"
+    last_event = None
+    try:
+        keys = sorted(
+            k for k in storage.list_prefix(events_prefix)
+            if k.endswith(".json") and "/events/" in k
+        )
+        if keys:
+            last_event = storage.read_json(keys[-1])
+    except Exception:
+        last_event = None
+
+    if (last_event or {}).get("event") == "placement_complete":
+        data = (last_event or {}).get("data") or {}
+        return update_project(
+            storage, user_id, project_id,
+            placement_status="complete",
+            placement_cancel_requested=False,
+            placement_state={
+                "domains": data.get("domains"),
+                "groups": data.get("groups"),
+            },
+        )
+
+    from backend.services import job_runner
+
+    exec_name = meta.placement_execution_name or f"local/placement/{project_id}"
+    try:
+        state = job_runner.get_execution_state(exec_name)
+    except Exception:
+        state = "unknown"
+
+    if state in ("pending", "running"):
+        return None
+
+    has_plan = (
+        storage.exists(f"{prefix}/placement_plan.json")
+        or storage.exists(f"{prefix}/functional_groups.json")
+    )
+    if has_plan:
+        return update_project(
+            storage, user_id, project_id,
+            placement_status="complete",
+            placement_cancel_requested=False,
+            placement_state=meta.placement_state,
+        )
+    return update_project(
+        storage, user_id, project_id,
+        placement_status="error",
+        placement_cancel_requested=False,
+        placement_state={"error": f"Placement worker terminated ({state})"},
+    )
+
+
 # --- CRUD ---
 
 

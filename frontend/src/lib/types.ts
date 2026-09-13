@@ -285,6 +285,51 @@ export interface Project {
   placementState?: Record<string, unknown> | null;
 }
 
+export type RoleHint =
+  | "decoupling"
+  | "bulk"
+  | "load_cap"
+  | "filter"
+  | "pullup"
+  | "series"
+  | "divider"
+  | "bridge"
+  | "crystal"
+  | "other";
+
+export interface PlacementSatellite {
+  ref: string;
+  component_type?: string;
+  component_subtype?: string | null;
+  nets?: string[];
+  hop?: number;
+  role_hint?: RoleHint;
+}
+
+export interface PlacementIcGroup {
+  ref: string;
+  mpn?: string | null;
+  component_subtype?: string | null;
+  rank?: number;
+  nets?: string[];
+  satellites: PlacementSatellite[];
+  layout_rules?: unknown[];
+  assemble_order?: string[];
+}
+
+export interface PlacementDomain {
+  domain_id: string;
+  power_nets: string[];
+  ic_refs: string[];
+  assemble_order: string[];
+}
+
+export interface PlacementPlan {
+  objective?: string;
+  domains: PlacementDomain[];
+  groups: PlacementIcGroup[];
+}
+
 // One entry per EDIF sub-design (`&NNNN` ID prefix). Returned by the upload
 // endpoint and the subdesigns inspection endpoint; consumed by the wizard's
 // sub-design picker step.
