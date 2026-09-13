@@ -181,12 +181,12 @@ function RailsView({ plan }: { plan: PlacementPlan }) {
 
     // Also attach groups that list the rail on their nets / satellites
     for (const g of plan.groups) {
-      for (const net of g.nets) {
+      for (const net of g.nets ?? []) {
         const entry = map.get(net);
         if (entry) entry.groupRefs.add(g.ref);
       }
       for (const s of g.satellites) {
-        for (const net of s.nets || []) {
+        for (const net of s.nets ?? []) {
           const entry = map.get(net);
           if (entry) entry.groupRefs.add(g.ref);
         }
