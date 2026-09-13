@@ -330,6 +330,24 @@ export interface PlacementPlan {
   groups: PlacementIcGroup[];
 }
 
+export interface PlacementProposal {
+  ref: string;
+  anchor_ref: string;
+  rule_kind: string;
+  max_distance_mm: number;
+  proposed_x: number;
+  proposed_y: number;
+  layer?: string;
+  basis?: string;
+}
+
+export interface PlacementPack {
+  objective?: string;
+  status: "packed" | "skipped";
+  skip_reason?: string | null;
+  placements: PlacementProposal[];
+}
+
 // One entry per EDIF sub-design (`&NNNN` ID prefix). Returned by the upload
 // endpoint and the subdesigns inspection endpoint; consumed by the wizard's
 // sub-design picker step.

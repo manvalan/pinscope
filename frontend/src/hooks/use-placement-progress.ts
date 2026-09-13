@@ -21,6 +21,11 @@ const PLACEMENT_STAGES = [
     title: "Write placement plan",
     description: "Save placement_plan.json (no millimetres)",
   },
+  {
+    id: "pack",
+    title: "Pack satellites",
+    description: "Propose xy only with PCB + numeric layout_rules",
+  },
 ] as const;
 
 const STAGE_INDEX: Record<string, number> = Object.fromEntries(
@@ -41,7 +46,13 @@ export function usePlacementProgress(projectId: string | null, enabled = true) {
   const [done, setDone] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<{ domains?: number; groups?: number } | null>(null);
+  const [summary, setSummary] = useState<{
+    domains?: number;
+    groups?: number;
+    pack_status?: string;
+    pack_count?: number;
+    pack_skip_reason?: string | null;
+  } | null>(null);
   const [started, setStarted] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const terminalRef = useRef(false);
@@ -62,6 +73,10 @@ export function usePlacementProgress(projectId: string | null, enabled = true) {
       setSummary({
         domains: Number(data.domains) || 0,
         groups: Number(data.groups) || 0,
+        pack_status: typeof data.pack_status === "string" ? data.pack_status : undefined,
+        pack_count: Number(data.pack_count) || 0,
+        pack_skip_reason:
+          typeof data.pack_skip_reason === "string" ? data.pack_skip_reason : null,
       });
       setDone(true);
       terminalRef.current = true;

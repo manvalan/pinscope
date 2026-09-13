@@ -630,6 +630,17 @@ async def get_placement_plan(project_id: str, request: Request):
     return storage.read_json(key)
 
 
+@router.get("/pipeline/{project_id}/placement/pack")
+async def get_placement_pack(project_id: str, request: Request):
+    """Return ``placement_pack.json`` (F2 — skipped without PCB + numeric rules)."""
+    storage = get_storage(request)
+    owner_user_id, _ = await resolve_or_404(request, project_id)
+    key = f"{proj_svc.project_prefix(owner_user_id, project_id)}/placement_pack.json"
+    if not storage.exists(key):
+        raise HTTPException(404, "Placement pack not found — run placement first")
+    return storage.read_json(key)
+
+
 @router.get("/pipeline/{project_id}/placement/events")
 async def placement_events(project_id: str, request: Request):
     """SSE stream for Placement pipeline progress (watches placement_* only)."""

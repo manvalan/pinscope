@@ -22,6 +22,7 @@ import type {
   NetlistPreviewDesignator,
   PauseCheckpoint,
   PlacementPlan,
+  PlacementPack,
   Project,
   SkippedComponent,
   ValidationReport,
@@ -614,6 +615,15 @@ export async function fetchPlacementPlan(projectId: string): Promise<PlacementPl
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Placement plan not found" }));
     throw new Error(err.detail || "Placement plan not found");
+  }
+  return res.json();
+}
+
+export async function fetchPlacementPack(projectId: string): Promise<PlacementPack> {
+  const res = await authFetch(`${BASE}/api/pipeline/${projectId}/placement/pack`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Placement pack not found" }));
+    throw new Error(err.detail || "Placement pack not found");
   }
   return res.json();
 }

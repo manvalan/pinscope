@@ -1,7 +1,8 @@
-"""Placement pipeline — parallel to analysis, topology only (no LLM / no mm).
+"""Placement pipeline — parallel to analysis (no LLM).
 
-Stages: ensure_graph → classify → write_plan.
-Writes ``placement_plan.json`` (+ refreshes ``functional_groups.json``).
+Stages: ensure_graph → classify → write_plan → pack (F2 gated).
+Writes ``placement_plan.json`` (+ ``functional_groups.json``) and
+``placement_pack.json`` (mm only when PCB + numeric layout_rules exist).
 Uses ``placement_status`` so analysis ``status`` is untouched.
 """
 
@@ -12,7 +13,8 @@ from pathlib import Path
 
 from backend.pinscopex.functional_groups import build_placement_plan
 from backend.pinscopex.graph import build_graph
-from backend.pinscopex.models import ComponentConstraints, DesignGraph
+from backend.pinscopex.models import ComponentConstraints, DesignGraph, LayoutGraph
+from backend.pinscopex.placement_pack import build_placement_pack
 from backend.services import projects as proj_svc
 from backend.services.pipeline import PipelineWorkspace, broker
 from backend.services.storage import StorageBackend
@@ -112,18 +114,41 @@ async def run_placement_pipeline(
             ws._upload_file("functional_groups.json")
             _step(project_id, "write_plan", "complete", "placement_plan.json")
 
+            if _cancelled(storage, user_id, project_id):
+                _finish_cancelled(storage, user_id, project_id)
+                return
+
+            _step(project_id, "pack", "running", "F2 gated pack")
+            layout = _load_layout(ws)
+            pack = build_placement_pack(plan, layout, graph)
+            pack_path = ws.local_path("placement_pack.json")
+            pack_path.write_text(pack.model_dump_json(indent=2) + "\n")
+            ws._upload_file("placement_pack.json")
+            pack_detail = (
+                f"{len(pack.placements)} proposals"
+                if pack.status == "packed"
+                else f"skipped:{pack.skip_reason}"
+            )
+            _step(project_id, "pack", "complete", pack_detail)
+
         proj_svc.update_project(
             storage, user_id, project_id,
             placement_status="complete",
             placement_state={
                 "domains": len(plan.domains),
                 "groups": len(plan.groups),
+                "pack_status": pack.status,
+                "pack_count": len(pack.placements),
+                "pack_skip_reason": pack.skip_reason,
             },
             placement_cancel_requested=False,
         )
         _publish(project_id, "placement_complete", {
             "domains": len(plan.domains),
             "groups": len(plan.groups),
+            "pack_status": pack.status,
+            "pack_count": len(pack.placements),
+            "pack_skip_reason": pack.skip_reason,
         })
     except Exception as e:
         logger.exception("placement pipeline failed for %s", project_id)
@@ -176,6 +201,32 @@ async def _ensure_graph(ws: PipelineWorkspace, meta, project_id: str) -> DesignG
         f"{len(graph.components)} components, {len(graph.nets)} nets",
     )
     return graph
+
+
+def _load_layout(ws: PipelineWorkspace) -> LayoutGraph | None:
+    """Reuse layout_graph.json, or parse uploads/pcb.kicad_pcb once."""
+    cached = ws.local_path("layout_graph.json")
+    if cached.is_file():
+        try:
+            return LayoutGraph.model_validate_json(
+                cached.read_text(encoding="utf-8"),
+            )
+        except Exception:
+            logger.exception("bad layout_graph.json — trying pcb parse")
+
+    pcb = ws.local_path("uploads/pcb.kicad_pcb")
+    if not pcb.is_file():
+        return None
+    try:
+        from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+
+        layout = parse_kicad_pcb(pcb)
+        cached.write_text(layout.model_dump_json(indent=2) + "\n")
+        ws._upload_file("layout_graph.json")
+        return layout
+    except Exception:
+        logger.exception("kicad_pcb parse failed during placement pack")
+        return None
 
 
 def _cancelled(storage: StorageBackend, user_id: str, project_id: str) -> bool:

@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.7 — 2026-09-13 — Placement F2 pack skeleton (gated)
+
+Placement pipeline can propose satellite xy only when a `.kicad_pcb` layout exists and a `decoupling_proximity` rule has numeric `max_distance_mm`. No millimetres invented; otherwise `placement_pack.json` is skipped with an explicit reason.
+
+- [New] `placement_pack.py` + `placement_pack.json` after F1 plan.
+- [New] `GET /api/pipeline/{id}/placement/pack` and Pack section on the placement page.
+- [Changed] Placement stepper adds a **Pack satellites** stage.
+
 ## 2.28.6 — 2026-09-13 — Split Domains by primary supply rail
 
 Domains no longer merge the whole board when a charger/LDO bridges VBUS→VSYS→3V3. Each IC is clustered by its primary supply rail (output for power ICs, regulated digital rail for consumers).

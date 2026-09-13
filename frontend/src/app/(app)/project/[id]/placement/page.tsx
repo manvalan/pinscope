@@ -9,11 +9,12 @@ import { PipelineStepper } from "@/components/progress/pipeline-stepper";
 import { usePlacementProgress } from "@/hooks/use-placement-progress";
 import {
   cancelPlacementPipeline,
+  fetchPlacementPack,
   fetchPlacementPlan,
   fetchProject,
   startPlacementPipeline,
 } from "@/lib/api";
-import type { PlacementPlan } from "@/lib/types";
+import type { PlacementPack, PlacementPlan } from "@/lib/types";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -33,6 +34,7 @@ export default function PlacementPage({
   const [projectName, setProjectName] = useState("");
   const [placementStatus, setPlacementStatus] = useState<string>("draft");
   const [plan, setPlan] = useState<PlacementPlan | null>(null);
+  const [pack, setPack] = useState<PlacementPack | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [starting, setStarting] = useState(false);
   const [statusLoaded, setStatusLoaded] = useState(false);
@@ -67,6 +69,9 @@ export default function PlacementPage({
     fetchPlacementPlan(id)
       .then(setPlan)
       .catch(() => setPlan(null));
+    fetchPlacementPack(id)
+      .then(setPack)
+      .catch(() => setPack(null));
   }, [id, alreadyDone, done, placementStatus, statusLoaded]);
 
   const handleCancel = async () => {
@@ -190,6 +195,15 @@ export default function PlacementPage({
               <span className="text-muted-foreground">
                 · {summary?.domains ?? plan?.domains.length ?? "?"} domains,{" "}
                 {summary?.groups ?? plan?.groups.length ?? "?"} IC groups
+                {pack
+                  ? pack.status === "packed"
+                    ? ` · pack ${pack.placements.length} xy`
+                    : ` · pack skipped (${pack.skip_reason ?? "—"})`
+                  : summary?.pack_status
+                    ? summary.pack_status === "packed"
+                      ? ` · pack ${summary.pack_count ?? 0} xy`
+                      : ` · pack skipped (${summary.pack_skip_reason ?? "—"})`
+                    : ""}
               </span>
             </div>
           ) : (
@@ -240,6 +254,37 @@ export default function PlacementPage({
                           </span>
                         )}
                       </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {pack && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Pack (F2)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {pack.status === "skipped" ? (
+                  <p className="text-muted-foreground">
+                    Skipped: {pack.skip_reason ?? "—"}. Needs uploaded{" "}
+                    <code className="text-xs">.kicad_pcb</code> and numeric{" "}
+                    <code className="text-xs">max_distance_mm</code> on
+                    decoupling rules.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {pack.placements.map((p) => (
+                      <p
+                        key={`${p.anchor_ref}-${p.ref}`}
+                        className="text-xs text-muted-foreground"
+                      >
+                        <span className="text-foreground font-medium">{p.ref}</span>
+                        {" "}near {p.anchor_ref} ≤ {p.max_distance_mm} mm → (
+                        {p.proposed_x}, {p.proposed_y}) {p.layer || ""}
+                      </p>
                     ))}
                   </div>
                 )}

@@ -24,9 +24,9 @@ Fonte originale: canvas *Pinscope: crescita e DeepSeek*. Qui lo stato operativo.
 | P3 | Plugin CI / chat report | Todo |
 | Layout F1 | Domini / gruppi / satelliti | **Done** — `functional_groups.json` (no mm) |
 | Layout F1b | Pipeline Placement parallela | **Done** — API/UI `placement_*`, `placement_plan.json` |
-| Layout F2 | Placement IC packing mm | **Dopo** — gated `.kicad_pcb` + `layout_rules` numerici |
+| Layout F2 | Placement IC packing mm | **Partial** — skeleton gated (`placement_pack.json`); no zone/export yet |
 
-**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; packing mm (F2) gated.
+**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; F2 packing oltre skeleton (collisioni, zone, export).
 
 ---
 
@@ -41,9 +41,9 @@ Obiettivo unico: **routing migliore** (loop corti, meno crossing, canali liberi)
 | 3 | Gruppi minori: decoupling, bulk, load_cap, filter, pullup, … | F1 `role_hint` |
 | 4 | `layout_rules` già estratti sull’IC (nessun mm inventato) | F1 attach |
 | 5 | `assemble_order` dominio → chip → gruppi (contratto packer) | F1 metadato |
-| 6 | Packing mm / zone PCB / export | **F2** |
+| 6 | Packing mm / zone PCB / export | **F2 partial** — `placement_pack.json` (skip senza PCB + `max_distance_mm`); zone/export dopo |
 
-Output F1: `functional_groups.json` scritto in `graph_build`. Pipeline parallela Placement (`POST …/placement/start`) riscrive anche `placement_plan.json` senza toccare lo `status` di analisi. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
+Output F1: `functional_groups.json` scritto in `graph_build`. Pipeline parallela Placement (`POST …/placement/start`) riscrive anche `placement_plan.json` senza toccare lo `status` di analisi, poi tenta F2 pack. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
 
 ---
 
