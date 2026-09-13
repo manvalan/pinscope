@@ -33,6 +33,26 @@ def test_empty_list_is_explicit_skip():
     assert errors == []
 
 
+def test_needs_refresh_when_empty_and_old_version():
+    from backend.pinscopex.layout_rules import needs_layout_rules_refresh
+
+    assert needs_layout_rules_refresh(
+        {"model_version": "1.9.0", "layout_rules": []},
+        min_scan_version="1.10.0",
+    )
+    assert not needs_layout_rules_refresh(
+        {"model_version": "1.10.0", "layout_rules": []},
+        min_scan_version="1.10.0",
+    )
+    assert not needs_layout_rules_refresh(
+        {
+            "model_version": "1.9.0",
+            "layout_rules": [{"kind": "decoupling_proximity", "max_distance_mm": None}],
+        },
+        min_scan_version="1.10.0",
+    )
+
+
 def test_unknown_kind_rejected_and_non_numeric_distance_is_null():
     ok, errors = validate_layout_rules([
         {"kind": "not_a_kind", "max_distance_mm": 1.0},

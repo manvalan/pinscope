@@ -25,8 +25,9 @@ Fonte originale: canvas *Pinscope: crescita e DeepSeek*. Qui lo stato operativo.
 | Layout F1 | Domini / gruppi / satelliti | **Done** — `functional_groups.json` (no mm) |
 | Layout F1b | Pipeline Placement parallela | **Done** — API/UI `placement_*`, `placement_plan.json` |
 | Layout F2 | Placement IC packing mm | **Partial** — skeleton gated (`placement_pack.json`); no zone/export yet |
+| C4 | `layout_rules` dal datasheet | **Improved** — skill 1.10.0 + trim keywords + cache refresh se vuoto |
 
-**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; F2 packing oltre skeleton (collisioni, zone, export).
+**Done when (prossimo pacchetto):** smoke `--live` verde; hit_ratio visibile in UI logs; F2 packing oltre skeleton (collisioni, zone, export); più IC library con `layout_rules` numerici.
 
 ---
 

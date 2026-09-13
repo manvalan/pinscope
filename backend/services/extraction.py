@@ -135,8 +135,36 @@ PINTABLE_TOOL = {
             },
             "layout_rules": {
                 "type": "array",
-                "description": "Optional PCB layout constraints from typical-application pages. kind must be decoupling_proximity, thermal_via, keepout, or length_match. max_distance_mm only if the PDF states a number — never invent 3 mm or 3W.",
-                "items": {"type": "object"},
+                "description": (
+                    "PCB layout constraints from typical-application / PCB layout pages. "
+                    "kind: decoupling_proximity | thermal_via | keepout | length_match. "
+                    "Fields: pin, cap_value_hint, max_distance_mm (ONLY if the PDF states a "
+                    "number — never invent 3 mm/JEDEC), same_layer (bool), min_via_count, "
+                    "net_class, note, source_page. Empty array if the PDF has no layout guidance."
+                ),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "decoupling_proximity",
+                                "thermal_via",
+                                "keepout",
+                                "length_match",
+                            ],
+                        },
+                        "pin": {"type": ["string", "null"]},
+                        "cap_value_hint": {"type": ["string", "null"]},
+                        "max_distance_mm": {"type": ["number", "null"]},
+                        "same_layer": {"type": ["boolean", "null"]},
+                        "min_via_count": {"type": ["integer", "null"]},
+                        "net_class": {"type": ["string", "null"]},
+                        "note": {"type": ["string", "null"]},
+                        "source_page": {"type": ["integer", "null"]},
+                    },
+                    "required": ["kind"],
+                },
             },
         },
         "required": ["component_subtype", "component_subtype_description", "package_info", "pintable"],
@@ -257,11 +285,17 @@ _MAX_PDF_PAGES = 120
 log = logging.getLogger(__name__)
 
 # Keywords used to find relevant pages for each extraction stage.
+# Include PCB / typical-application pages so layout_rules can be extracted
+# when large datasheets are trimmed to ≤_MAX_PDF_PAGES.
 _PINTABLE_KEYWORDS = re.compile(
     r"pin\s*(out|diagram|configuration|description|assignment|function|name|table|map)"
     r"|ball\s*map|package\s*(pin|drawing|outline)|signal\s+description"
     r"|absolute\s+maximum|recommended\s+operating|electrical\s+characteristics"
-    r"|ordering\s+information|device\s+information",
+    r"|ordering\s+information|device\s+information"
+    r"|pcb\s+layout|layout\s+(guideline|recommendation|consideration|hint)"
+    r"|typical\s+application|application\s+(circuit|schematic|information|note)"
+    r"|reference\s+design|decoupling|bypass\s+capacitor|thermal\s+via"
+    r"|land\s+pattern|keep[\s\-]?out|place\s+(close|near|within)",
     re.IGNORECASE,
 )
 
@@ -596,7 +630,12 @@ async def extract_pintable(
             skill_name="extract-pintable",
             model=model,
             system=system,
-            user_text=f"Extract pin table and package info for MPN: {mpn}",
+            user_text=(
+                f"Extract pin table, package info, absolute maximum ratings, "
+                f"and layout_rules (scan PCB layout / typical application / "
+                f"thermal pages; max_distance_mm only if the PDF states mm) "
+                f"for MPN: {mpn}"
+            ),
             pdf_path=trimmed,
             output_tool=_to_tool(PINTABLE_TOOL),
         )

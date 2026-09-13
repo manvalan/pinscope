@@ -2,6 +2,15 @@
 
 What's new in Pinscope.
 
+## 2.28.8 — 2026-09-13 — Stronger layout_rules extraction skill
+
+Pintable skill now treats PCB / typical-application layout guidance as a first-class extract. Page trim keeps layout keywords; IC cache re-extracts once when `layout_rules` are empty under an older `model_version` (1.10.0+).
+
+- [Changed] `skills/extract-pintable` — dedicated `layout_rules` step, examples, hard negatives; tighter `validate.py`.
+- [Changed] Datasheet page trim includes PCB layout / decoupling / typical-application keywords.
+- [Changed] Analysis IC extraction refreshes empties when `model_version` < default (1.10.0).
+- [Changed] `default_model_version` → `1.10.0`.
+
 ## 2.28.7 — 2026-09-13 — Placement F2 pack skeleton (gated)
 
 Placement pipeline can propose satellite xy only when a `.kicad_pcb` layout exists and a `decoupling_proximity` rule has numeric `max_distance_mm`. No millimetres invented; otherwise `placement_pack.json` is skipped with an explicit reason.

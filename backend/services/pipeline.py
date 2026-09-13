@@ -762,6 +762,10 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
     extracted_dir = ctx.ws.local_path("extracted")
 
     # Pre-categorize: workspace cache, library cache, or needs extraction
+    from backend.config import settings as app_settings
+    from backend.pinscopex.layout_rules import needs_layout_rules_refresh
+
+    layout_scan_ver = app_settings.get_default_model_version()
     _ic_cache: dict[str, tuple] = {}
     _ic_new_count = 0
     for mpn in ctx.ic_mpns:
@@ -771,13 +775,27 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
             existing = json.loads(json_path.read_text())
             if existing.get("pintable"):
                 ws_ver = existing.get("model_version", "0.0.0")
-                if not settings_svc.version_is_stale(ws_ver, ctx.min_ver):
+                if (
+                    not settings_svc.version_is_stale(ws_ver, ctx.min_ver)
+                    and not needs_layout_rules_refresh(
+                        existing, min_scan_version=layout_scan_ver,
+                    )
+                ):
                     _ic_cache[mpn] = ("workspace",)
                     continue
         lib_key = proj_svc.library_has_extraction(ctx.storage, mpn, min_version=ctx.min_ver)
         if lib_key:
-            _ic_cache[mpn] = ("library", lib_key)
-            continue
+            # Library hit may still lack layout_rules under the current skill.
+            try:
+                lib_payload = ctx.storage.read_json(lib_key)
+            except Exception:
+                lib_payload = {}
+            if not needs_layout_rules_refresh(
+                lib_payload if isinstance(lib_payload, dict) else {},
+                min_scan_version=layout_scan_ver,
+            ):
+                _ic_cache[mpn] = ("library", lib_key)
+                continue
         _ic_new_count += 1
 
     broker.publish(ctx.project_id, "step_update",

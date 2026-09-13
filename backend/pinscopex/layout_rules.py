@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from packaging.version import Version
+
 KNOWN_KINDS = frozenset({"decoupling_proximity", "thermal_via", "keepout", "length_match"})
 
 
@@ -18,6 +20,37 @@ def _num(v: Any) -> float | None:
         return float(str(v).strip())
     except (TypeError, ValueError):
         return None
+
+
+def has_any_layout_rule(raw: object) -> bool:
+    """True when extraction already produced at least one structured rule."""
+    if not isinstance(raw, list):
+        return False
+    for row in raw:
+        if isinstance(row, dict) and str(row.get("kind") or "").strip() in KNOWN_KINDS:
+            return True
+    return False
+
+
+def needs_layout_rules_refresh(
+    data: dict,
+    *,
+    min_scan_version: str,
+) -> bool:
+    """True when layout_rules are empty and the extract predates the scan version.
+
+    After a successful extract at ``min_scan_version`` or newer, an empty
+    ``layout_rules`` list means the datasheet had no guidance — do not loop.
+    """
+    if has_any_layout_rule(data.get("layout_rules")):
+        return False
+    ver = str(data.get("model_version") or "0.0.0")
+    if not min_scan_version or min_scan_version == "0.0.0":
+        return False
+    try:
+        return Version(ver) < Version(min_scan_version)
+    except Exception:
+        return True
 
 
 def validate_layout_rules(raw: list | None) -> tuple[list[dict], list[str]]:

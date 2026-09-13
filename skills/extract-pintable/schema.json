@@ -56,7 +56,30 @@
     },
     "layout_rules": {
       "type": "array",
-      "items": {"type": "object"}
+      "description": "PCB layout constraints from typical-application / PCB layout pages. Empty if none stated.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "decoupling_proximity",
+              "thermal_via",
+              "keepout",
+              "length_match"
+            ]
+          },
+          "pin": {"type": ["string", "null"]},
+          "cap_value_hint": {"type": ["string", "null"]},
+          "max_distance_mm": {"type": ["number", "null"]},
+          "same_layer": {"type": ["boolean", "null"]},
+          "min_via_count": {"type": ["integer", "null"]},
+          "net_class": {"type": ["string", "null"]},
+          "note": {"type": ["string", "null"]},
+          "source_page": {"type": ["integer", "null"]}
+        },
+        "required": ["kind"]
+      }
     }
   },
   "required": ["component_subtype", "package_info", "pintable"]

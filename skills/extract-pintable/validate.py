@@ -93,6 +93,62 @@ def validate(data: dict) -> list[str]:
                 kind = row.get("kind")
                 if kind not in kinds:
                     errors.append(f"layout_rules[{i}] unknown kind: {kind!r}")
+                    continue
+                dist = row.get("max_distance_mm")
+                if dist is not None and dist is not False:
+                    if isinstance(dist, bool):
+                        errors.append(
+                            f"layout_rules[{i}].max_distance_mm must be a number or null"
+                        )
+                    elif isinstance(dist, (int, float)):
+                        if float(dist) <= 0:
+                            errors.append(
+                                f"layout_rules[{i}].max_distance_mm must be > 0"
+                            )
+                    else:
+                        try:
+                            v = float(str(dist).strip())
+                        except (TypeError, ValueError):
+                            errors.append(
+                                f"layout_rules[{i}].max_distance_mm must be numeric "
+                                f"or null (got {dist!r}) — do not invent distances; "
+                                f"use null when the PDF only says 'close'"
+                            )
+                        else:
+                            if v <= 0:
+                                errors.append(
+                                    f"layout_rules[{i}].max_distance_mm must be > 0"
+                                )
+                via = row.get("min_via_count")
+                if via is not None and via is not False and not isinstance(via, bool):
+                    if isinstance(via, int):
+                        if via <= 0:
+                            errors.append(
+                                f"layout_rules[{i}].min_via_count must be > 0"
+                            )
+                    else:
+                        try:
+                            iv = int(float(str(via).strip()))
+                        except (TypeError, ValueError):
+                            errors.append(
+                                f"layout_rules[{i}].min_via_count must be an integer "
+                                f"or null (got {via!r})"
+                            )
+                        else:
+                            if iv <= 0:
+                                errors.append(
+                                    f"layout_rules[{i}].min_via_count must be > 0"
+                                )
+                page = row.get("source_page")
+                if page is not None and not isinstance(page, int):
+                    errors.append(
+                        f"layout_rules[{i}].source_page must be an integer or null"
+                    )
+                same = row.get("same_layer")
+                if same is not None and not isinstance(same, bool):
+                    errors.append(
+                        f"layout_rules[{i}].same_layer must be a boolean or null"
+                    )
 
     return errors
 
