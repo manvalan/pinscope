@@ -38,6 +38,30 @@ RoleHint = Literal[
     "other",
 ]
 
+# Roles kept in satellites / assemble_order. Unclassified "other" is dropped.
+_ASSEMBLE_ROLES = frozenset({
+    "decoupling", "bulk", "load_cap", "filter", "pullup",
+    "series", "divider", "bridge", "crystal",
+})
+_POWER_SAT_ROLES = frozenset({"decoupling", "bulk", "filter", "pullup"})
+_SKIP_OTHER_TYPES = frozenset({
+    ComponentType.CONNECTOR,
+    ComponentType.SWITCH,
+    ComponentType.TEST_POINT,
+    ComponentType.FIDUCIAL,
+    ComponentType.MECHANICAL,
+})
+# Bias / charge-pump / bootstrap nets often stay SIGNAL in the graph.
+_BIAS_NET_RE = re.compile(
+    r"(?:^|[_/\-])(REGN|PMID|BTST|BOOT|SW|LX|BST|VREG|VLDO|VREF)"
+    r"(?:$|[_/\-\d])",
+    re.IGNORECASE,
+)
+_STRAP_NET_RE = re.compile(
+    r"(?:EN|ENABLE|RESET|NRST|BOOT|CHIP_PU|GPIO0)",
+    re.IGNORECASE,
+)
+
 _BULK_F = 1e-6  # >= 1 µF → bulk candidate
 _XTAL_RE = re.compile(
     r"(?:^|[_/])(X(?:IN|OUT)|XTAL|OSC|HFX(?:IN|OUT)|LFX(?:IN|OUT)|CLK(?:IN|OUT)?)(?:$|[_/\d])",
@@ -177,16 +201,6 @@ def _ic_rank(comp: Component) -> int:
     return 9
 
 
-_POWER_SAT_ROLES = frozenset({"decoupling", "bulk", "filter", "pullup"})
-_SKIP_OTHER_TYPES = frozenset({
-    ComponentType.CONNECTOR,
-    ComponentType.SWITCH,
-    ComponentType.TEST_POINT,
-    ComponentType.FIDUCIAL,
-    ComponentType.MECHANICAL,
-})
-
-
 def _group_for_ic(
     graph: DesignGraph,
     ref: str,
@@ -210,11 +224,16 @@ def _group_for_ic(
                 continue
             role = _role_hint(graph, comp, cons, other, net_name)
             sat_nets = {n for n in other.pins.values() if n}
-            # Keep decoupling/bulk/filter/pullup on the IC primary rail only —
-            # otherwise an LDO on 3V3 also inherits VSYS input caps/inductors.
-            if role in _POWER_SAT_ROLES and primary and primary not in sat_nets:
-                continue
+            # Drop power-role parts that sit on a *different* named power rail
+            # (LDO must not inherit VSYS input caps). Strap/bias caps with no
+            # typed POWER net still attach.
+            if role in _POWER_SAT_ROLES and primary:
+                sat_power = {n for n in sat_nets if _is_power_net(graph, n)}
+                if sat_power and primary not in sat_power:
+                    continue
             if role == "other" and other.component_type in _SKIP_OTHER_TYPES:
+                continue
+            if role not in _ASSEMBLE_ROLES:
                 continue
             sat_map[oref] = PlacementSatellite(
                 ref=oref,
@@ -298,22 +317,40 @@ def _role_hint(
     if other.component_type == ComponentType.CAPACITOR:
         if _looks_xtal_net(via_net) or _ic_pin_is_xtal(cons, via_net, ic):
             return "load_cap"
-        others = {n for n in other.pins.values() if n != via_net}
-        if any(_is_ground_net(graph, n) for n in others) and (
-            _is_power_net(graph, via_net) or _net_is_ic_supply(graph, ic, cons, via_net)
-        ):
-            farads = _cap_farads(other)
-            return "bulk" if farads is not None and farads >= _BULK_F else "decoupling"
+
+        pin_nets = {n for n in other.pins.values() if n}
+        gnd_nets = {n for n in pin_nets if _is_ground_net(graph, n)}
+        live = [n for n in pin_nets if n not in gnd_nets]
+        ic_nets = {n for n in ic.pins.values() if n}
+
+        # Bootstrap / flying cap between two pins of this IC.
+        if len(live) == 2 and all(n in ic_nets for n in live):
+            return "bridge"
+
+        # Cap to GND on an IC pin / bias / strap / power net → local bypass.
+        if gnd_nets and len(live) == 1:
+            net = live[0]
+            if (
+                net in ic_nets
+                or _is_power_net(graph, net)
+                or _net_is_ic_supply(graph, ic, cons, net)
+                or _BIAS_NET_RE.search(net or "")
+                or _STRAP_NET_RE.search(net or "")
+            ):
+                farads = _cap_farads(other)
+                return "bulk" if farads is not None and farads >= _BULK_F else "decoupling"
         return "other"
 
     if other.component_type == ComponentType.INDUCTOR:
         return "filter"
 
     if other.component_type == ComponentType.RESISTOR:
-        nets = list(dict.fromkeys(other.pins.values()))
+        nets = list(dict.fromkeys(n for n in other.pins.values() if n))
         if len(nets) == 2:
             a, b = nets
-            if _is_power_net(graph, a) or _is_power_net(graph, b):
+            if _is_power_net(graph, a) or _is_power_net(graph, b) or (
+                _BIAS_NET_RE.search(a or "") or _BIAS_NET_RE.search(b or "")
+            ):
                 if _is_ground_net(graph, a) or _is_ground_net(graph, b):
                     return "divider"
                 return "pullup"
@@ -321,11 +358,11 @@ def _role_hint(
             if a in ic_nets and b in ic_nets:
                 return "bridge"
             if a in ic_nets or b in ic_nets:
+                # Set resistor / NTC leg to GND stays series (placement-local).
                 return "series"
         return "other"
 
     return "other"
-
 
 def _looks_xtal_net(name: str) -> bool:
     return bool(_XTAL_RE.search(name or ""))

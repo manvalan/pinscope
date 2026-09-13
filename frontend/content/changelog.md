@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.28.10 — 2026-09-13 — Classify strap/bootstrap satellites; hide other
+
+Caps on EN/BOOT/REGN/PMID and bootstrap caps between IC pins get real roles. Unclassified `other` parts are dropped from satellites and assemble_order.
+
+- [Changed] `_role_hint` classifies GND bypass on bias/strap nets and flying bootstrap caps.
+- [Changed] Assemble / IC groups omit `role_hint=other`.
+
 ## 2.28.9 — 2026-09-13 — Cleaner Domains / Power rails membership
 
 Power rails follow primary domain only. IC satellites for decoupling/bulk/filter/pullup stay on the IC’s primary supply rail (LDO 3V3 no longer inherits VSYS input caps). Connectors/switches drop out of noisy “other” satellites.

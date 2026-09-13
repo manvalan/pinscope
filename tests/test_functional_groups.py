@@ -85,7 +85,7 @@ def test_ldo_power_satellites_stay_on_primary_rail():
             reference="U1", value="LDO", footprint="",
             component_type=ComponentType.IC,
             component_subtype="ic.power.ldo",
-            pins={"1": "VSYS", "2": "3V3_DIGITAL", "3": "GND"},
+            pins={"1": "VSYS", "2": "3V3_DIGITAL", "3": "GND", "4": "EN"},
         ),
         "C_in": Component(
             reference="C_in", value="10u", footprint="",
@@ -105,12 +105,32 @@ def test_ldo_power_satellites_stay_on_primary_rail():
             pins={"1": "3V3_DIGITAL", "2": "GND"},
             specs=CapacitorSpecs(value_farads=100e-9, value_formatted="100nF"),
         ),
+        "C_en": Component(
+            reference="C_en", value="1u", footprint="",
+            component_type=ComponentType.CAPACITOR,
+            pins={"1": "EN", "2": "GND"},
+            specs=CapacitorSpecs(value_farads=1e-6, value_formatted="1uF"),
+        ),
+        "C_boot": Component(
+            reference="C_boot", value="47n", footprint="",
+            component_type=ComponentType.CAPACITOR,
+            pins={"1": "BTST", "2": "SW"},
+            specs=CapacitorSpecs(value_farads=47e-9, value_formatted="47nF"),
+        ),
         "J1": Component(
             reference="J1", value="USB", footprint="",
             component_type=ComponentType.CONNECTOR,
             pins={"1": "3V3_DIGITAL", "2": "GND"},
         ),
+        "C_noise": Component(
+            reference="C_noise", value="100n", footprint="",
+            component_type=ComponentType.CAPACITOR,
+            pins={"1": "orphan", "2": "somewhere"},
+        ),
     }
+    # Extend U1 pins for bootstrap
+    components["U1"].pins["5"] = "BTST"
+    components["U1"].pins["6"] = "SW"
     nets = {
         "VSYS": Net(
             name="VSYS", net_type=NetType.POWER,
@@ -128,23 +148,57 @@ def test_ldo_power_satellites_stay_on_primary_rail():
                 PinConnection(component_ref="J1", pin_number="1"),
             ],
         ),
+        "EN": Net(
+            name="EN", net_type=NetType.SIGNAL,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="4"),
+                PinConnection(component_ref="C_en", pin_number="1"),
+            ],
+        ),
+        "BTST": Net(
+            name="BTST", net_type=NetType.SIGNAL,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="5"),
+                PinConnection(component_ref="C_boot", pin_number="1"),
+            ],
+        ),
+        "SW": Net(
+            name="SW", net_type=NetType.SIGNAL,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="6"),
+                PinConnection(component_ref="C_boot", pin_number="2"),
+            ],
+        ),
         "GND": Net(
             name="GND", net_type=NetType.GROUND,
             pins=[
                 PinConnection(component_ref="U1", pin_number="3"),
                 PinConnection(component_ref="C_in", pin_number="2"),
                 PinConnection(component_ref="C_out", pin_number="2"),
+                PinConnection(component_ref="C_en", pin_number="2"),
                 PinConnection(component_ref="J1", pin_number="2"),
             ],
+        ),
+        "orphan": Net(
+            name="orphan", net_type=NetType.SIGNAL,
+            pins=[PinConnection(component_ref="C_noise", pin_number="1")],
+        ),
+        "somewhere": Net(
+            name="somewhere", net_type=NetType.SIGNAL,
+            pins=[PinConnection(component_ref="C_noise", pin_number="2")],
         ),
     }
     report = build_functional_groups(DesignGraph(components=components, nets=nets))
     u1 = next(g for g in report.groups if g.ref == "U1")
     sat = {s.ref: s.role_hint for s in u1.satellites}
-    assert "C_out" in sat
+    assert sat.get("C_out") == "decoupling"
+    assert sat.get("C_en") == "bulk"
+    assert sat.get("C_boot") == "bridge"
     assert "C_in" not in sat
     assert "L1" not in sat
     assert "J1" not in sat
+    assert "C_noise" not in sat
+    assert "other" not in sat.values()
 
 
 def test_multi_rail_board_does_not_collapse_to_one_domain():

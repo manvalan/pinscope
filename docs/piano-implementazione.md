@@ -44,6 +44,15 @@ Obiettivo unico: **routing migliore** (loop corti, meno crossing, canali liberi)
 | 5 | `assemble_order` dominio → chip → gruppi (contratto packer) | F1 metadato |
 | 6 | Packing mm / zone PCB / export | **F2 partial** — `placement_pack.json` (skip senza PCB + `max_distance_mm`); zone/export dopo |
 
+### Roadmap Placement (da qui a coordinate utili)
+
+1. **F1 polish (ora)** — satelliti classificatì; `other` nascosti; Domains/Rails = primary rail.
+2. **C4 fill** — riestrazione IC → `layout_rules` con `max_distance_mm` dove il PDF lo dice (skill 1.10.0).
+3. **PCB gate** — upload `.kicad_pcb` → `layout_graph.json` (footprint xy già usati da PS-PLC*).
+4. **F2 pack v1** — per ogni `decoupling_proximity` numerica: proporre xy satellite entro `max_distance_mm` dal pad (già skeleton); UI Pack lista proposte.
+5. **F2 pack v2** — collisioni courtyard, stesso layer, ordine `assemble_order` per dominio, ancore IC fissi se già piazzati.
+6. **F2 export** — scrivere posizioni proposte in file/plugin (pcbnew) senza muovere rame; `placement_check` resta verifica.
+
 Output F1: `functional_groups.json` scritto in `graph_build`. Pipeline parallela Placement (`POST …/placement/start`) riscrive anche `placement_plan.json` senza toccare lo `status` di analisi, poi tenta F2 pack. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
 
 ---
