@@ -177,6 +177,16 @@ def _ic_rank(comp: Component) -> int:
     return 9
 
 
+_POWER_SAT_ROLES = frozenset({"decoupling", "bulk", "filter", "pullup"})
+_SKIP_OTHER_TYPES = frozenset({
+    ComponentType.CONNECTOR,
+    ComponentType.SWITCH,
+    ComponentType.TEST_POINT,
+    ComponentType.FIDUCIAL,
+    ComponentType.MECHANICAL,
+})
+
+
 def _group_for_ic(
     graph: DesignGraph,
     ref: str,
@@ -185,6 +195,8 @@ def _group_for_ic(
     comp = graph.components[ref]
     cons = _match_constraints(comp.mpn or comp.value, cmap)
     nets = [n for n in graph.nets_of_component(ref) if not _is_ground_net(graph, n)]
+    power_nets = {n for n in nets if _is_power_net(graph, n)}
+    primary = _primary_supply_net(comp, power_nets)
     sat_map: dict[str, PlacementSatellite] = {}
 
     for net_name, others in graph.neighbors(ref).items():
@@ -197,19 +209,32 @@ def _group_for_ic(
             if not other or other.component_type == ComponentType.IC:
                 continue
             role = _role_hint(graph, comp, cons, other, net_name)
+            sat_nets = {n for n in other.pins.values() if n}
+            # Keep decoupling/bulk/filter/pullup on the IC primary rail only —
+            # otherwise an LDO on 3V3 also inherits VSYS input caps/inductors.
+            if role in _POWER_SAT_ROLES and primary and primary not in sat_nets:
+                continue
+            if role == "other" and other.component_type in _SKIP_OTHER_TYPES:
+                continue
             sat_map[oref] = PlacementSatellite(
                 ref=oref,
                 component_type=other.component_type.value,
                 component_subtype=other.component_subtype,
-                nets=sorted({n for n in other.pins.values() if n}),
+                nets=sorted(sat_nets),
                 hop=1,
                 role_hint=role,
             )
 
-    for pin_num, net_name in comp.pins.items():
+    # Cap enhancement: only on the primary supply rail (when known).
+    supply_nets = [primary] if primary else []
+    if not supply_nets:
+        supply_nets = [
+            n for pin_num, n in comp.pins.items()
+            if n and not _is_ground_net(graph, n)
+            and _is_ic_supply_pin(graph, cons, pin_num, n)
+        ]
+    for net_name in supply_nets:
         if not net_name or _is_ground_net(graph, net_name):
-            continue
-        if not _is_ic_supply_pin(graph, cons, pin_num, net_name):
             continue
         for cref in graph.capacitors_on_net(net_name):
             if cref == ref:

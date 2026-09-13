@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.28.9 — 2026-09-13 — Cleaner Domains / Power rails membership
+
+Power rails follow primary domain only. IC satellites for decoupling/bulk/filter/pullup stay on the IC’s primary supply rail (LDO 3V3 no longer inherits VSYS input caps). Connectors/switches drop out of noisy “other” satellites.
+
+- [Fixed] Rails view membership = domain primary rail (not transitive satellite nets).
+- [Fixed] `_group_for_ic` primary-rail filter for power-role satellites; skip connector/switch “other”.
+
 ## 2.28.8 — 2026-09-13 — Stronger layout_rules extraction skill
 
 Pintable skill now treats PCB / typical-application layout guidance as a first-class extract. Page trim keeps layout keywords; IC cache re-extracts once when `layout_rules` are empty under an older `model_version` (1.10.0+).

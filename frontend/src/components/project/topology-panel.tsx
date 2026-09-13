@@ -165,33 +165,23 @@ type RailRow = {
 function RailsView({ plan }: { plan: PlacementPlan }) {
   const rails = useMemo(() => {
     const byRef = Object.fromEntries(plan.groups.map((g) => [g.ref, g]));
+    // One row per domain primary rail — do not pull ICs onto a rail just
+    // because a connector/pullup satellite also touches it.
     const map = new Map<string, { domainIds: Set<string>; groupRefs: Set<string> }>();
 
     for (const dom of plan.domains) {
-      for (const net of dom.power_nets) {
-        let entry = map.get(net);
-        if (!entry) {
-          entry = { domainIds: new Set(), groupRefs: new Set() };
-          map.set(net, entry);
-        }
-        entry.domainIds.add(dom.domain_id);
-        for (const iref of dom.ic_refs) entry.groupRefs.add(iref);
+      const primary = dom.power_nets[0];
+      if (!primary) continue;
+      let entry = map.get(primary);
+      if (!entry) {
+        entry = { domainIds: new Set(), groupRefs: new Set() };
+        map.set(primary, entry);
       }
+      entry.domainIds.add(dom.domain_id);
+      for (const iref of dom.ic_refs) entry.groupRefs.add(iref);
     }
 
-    // Also attach groups that list the rail on their nets / satellites
-    for (const g of plan.groups) {
-      for (const net of g.nets ?? []) {
-        const entry = map.get(net);
-        if (entry) entry.groupRefs.add(g.ref);
-      }
-      for (const s of g.satellites) {
-        for (const net of s.nets ?? []) {
-          const entry = map.get(net);
-          if (entry) entry.groupRefs.add(g.ref);
-        }
-      }
-    }
+    const powerRoles = new Set(["decoupling", "bulk", "filter", "pullup"]);
 
     const rows: RailRow[] = [...map.entries()]
       .map(([net, v]) => ({
@@ -200,7 +190,21 @@ function RailsView({ plan }: { plan: PlacementPlan }) {
         groups: [...v.groupRefs]
           .map((r) => byRef[r])
           .filter(Boolean)
-          .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || a.ref.localeCompare(b.ref)),
+          .sort(
+            (a, b) =>
+              (a.rank ?? 99) - (b.rank ?? 99) || a.ref.localeCompare(b.ref),
+          )
+          .map((g) => {
+            const onRailSats = g.satellites.filter(
+              (s) =>
+                (s.nets || []).includes(net) &&
+                powerRoles.has(s.role_hint || ""),
+            );
+            return {
+              ...g,
+              satellites: onRailSats,
+            } as PlacementIcGroup;
+          }),
       }))
       .sort((a, b) => a.net.localeCompare(b.net));
 
@@ -234,23 +238,11 @@ function RailsView({ plan }: { plan: PlacementPlan }) {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-              Functional groups on this rail
+              Primary IC groups on this rail
             </p>
-            {rail.groups.map((g) => {
-              const onRailSats = g.satellites.filter(
-                (s) => (s.nets || []).includes(rail.net),
-              );
-              const highlight: PlacementIcGroup = {
-                ...g,
-                satellites:
-                  onRailSats.length > 0
-                    ? onRailSats
-                    : g.satellites.filter((s) =>
-                        ["decoupling", "bulk"].includes(s.role_hint || ""),
-                      ),
-              };
-              return <GroupBlock key={g.ref} group={highlight} emphasize />;
-            })}
+            {rail.groups.map((g) => (
+              <GroupBlock key={g.ref} group={g} emphasize />
+            ))}
           </CardContent>
         </Card>
       ))}
@@ -315,8 +307,8 @@ export function TopologyPanel({
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           {mode === "domains"
-            ? "Power-net islands with IC functional groups and satellite roles (routing-first, no mm)."
-            : "Each supply rail with the functional groups that hang off it."}
+            ? "Primary supply-rail domains with IC functional groups and satellite roles (routing-first, no mm)."
+            : "Each primary supply rail with its domain IC groups (not shared connectors across rails)."}
         </p>
       </div>
       {mode === "domains" ? <DomainsView plan={plan} /> : <RailsView plan={plan} />}

@@ -67,6 +67,86 @@ def test_simple_project_splits_5v_and_3v3_domains():
     assert len(report.domains) == 2
 
 
+def test_ldo_power_satellites_stay_on_primary_rail():
+    """LDO input-rail caps must not appear as primary-rail satellites."""
+    from backend.pinscopex.models import (
+        CapacitorSpecs,
+        Component,
+        ComponentType,
+        DesignGraph,
+        InductorSpecs,
+        Net,
+        NetType,
+        PinConnection,
+    )
+
+    components = {
+        "U1": Component(
+            reference="U1", value="LDO", footprint="",
+            component_type=ComponentType.IC,
+            component_subtype="ic.power.ldo",
+            pins={"1": "VSYS", "2": "3V3_DIGITAL", "3": "GND"},
+        ),
+        "C_in": Component(
+            reference="C_in", value="10u", footprint="",
+            component_type=ComponentType.CAPACITOR,
+            pins={"1": "VSYS", "2": "GND"},
+            specs=CapacitorSpecs(value_farads=10e-6, value_formatted="10uF"),
+        ),
+        "L1": Component(
+            reference="L1", value="2.2u", footprint="",
+            component_type=ComponentType.INDUCTOR,
+            pins={"1": "VSYS", "2": "VSYS"},
+            specs=InductorSpecs(value_henries=2.2e-6, value_formatted="2.2uH"),
+        ),
+        "C_out": Component(
+            reference="C_out", value="100n", footprint="",
+            component_type=ComponentType.CAPACITOR,
+            pins={"1": "3V3_DIGITAL", "2": "GND"},
+            specs=CapacitorSpecs(value_farads=100e-9, value_formatted="100nF"),
+        ),
+        "J1": Component(
+            reference="J1", value="USB", footprint="",
+            component_type=ComponentType.CONNECTOR,
+            pins={"1": "3V3_DIGITAL", "2": "GND"},
+        ),
+    }
+    nets = {
+        "VSYS": Net(
+            name="VSYS", net_type=NetType.POWER,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="1"),
+                PinConnection(component_ref="C_in", pin_number="1"),
+                PinConnection(component_ref="L1", pin_number="1"),
+            ],
+        ),
+        "3V3_DIGITAL": Net(
+            name="3V3_DIGITAL", net_type=NetType.POWER,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="2"),
+                PinConnection(component_ref="C_out", pin_number="1"),
+                PinConnection(component_ref="J1", pin_number="1"),
+            ],
+        ),
+        "GND": Net(
+            name="GND", net_type=NetType.GROUND,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="3"),
+                PinConnection(component_ref="C_in", pin_number="2"),
+                PinConnection(component_ref="C_out", pin_number="2"),
+                PinConnection(component_ref="J1", pin_number="2"),
+            ],
+        ),
+    }
+    report = build_functional_groups(DesignGraph(components=components, nets=nets))
+    u1 = next(g for g in report.groups if g.ref == "U1")
+    sat = {s.ref: s.role_hint for s in u1.satellites}
+    assert "C_out" in sat
+    assert "C_in" not in sat
+    assert "L1" not in sat
+    assert "J1" not in sat
+
+
 def test_multi_rail_board_does_not_collapse_to_one_domain():
     """Charger→LDO→MCU must not become a single domain via shared POWER nets."""
     from backend.pinscopex.models import (
