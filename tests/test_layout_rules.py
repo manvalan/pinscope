@@ -6,7 +6,7 @@ Against: unknown kind rejected; non-numeric distance becomes null.
 
 from __future__ import annotations
 
-from backend.pinscopex.layout_rules import validate_layout_rules
+from backend.periscopex.layout_rules import validate_layout_rules
 
 
 def test_numeric_max_distance_mm_is_kept():
@@ -34,7 +34,7 @@ def test_empty_list_is_explicit_skip():
 
 
 def test_needs_refresh_when_empty_and_old_version():
-    from backend.pinscopex.layout_rules import needs_layout_rules_refresh
+    from backend.periscopex.layout_rules import needs_layout_rules_refresh
 
     assert needs_layout_rules_refresh(
         {"model_version": "1.9.0", "layout_rules": []},

@@ -1,18 +1,18 @@
 """Lifecycle from distributor payload.
 
-Favor: DigiKey Obsolete → PS-LF-001 WARNING and uses ProductSubstitutions;
-NRND → PS-LF-002 INFO; explicit RoHS Non-Compliant → PS-LF-003.
+Favor: DigiKey Obsolete → PE-LF-001 WARNING and uses ProductSubstitutions;
+NRND → PE-LF-002 INFO; explicit RoHS Non-Compliant → PE-LF-003.
 Against: Active is silent; RoHS Not Applicable is not a fail; missing
 catalog row is silent; no substitution key means no invented replacement.
 """
 
 from __future__ import annotations
 
-from backend.pinscopex.lifecycle import (
+from backend.periscopex.lifecycle import (
     check_lifecycle,
     parse_distributor_product,
 )
-from backend.pinscopex.models import Component, ComponentType, DesignGraph, Net, NetType, PinConnection
+from backend.periscopex.models import Component, ComponentType, DesignGraph, Net, NetType, PinConnection
 
 
 def _graph(mpn="PARTX"):
@@ -44,7 +44,7 @@ def test_obsolete_is_warning_and_uses_distributor_replacement():
     assert rec.replacement == "ABC-B"
     findings = check_lifecycle(_graph("ABC"), {"ABC": rec})
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-LF-001"
+    assert findings[0].rule_id == "PE-LF-001"
     assert findings[0].status == "WARNING"
     assert findings[0].source == "lifecycle_check"
     assert "ABC-B" in (findings[0].recommendation or "")
@@ -55,7 +55,7 @@ def test_nrnd_is_info():
     assert rec.lifecycle == "nrnd"
     findings = check_lifecycle(_graph("N1"), {"N1": rec})
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-LF-002"
+    assert findings[0].rule_id == "PE-LF-002"
     assert findings[0].status == "INFO"
 
 
@@ -67,7 +67,7 @@ def test_explicit_rohs_non_compliant_is_warning():
     assert rec.rohs_compliant is False
     findings = check_lifecycle(_graph("R1"), {"R1": rec})
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-LF-003"
+    assert findings[0].rule_id == "PE-LF-003"
     assert findings[0].status == "WARNING"
 
 
@@ -93,6 +93,6 @@ def test_missing_catalog_and_missing_substitute_are_not_guessed():
     assert rec.replacement is None
     findings = check_lifecycle(_graph("EOLX"), {"EOLX": rec})
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-LF-001"
+    assert findings[0].rule_id == "PE-LF-001"
     assert "ABC-B" not in (findings[0].recommendation or "")
     assert rec.replacement is None

@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from backend.config import settings
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.routers.deps import get_storage
 from backend.services import admin_settings as settings_svc
 from backend.services.billing_hook import get_billing

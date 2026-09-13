@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Awaitable, Callable
 
 from backend.config import settings
-from backend.pinscopex.models import Finding
+from backend.periscopex.models import Finding
 from backend.services.api_logs import ApiLogger
 from backend.services.llm import Message, TextBlock
 from backend.services.llm.factory import call_with_fallback

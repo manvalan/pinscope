@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-from backend.pinscopex.models import Finding
-from backend.pinscopex.quote_verify import (
+from backend.periscopex.models import Finding
+from backend.periscopex.quote_verify import (
     locate_quote,
     quote_in_text,
     verify_finding_citations,
 )
-from backend.pinscopex.validate import _parse_review
+from backend.periscopex.validate import _parse_review
 from backend.services.llm.pdf_ingest import make_text_pdf
 
 

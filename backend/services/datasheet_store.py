@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.services.storage import StorageBackend
 
 BLOB_PREFIX = "library/datasheets/blobs/"

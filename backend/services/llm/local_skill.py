@@ -62,7 +62,7 @@ def load_skill_validator(skill_name: str):
     if not path.is_file():
         return None
     spec = importlib.util.spec_from_file_location(
-        f"pinscope_skill_{skill_name.replace('-', '_')}_validate", path,
+        f"periscope_skill_{skill_name.replace('-', '_')}_validate", path,
     )
     if spec is None or spec.loader is None:
         return None

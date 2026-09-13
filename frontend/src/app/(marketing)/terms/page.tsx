@@ -6,7 +6,7 @@ import { pageMetadata } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "Terms of Service",
   description:
-    "Terms governing your use of Pinscope, including account, payment, and acceptable-use rules.",
+    "Terms governing your use of Periscope, including account, payment, and acceptable-use rules.",
   path: "/terms",
 });
 

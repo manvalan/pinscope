@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.library_gate import pintable_checksum, should_promote_extraction
-from backend.pinscopex.models import Component, ComponentType, DesignGraph, Net, NetType, PinConnection
-from backend.pinscopex.validation_tools import shortest_path
+from backend.periscopex.library_gate import pintable_checksum, should_promote_extraction
+from backend.periscopex.models import Component, ComponentType, DesignGraph, Net, NetType, PinConnection
+from backend.periscopex.validation_tools import shortest_path
 from backend.services.api_logs import cache_stats_by_stage
 
 

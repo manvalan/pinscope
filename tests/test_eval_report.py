@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.pinscopex.eval_report import (
+from backend.periscopex.eval_report import (
     citation_hit_rate,
     eval_simple_project,
     finding_key,
     score_report,
 )
-from backend.pinscopex.models import Finding
+from backend.periscopex.models import Finding
 
 
 def _f(**kwargs) -> Finding:
@@ -26,7 +26,7 @@ def _f(**kwargs) -> Finding:
 
 
 def test_perfect_match_is_precision_and_recall_one():
-    f = _f(rule_id="PS-I2C-001", designator="U3", net="/I2C0.SDA")
+    f = _f(rule_id="PE-I2C-001", designator="U3", net="/I2C0.SDA")
     scores = score_report([f], {finding_key(f)})
     assert scores.precision == 1.0
     assert scores.recall == 1.0
@@ -36,18 +36,18 @@ def test_perfect_match_is_precision_and_recall_one():
 
 
 def test_extra_finding_drops_precision_not_recall():
-    gold = _f(rule_id="PS-I2C-001", designator="U3", net="/I2C0.SDA")
-    extra = _f(rule_id="PS-BOM-001", designator="U1", net="")
+    gold = _f(rule_id="PE-I2C-001", designator="U3", net="/I2C0.SDA")
+    extra = _f(rule_id="PE-BOM-001", designator="U1", net="")
     scores = score_report([gold, extra], {finding_key(gold)})
     assert scores.recall == 1.0
     assert scores.precision == 0.5
-    assert scores.extra_keys == ["PS-BOM-001|U1|"]
+    assert scores.extra_keys == ["PE-BOM-001|U1|"]
 
 
 def test_missing_golden_key_drops_recall():
-    gold_a = "PS-I2C-001|U3|/I2C0.SDA"
-    gold_b = "PS-I2C-001|U3|/I2C0.SCL"
-    produced = [_f(rule_id="PS-I2C-001", designator="U3", net="/I2C0.SDA")]
+    gold_a = "PE-I2C-001|U3|/I2C0.SDA"
+    gold_b = "PE-I2C-001|U3|/I2C0.SCL"
+    produced = [_f(rule_id="PE-I2C-001", designator="U3", net="/I2C0.SDA")]
     scores = score_report([produced[0]], {gold_a, gold_b})
     assert scores.precision == 1.0
     assert scores.recall == 0.5
@@ -57,7 +57,7 @@ def test_missing_golden_key_drops_recall():
 def test_citation_rate_ignores_deterministic_and_counts_unverified():
     det = _f(
         source="i2c_pullup_check",
-        rule_id="PS-I2C-001",
+        rule_id="PE-I2C-001",
         source_quote="ignored because deterministic",
         why="no pull-up",
     )

@@ -96,7 +96,7 @@ export function ChangelogTimeline({ content }: { content: string }) {
           </Link>
           <Link href="/" className="flex items-center gap-2">
             <Cpu className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium">Pinscope</span>
+            <span className="text-sm font-medium">Periscope</span>
           </Link>
         </div>
       </header>
@@ -104,7 +104,7 @@ export function ChangelogTimeline({ content }: { content: string }) {
       <main className="mx-auto max-w-3xl px-6 py-12">
         <div className="mb-12">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Changelog</h1>
-          <p className="text-sm text-muted-foreground">What's new in Pinscope.</p>
+          <p className="text-sm text-muted-foreground">What's new in Periscope.</p>
         </div>
 
         <ol className="relative">

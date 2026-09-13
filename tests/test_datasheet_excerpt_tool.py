@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 from pypdf import PdfWriter
 
-from backend.pinscopex.models import DesignGraph
-from backend.pinscopex.utils import safe_mpn
-from backend.pinscopex.validation_tools import (
+from backend.periscopex.models import DesignGraph
+from backend.periscopex.utils import safe_mpn
+from backend.periscopex.validation_tools import (
     EXCERPT_TOPICS,
     ExcerptState,
     execute_tool,

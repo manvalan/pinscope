@@ -49,7 +49,7 @@ def main():
         print("No patterns found — nothing to deduplicate")
         return
 
-    from backend.pinscopex.resolve_passives import resolve_mpn
+    from backend.periscopex.resolve_passives import resolve_mpn
 
     # List all library datasheet PDFs
     all_ds_keys = storage.list_recursive("library/datasheets/")

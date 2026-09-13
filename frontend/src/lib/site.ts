@@ -1,12 +1,12 @@
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ||
-  "https://pinscope.ai"
+  "https://periscope.michelebigi.it"
 );
 
-export const SITE_NAME = "Pinscope";
+export const SITE_NAME = "Periscope";
 
 export const SITE_DESCRIPTION =
-  "Pinscope reviews your schematic against every datasheet and catches the errors that would otherwise surface at bring-up. Works with KiCad, Altium, OrCAD, Cadence, Siemens, EasyEDA, and EAGLE.";
+  "Periscope reviews your schematic against every datasheet and catches the errors that would otherwise surface at bring-up. Works with KiCad, Altium, OrCAD, Cadence, Siemens, EasyEDA, and EAGLE.";
 
 export const SITE_TAGLINE = "Agentic schematic validation";
 

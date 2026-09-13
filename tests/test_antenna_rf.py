@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.antenna_rf import build_antenna_report, build_design_recipe
-from backend.pinscopex.models import (
+from backend.periscopex.antenna_rf import build_antenna_report, build_design_recipe
+from backend.periscopex.models import (
     CapacitorSpecs,
     Component,
     ComponentType,
@@ -187,7 +187,7 @@ def test_design_recipe_ready_with_ant_and_stackup():
 
 
 def test_geometry_templates_produce_export():
-    from backend.pinscopex.antenna_geometry import build_geometry
+    from backend.periscopex.antenna_geometry import build_geometry
 
     for tmpl in ("ifa", "meander", "stub"):
         geo = build_geometry(tmpl, f0_mhz=2440.0, w_mm=0.4, er=4.5)
@@ -201,7 +201,7 @@ def test_geometry_templates_produce_export():
 
 
 def test_geometry_overflow_tiny_zone():
-    from backend.pinscopex.antenna_geometry import build_geometry
+    from backend.periscopex.antenna_geometry import build_geometry
 
     geo = build_geometry(
         "ifa",

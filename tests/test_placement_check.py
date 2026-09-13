@@ -1,6 +1,6 @@
 """G2 placement vs simple_project — no invented millimetre boards.
 
-Favor: real U1 + C4 on +3V3; same_layer True + opposite copper → PS-PLC-003.
+Favor: real U1 + C4 on +3V3; same_layer True + opposite copper → PE-PLC-003.
 Against: no PCB; same copper; same_layer unset; via in courtyard.
 """
 
@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.pinscopex.eval_report import eval_simple_project
-from backend.pinscopex.models import (
+from backend.periscopex.eval_report import eval_simple_project
+from backend.periscopex.models import (
     ComponentConstraints,
     DesignGraph,
     LayoutFootprint,
@@ -19,7 +19,7 @@ from backend.pinscopex.models import (
     LayoutVia,
     Pin,
 )
-from backend.pinscopex.placement_check import _in_poly, check_placement
+from backend.periscopex.placement_check import _in_poly, check_placement
 
 SIMPLE = Path(__file__).resolve().parents[1] / "simple_project"
 
@@ -41,7 +41,7 @@ def test_simple_project_has_ldo_and_3v3_caps():
 def test_simple_project_without_pcb_has_no_ps_plc():
     findings = check_placement(_graph(), {}, None)
     assert findings == []
-    assert all(not (f.rule_id or "").startswith("PS-PLC-") for f in findings)
+    assert all(not (f.rule_id or "").startswith("PE-PLC-") for f in findings)
 
 
 def test_simple_project_eval_has_no_placement_keys():
@@ -49,7 +49,7 @@ def test_simple_project_eval_has_no_placement_keys():
     assert scores.finding_count == 3
     assert scores.precision == 1.0
     assert scores.recall == 1.0
-    assert not any(k.startswith("PS-PLC-") for k in scores.extra_keys)
+    assert not any(k.startswith("PE-PLC-") for k in scores.extra_keys)
 
 
 def test_via_count_is_calculated_from_courtyard_and_min_parameter():
@@ -105,7 +105,7 @@ def test_same_layer_param_opposite_layers_is_ps_plc_003():
         _ldo_cons(same_layer=True),
         _u1_c4_layout(ic_layer="F.Cu", cap_layer="B.Cu"),
     )
-    plc = [f for f in findings if f.rule_id == "PS-PLC-003"]
+    plc = [f for f in findings if f.rule_id == "PE-PLC-003"]
     assert len(plc) == 1
     assert plc[0].status == "WARNING"
     assert plc[0].net == "+3V3"
@@ -140,7 +140,7 @@ def test_opposite_layers_with_via_in_courtyard_is_silent():
             courtyard=courtyard,
         ),
     )
-    assert all(f.rule_id != "PS-PLC-003" for f in findings)
+    assert all(f.rule_id != "PE-PLC-003" for f in findings)
 
 
 def test_simple_project_has_crystal_load_caps():
@@ -189,7 +189,7 @@ def test_crystal_load_cap_beyond_max_distance_mm_is_ps_plc_001():
         _xtal_cons(max_distance_mm=limit),
         _x1_c9_layout(cap_x=10.0),
     )
-    plc = [f for f in findings if f.rule_id == "PS-PLC-001"]
+    plc = [f for f in findings if f.rule_id == "PE-PLC-001"]
     assert len(plc) == 1
     assert plc[0].designator == "X1"
     assert plc[0].net == "/HFXIN"
@@ -215,7 +215,7 @@ def test_track_path_longer_than_max_distance_mm_is_ps_plc_001():
         _xtal_cons(max_distance_mm=limit),
         _x1_c9_layout(cap_x=1.0, segments=segs),
     )
-    plc = [f for f in findings if f.rule_id == "PS-PLC-001"]
+    plc = [f for f in findings if f.rule_id == "PE-PLC-001"]
     assert len(plc) == 1
     assert plc[0].net == "/HFXIN"
 
@@ -258,7 +258,7 @@ def test_keepout_foreign_track_in_courtyard_is_ps_plc_004():
         _xtal_keepout_cons(),
         _x1_keepout_layout(net="GND"),
     )
-    plc = [f for f in findings if f.rule_id == "PS-PLC-004"]
+    plc = [f for f in findings if f.rule_id == "PE-PLC-004"]
     assert len(plc) == 1
     assert plc[0].designator == "X1"
     assert plc[0].net == "GND"

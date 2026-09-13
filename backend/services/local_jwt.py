@@ -1,4 +1,4 @@
-"""Pinscope local JWT helpers (HS256)."""
+"""Periscope local JWT helpers (HS256)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def issue_token(user_id: str, email: str) -> str:
     payload = {
         "sub": user_id,
         "email": email,
-        "iss": "pinscope-local",
+        "iss": "periscope-local",
         "iat": now,
         "exp": now + timedelta(days=TOKEN_TTL_DAYS),
     }
@@ -37,7 +37,7 @@ def decode_token(token: str) -> dict[str, Any] | None:
             token,
             secret,
             algorithms=[ALGORITHM],
-            issuer="pinscope-local",
+            issuer="periscope-local",
             options={"verify_aud": False},
             leeway=10,
         )

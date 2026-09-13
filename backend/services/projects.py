@@ -11,7 +11,7 @@ Each project lives at users/{user_id}/projects/{id}/ with:
   models/                   — cached component specs
   design_graph.json         — graph output
   report.json               — validation report
-  pinscope-findings.json    — KiCad cad-bridge (plugin pan-and-zoom)
+  periscope-findings.json    — KiCad cad-bridge (plugin pan-and-zoom)
 
 Library (global, shared across users):
   library/extracted/{mpn}.json
@@ -31,9 +31,9 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field
 
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.services.storage import StaleGeneration, StorageBackend
 
 
@@ -120,9 +120,13 @@ class ProjectMeta(BaseModel):
     pause_reason: str | None = None
     completed_review_refs: list[str] = []           # IC refs already reviewed (persists across pauses)
 
-    # Pinscope app version that generated the project's report.
+    # Periscope app version that generated the project's report.
     # Stamped on the first /start transition and preserved thereafter.
-    pinscope_version: str | None = None
+    # Accept legacy pinscope_version from project.json written before the rebrand.
+    periscope_version: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("periscope_version", "pinscope_version"),
+    )
 
     # Worker bookkeeping (set by the API on enqueue, read by /events SSE
     # and by the stale-running sweeper).
@@ -166,7 +170,7 @@ def completed_review_refs_for_retry(
         for ref in (report.get("review_errors") or {}):
             if ref:
                 failed.add(str(ref))
-    from backend.pinscopex.utils import natural_sort_key
+    from backend.periscopex.utils import natural_sort_key
     kept = [r for r in (meta.completed_review_refs or []) if r and r not in failed]
     return sorted(kept, key=natural_sort_key)
 
@@ -484,7 +488,7 @@ def clear_project_extractions(
         "bom_summary.json",
         "derating.json",
         "report.json",
-        "pinscope-findings.json",
+        "periscope-findings.json",
         "review_fingerprints.json",
         "api_logs.jsonl",
         "graph_voltage_updates.json",
@@ -519,7 +523,7 @@ def reopen_project(
         "bom_summary.json",
         "derating.json",
         "report.json",
-        "pinscope-findings.json",
+        "periscope-findings.json",
         "review_fingerprints.json",
         "api_logs.jsonl",
         "graph_voltage_updates.json",
@@ -936,7 +940,7 @@ def library_has_datasheet(
         return key
     # 3. Pattern-based fallback for passives
     if patterns:
-        from backend.pinscopex.resolve_passives import resolve_mpn
+        from backend.periscopex.resolve_passives import resolve_mpn
 
         match = resolve_mpn(mpn, patterns)
         if match is not None:
@@ -1121,11 +1125,11 @@ def list_library_patterns(storage: StorageBackend) -> list[str]:
 def load_library_patterns(storage: StorageBackend):
     """Load and parse all passive patterns from the library.
 
-    For local backend, delegates to pinscopex. For GCS, downloads to temp first.
+    For local backend, delegates to periscopex. For GCS, downloads to temp first.
     This function is only used by the library/check endpoint — during pipeline
     execution, patterns are loaded from the workspace temp directory.
     """
-    from backend.pinscopex.resolve_passives import load_patterns
+    from backend.periscopex.resolve_passives import load_patterns
 
     from backend.services.storage import LocalStorageBackend
 

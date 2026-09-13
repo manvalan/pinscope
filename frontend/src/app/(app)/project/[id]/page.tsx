@@ -46,6 +46,13 @@ import { ImpedancePanel } from "@/components/project/impedance-panel";
 import { TopologyPanel } from "@/components/project/topology-panel";
 import { PcbUploadButton } from "@/components/project/pcb-upload";
 import { PdfViewerSheet } from "@/components/pdf/pdf-viewer-sheet";
+import {
+  deratingOverridesKey,
+  deratingSettingsKey,
+  legacyDeratingOverridesKey,
+  legacyDeratingSettingsKey,
+  migrateLocalKey,
+} from "@/lib/storage-keys";
 
 export default function ProjectDetailPage({
   params,
@@ -61,7 +68,10 @@ export default function ProjectDetailPage({
   const [deratingSettings, setDeratingSettings] = useState<DeratingSettings>(() => {
     if (typeof window === "undefined") return { ceramic: 50, tantalum: 50, electrolytic: 50 };
     try {
-      const stored = localStorage.getItem(`pinscopex:derating-settings:${id}`);
+      const stored = migrateLocalKey(
+        deratingSettingsKey(id),
+        legacyDeratingSettingsKey(id),
+      );
       return stored ? JSON.parse(stored) : { ceramic: 50, tantalum: 50, electrolytic: 50 };
     } catch {
       return { ceramic: 50, tantalum: 50, electrolytic: 50 };
@@ -70,7 +80,10 @@ export default function ProjectDetailPage({
   const [manualVoltages, setManualVoltages] = useState<Record<string, number>>(() => {
     if (typeof window === "undefined") return {};
     try {
-      const stored = localStorage.getItem(`pinscopex:derating-overrides:${id}`);
+      const stored = migrateLocalKey(
+        deratingOverridesKey(id),
+        legacyDeratingOverridesKey(id),
+      );
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -83,12 +96,12 @@ export default function ProjectDetailPage({
 
   // Persist derating settings to localStorage
   useEffect(() => {
-    localStorage.setItem(`pinscopex:derating-settings:${id}`, JSON.stringify(deratingSettings));
+    localStorage.setItem(deratingSettingsKey(id), JSON.stringify(deratingSettings));
   }, [deratingSettings, id]);
 
   // Persist manual voltage overrides to localStorage
   useEffect(() => {
-    localStorage.setItem(`pinscopex:derating-overrides:${id}`, JSON.stringify(manualVoltages));
+    localStorage.setItem(deratingOverridesKey(id), JSON.stringify(manualVoltages));
   }, [manualVoltages, id]);
 
   const reload = useCallback(() => {
@@ -458,7 +471,7 @@ export default function ProjectDetailPage({
           </Card>
           <CollaboratorsSection projectId={id} />
           <SkippedComponentsSection skipped={project.skippedComponents} />
-          <ReportVersionSection pinscopeVersion={project.pinscopeVersion} />
+          <ReportVersionSection periscopeVersion={project.periscopeVersion} />
         </div>
       )}
       <PdfViewerSheet
@@ -1268,11 +1281,11 @@ function SkippedComponentsSection({
 }
 
 function ReportVersionSection({
-  pinscopeVersion,
+  periscopeVersion,
 }: {
-  pinscopeVersion?: string | null;
+  periscopeVersion?: string | null;
 }) {
-  if (!pinscopeVersion) return null;
+  if (!periscopeVersion) return null;
   return (
     <Card>
       <CardHeader>
@@ -1281,9 +1294,9 @@ function ReportVersionSection({
       <CardContent>
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Generated with Pinscope
+            Generated with Periscope
           </p>
-          <span className="font-mono text-sm">v{pinscopeVersion}</span>
+          <span className="font-mono text-sm">v{periscopeVersion}</span>
         </div>
       </CardContent>
     </Card>
@@ -1299,7 +1312,7 @@ function PipelineErrorBanner({
 }) {
   const [copied, setCopied] = useState(false);
   const detail = message ?? "Unknown error — no details were recorded.";
-  const shareText = `PinscopeX project ${projectId} failed: ${detail}`;
+  const shareText = `PeriscopeX project ${projectId} failed: ${detail}`;
 
   const handleCopy = async () => {
     try {

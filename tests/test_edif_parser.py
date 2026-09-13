@@ -13,12 +13,12 @@ from pathlib import Path
 
 import pytest
 
-from backend.pinscopex.parsers import (
+from backend.periscopex.parsers import (
     detect_netlist_format,
     parse_netlist_any,
     validate_netlist,
 )
-from backend.pinscopex.parsers_edif import (
+from backend.periscopex.parsers_edif import (
     list_edif_subdesigns,
     parse_edif_netlist,
 )

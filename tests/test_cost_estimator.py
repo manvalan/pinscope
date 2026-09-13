@@ -74,7 +74,7 @@ def test_estimator_counts_library_cache_hits(storage, tmp_path):
     if not ic_items:
         pytest.skip("fixture has no uncached IC")
     target_mpn = ic_items[0].identifier
-    from backend.pinscopex.utils import safe_mpn
+    from backend.periscopex.utils import safe_mpn
 
     storage.write_json(
         f"library/extracted/{safe_mpn(target_mpn)}.json",

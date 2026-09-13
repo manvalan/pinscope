@@ -33,15 +33,15 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 
-from backend.pinscopex.models import ComponentType
-from backend.pinscopex.utils import natural_sort_key, safe_mpn
-from backend.pinscopex.bom_summary import build_bom_summary
-from backend.pinscopex.derating import build_derating_table
-from backend.pinscopex.validate import _load_datasheets
-from backend.pinscopex.graph import build_graph
-from backend.pinscopex.parsers import parse_bom, parse_netlist_any
-from backend.pinscopex.resolve_passives import SkippedItem, load_patterns, resolve_mpn
-from backend.pinscopex.taxonomy import SIMPLE_TYPES, type_for_ref
+from backend.periscopex.models import ComponentType
+from backend.periscopex.utils import natural_sort_key, safe_mpn
+from backend.periscopex.bom_summary import build_bom_summary
+from backend.periscopex.derating import build_derating_table
+from backend.periscopex.validate import _load_datasheets
+from backend.periscopex.graph import build_graph
+from backend.periscopex.parsers import parse_bom, parse_netlist_any
+from backend.periscopex.resolve_passives import SkippedItem, load_patterns, resolve_mpn
+from backend.periscopex.taxonomy import SIMPLE_TYPES, type_for_ref
 
 from backend.config import settings
 from backend.services import admin_settings as settings_svc
@@ -196,7 +196,7 @@ def _cancel_gate_check(ctx: PipelineContext) -> None:
 class PipelineWorkspace:
     """Downloads project files from storage to a temp dir for pipeline execution.
 
-    The pinscopex core library operates on local paths. This context manager
+    The periscopex core library operates on local paths. This context manager
     downloads inputs at enter, provides local paths, and uploads results at exit.
     """
 
@@ -264,7 +264,7 @@ class PipelineWorkspace:
             self._upload_file("bom_summary.json")
             self._upload_file("derating.json")
             self._upload_file("report.json")
-            self._upload_file("pinscope-findings.json")
+            self._upload_file("periscope-findings.json")
             self._upload_file("review_fingerprints.json")
             self._upload_file("api_logs.jsonl")
 
@@ -763,7 +763,7 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
 
     # Pre-categorize: workspace cache, library cache, or needs extraction
     from backend.config import settings as app_settings
-    from backend.pinscopex.layout_rules import needs_layout_rules_refresh
+    from backend.periscopex.layout_rules import needs_layout_rules_refresh
 
     layout_scan_ver = app_settings.get_default_model_version()
     _ic_cache: dict[str, tuple] = {}
@@ -863,7 +863,7 @@ async def _stage_ic_extraction(ctx: PipelineContext) -> None:
                 extracted_key = f"{ctx.ws.prefix}/extracted/{safe}.json"
                 ctx.storage.upload_from_local(json_path, extracted_key)
                 try:
-                    from backend.pinscopex.library_gate import should_promote_extraction
+                    from backend.periscopex.library_gate import should_promote_extraction
 
                     payload = json.loads(json_path.read_text(encoding="utf-8"))
                     ok, reason = should_promote_extraction(payload)
@@ -1545,7 +1545,7 @@ def _write_layout_graph(ws: PipelineWorkspace, project_id: str) -> None:
     if not pcb.is_file():
         return
     try:
-        from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+        from backend.periscopex.parsers_kicad_pcb import parse_kicad_pcb
 
         layout = parse_kicad_pcb(pcb)
         out = ws.local_path("layout_graph.json")
@@ -1561,8 +1561,8 @@ def _write_layout_graph(ws: PipelineWorkspace, project_id: str) -> None:
 def _write_functional_groups(ws: PipelineWorkspace, graph) -> None:
     """Layout F1: topology domains/groups (no mm). Fail-soft."""
     try:
-        from backend.pinscopex.functional_groups import build_functional_groups
-        from backend.pinscopex.validate import _build_constraints_map, _load_datasheets
+        from backend.periscopex.functional_groups import build_functional_groups
+        from backend.periscopex.validate import _build_constraints_map, _load_datasheets
 
         extracted_dir = ws.local_path("extracted")
         cmap = {}
@@ -1584,8 +1584,8 @@ def _write_impedance_nets(ws: PipelineWorkspace, graph) -> None:
     if not path.is_file():
         return
     try:
-        from backend.pinscopex.impedance_traces import analyze_where_needed
-        from backend.pinscopex.models import LayoutGraph
+        from backend.periscopex.impedance_traces import analyze_where_needed
+        from backend.periscopex.models import LayoutGraph
 
         layout = LayoutGraph.model_validate_json(path.read_text())
         report = analyze_where_needed(layout, graph)
@@ -1792,11 +1792,11 @@ async def _stage_validation(ctx: PipelineContext) -> None:
     fp_path = ctx.ws.local_path("review_fingerprints.json")
     current_fp: dict[str, str] = {}
     try:
-        from backend.pinscopex.review_fingerprint import (
+        from backend.periscopex.review_fingerprint import (
             graph_ic_fingerprints,
             skip_unchanged_ics,
         )
-        from backend.pinscopex.validate import _build_constraints_map, _load_datasheets
+        from backend.periscopex.validate import _build_constraints_map, _load_datasheets
 
         cmap = _build_constraints_map(_load_datasheets(extracted_dir))
         current_fp = graph_ic_fingerprints(ctx.graph, cmap)

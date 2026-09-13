@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "Contact",
   description:
-    "Talk to the Pinscope team — questions, account help, or enterprise deployment.",
+    "Talk to the Periscope team — questions, account help, or enterprise deployment.",
   path: "/contact",
 });
 
@@ -22,7 +22,7 @@ export default function ContactPage() {
           Get in touch
         </h1>
         <p className="mt-4 text-muted-foreground max-w-lg leading-relaxed animate-fade-up [animation-delay:100ms]">
-          Have a question about Pinscope, need help with your account, or want to
+          Have a question about Periscope, need help with your account, or want to
           discuss enterprise deployment? We&rsquo;d love to hear from you.
         </p>
       </section>
@@ -54,7 +54,7 @@ export default function ContactPage() {
         <div className="mx-auto max-w-6xl px-6 py-8 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <Cpu className="h-4 w-4 text-blue-500" />
-            <span>Pinscope</span>
+            <span>Periscope</span>
           </div>
           <div className="flex items-center gap-4">
             <Link

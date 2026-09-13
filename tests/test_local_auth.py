@@ -1,4 +1,4 @@
-"""Local Pinscope auth — users, JWT, email lookup (no FastAPI required)."""
+"""Local Periscope auth — users, JWT, email lookup (no FastAPI required)."""
 
 from __future__ import annotations
 

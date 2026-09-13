@@ -8,5 +8,5 @@ Included: closed-form core (`zsolver`, `geometry`, `planes`, `model`,
 Excluded on purpose:
 - `gerber2ems_export.py`, `prepare_simulation.py`, `crop_board.py`,
   `simulate_net.sh` (OpenEMS / field-solver export)
-- `board_model.py` and `plugin/` (pcbnew). Pinscope does not load KiCad's
-  Python; PCB ingest stays in `pinscopex.parsers_kicad_pcb`.
+- `board_model.py` and `plugin/` (pcbnew). Periscope does not load KiCad's
+  Python; PCB ingest stays in `periscopex.parsers_kicad_pcb`.

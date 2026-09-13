@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from backend.pinscopex.netlist_bundle import (
+from backend.periscopex.netlist_bundle import (
     find_kicad_pcb,
     materialize_netlist_upload,
     sniff_netlist_kind,
 )
-from backend.pinscopex.parsers import parse_netlist_any, validate_netlist
+from backend.periscopex.parsers import parse_netlist_any, validate_netlist
 
 _LIB_R = """
   (lib_symbols
@@ -86,7 +86,7 @@ def test_sniff_rejects_pcb_as_netlist():
 
 
 def test_root_alone_missing_child_explains_multi_file(tmp_path: Path):
-    from backend.pinscopex.parsers_kicad import parse_kicad
+    from backend.periscopex.parsers_kicad import parse_kicad
 
     root, _child = _root_with_child()
     parsed = materialize_netlist_upload(
@@ -198,7 +198,7 @@ def test_zip_pipeline_workspace_reparses_hierarchy(tmp_path: Path):
     from fastapi.testclient import TestClient
 
     from backend.main import app
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
     from backend.services.storage import LocalStorageBackend
 
     app.state.storage = LocalStorageBackend(tmp_path)

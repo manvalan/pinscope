@@ -10,7 +10,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from backend.pinscopex.impedance import (
+from backend.periscopex.impedance import (
     GeometryError,
     TraceGeometry,
     coupled_diff_z,
@@ -21,13 +21,13 @@ from backend.pinscopex.impedance import (
     stackup_targets,
     stripline_z0,
 )
-from backend.pinscopex.impedance_traces import (
+from backend.periscopex.impedance_traces import (
     NET_WALK_PITCH_MM,
     analyze_specified_nets,
 )
-from backend.pinscopex.antenna_rf import build_antenna_report, build_design_recipe
-from backend.pinscopex.models import DesignGraph, LayoutGraph
-from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+from backend.periscopex.antenna_rf import build_antenna_report, build_design_recipe
+from backend.periscopex.models import DesignGraph, LayoutGraph
+from backend.periscopex.parsers_kicad_pcb import parse_kicad_pcb
 from backend.routers.deps import get_storage, resolve_or_404
 from backend.services import projects as proj_svc
 

@@ -3,9 +3,14 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { Finding } from "@/lib/types";
 import { getFindingKey } from "@/lib/utils";
+import {
+  legacyReviewedFindingsKey,
+  migrateLocalKey,
+  reviewedFindingsKey,
+} from "@/lib/storage-keys";
 
 function storageKey(projectId: string) {
-  return `pinscopex:reviewed-findings:${projectId}`;
+  return reviewedFindingsKey(projectId);
 }
 
 export function useReviewedFindings(projectId: string, findings: Finding[]) {
@@ -18,7 +23,10 @@ export function useReviewedFindings(projectId: string, findings: Finding[]) {
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
-      const stored = localStorage.getItem(storageKey(projectId));
+      const stored = migrateLocalKey(
+        reviewedFindingsKey(projectId),
+        legacyReviewedFindingsKey(projectId),
+      );
       if (!stored) return new Set();
       const arr: string[] = JSON.parse(stored);
       // Load all stored keys as-is. Pruning here would wipe everything

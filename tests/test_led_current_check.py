@@ -9,7 +9,7 @@ Locks in:
 
 from __future__ import annotations
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentType,
     DesignGraph,
@@ -19,7 +19,7 @@ from backend.pinscopex.models import (
     SimpleComponentSpecs,
     PinConnection,
 )
-from backend.pinscopex.led_current_check import check_led_current, _parse_resistance
+from backend.periscopex.led_current_check import check_led_current, _parse_resistance
 
 
 def _led(values, pins, subtype="discrete.led.rgb"):

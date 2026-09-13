@@ -1,8 +1,8 @@
-# Pinscope Privacy Policy
+# Periscope Privacy Policy
 
 **Last updated: April 5, 2026**
 
-This Privacy Policy explains how Faradworks, Inc. ("Faradworks," "we," "us," and "our") collects, uses, and discloses information in connection with the Pinscope website (pinscope.ai), platform, and related services (the "Service").
+This Privacy Policy explains how Faradworks, Inc. ("Faradworks," "we," "us," and "our") collects, uses, and discloses information in connection with the Periscope website (periscope.michelebigi.it), platform, and related services (the "Service").
 
 This Privacy Policy is intended for free users and self-serve paid users. Enterprise customers typically use the Service under a separate agreement and (if applicable) a data processing agreement ("DPA"), which may include additional privacy and security terms.
 

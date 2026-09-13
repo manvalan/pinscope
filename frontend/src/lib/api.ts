@@ -29,7 +29,7 @@ import type {
   ValidationReport,
 } from "./types";
 
-// Mirror of backend.pinscopex.utils.safe_mpn — used to match MPNs
+// Mirror of backend.periscopex.utils.safe_mpn — used to match MPNs
 // against datasheet filename stems returned by the server.
 export function safeMpn(mpn: string): string {
   return mpn.replace(/\//g, "_").replace(/:/g, "_");
@@ -102,7 +102,10 @@ function mapProject(p: Record<string, unknown>): Project {
     lcscToMpn: (p.lcsc_to_mpn as Record<string, string> | null) ?? null,
     lcscPayloads: (p.lcsc_payloads as Record<string, LcscPayload> | null) ?? null,
     componentMpns: (p.component_mpns as ComponentMpnBuckets | null) ?? null,
-    pinscopeVersion: (p.pinscope_version as string | null | undefined) ?? null,
+    periscopeVersion:
+      (p.periscope_version as string | null | undefined) ??
+      (p.pinscope_version as string | null | undefined) ??
+      null,
     netlistFormat: (p.netlist_format as Project["netlistFormat"]) ?? null,
     netlistSubdesigns: (p.netlist_subdesigns as string[] | null) ?? null,
     placementStatus: (p.placement_status as Project["placementStatus"]) ?? "draft",
@@ -817,7 +820,7 @@ export async function downloadEcoCsv(projectId: string): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "pinscope-eco.csv";
+  a.download = "periscope-eco.csv";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1125,7 +1128,7 @@ export interface LcscResolvePassiveResponse {
   mpn: string;
   safe_mpn: string;
   // Shape mirrors the persisted passive specs model in
-  // backend/pinscopex/models.py — a discriminated union over `specs_type`.
+  // backend/periscopex/models.py — a discriminated union over `specs_type`.
   // Keep loose at this layer; the wizard surfaces a small summary.
   model: Record<string, unknown>;
   cached: boolean;

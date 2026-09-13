@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,

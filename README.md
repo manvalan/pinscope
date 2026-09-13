@@ -1,6 +1,6 @@
-# Pinscope (DeepSeek)
+# Periscope (DeepSeek)
 
-Pinscope reviews schematics the way a good senior engineer does: with the datasheets open.
+Periscope reviews schematics the way a good senior engineer does: with the datasheets open.
 
 This tree is adapted from [manvalan/pinscope](https://github.com/manvalan/pinscope) so the pipeline talks to the **DeepSeek API** (`deepseek-flash`, with legacy aliases still accepted). Do not use Anthropic.
 
@@ -8,7 +8,7 @@ Give it a netlist, a BOM, and your datasheet PDFs. It builds a graph of your des
 
 ## What changed for DeepSeek
 
-DeepSeek's Chat Completions API is OpenAI-compatible but **does not accept native PDF documents**. Pinscope therefore:
+DeepSeek's Chat Completions API is OpenAI-compatible but **does not accept native PDF documents**. Periscope therefore:
 
 1. **Extracts datasheet text** with `pypdf` (page-marked) and sends it as chat content.
 2. **Renders pages to JPEG** with PyMuPDF when the stage uses a vision model, so pin diagrams and tables survive.
@@ -66,18 +66,18 @@ docker compose up --build
 
 Backend on port 8080, frontend on port 3000.
 
-### Update a live instance (e.g. pinscope.michelebigi.it)
+### Update a live instance (e.g. periscope.michelebigi.it)
 
-On the server, from the Pinscope checkout:
+On the server, from the Periscope checkout:
 
 ```bash
-./scripts/update-pinscope.sh
+./scripts/update-periscope.sh
 ```
 
-The script pulls the current branch, writes `NEXT_PUBLIC_API_URL` / `CORS_ORIGINS` for `https://pinscope.michelebigi.it`, rebuilds both Docker images, and leaves `data/` alone. First run: put `DEEPSEEK_API_KEY` in `.env` at the repo root (compose reads that file). `--no-pull` skips git. `SITE=https://other.host ./scripts/update-pinscope.sh` overrides the public URL.
+The script pulls the current branch, writes `NEXT_PUBLIC_API_URL` / `CORS_ORIGINS` for `https://periscope.michelebigi.it`, rebuilds both Docker images, and leaves `data/` alone. First run: put `DEEPSEEK_API_KEY` in `.env` at the repo root (compose reads that file). `--no-pull` skips git. `SITE=https://other.host ./scripts/update-periscope.sh` overrides the public URL.
 
 Do not set `ENVIRONMENT=production` unless Clerk auth is configured — that flag refuses to boot with auth disabled.
 
 ## License
 
-AGPL-3.0, same as upstream Pinscope. For commercial licensing of the original, write to dev@faradworks.com.
+AGPL-3.0, same as upstream Pinscope (Faradworks). For commercial licensing of the original, write to dev@faradworks.com.

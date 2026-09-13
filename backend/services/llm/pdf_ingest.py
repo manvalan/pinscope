@@ -15,7 +15,7 @@ import logging
 import re
 from pathlib import Path
 
-from backend.pinscopex.pdf_text import (
+from backend.periscopex.pdf_text import (
     extract_pdf_document_text,
     fitz_page_text,
     page_is_sparse,

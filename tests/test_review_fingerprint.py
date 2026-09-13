@@ -1,4 +1,4 @@
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentType,
     DesignGraph,
@@ -6,7 +6,7 @@ from backend.pinscopex.models import (
     NetType,
     PinConnection,
 )
-from backend.pinscopex.review_fingerprint import (
+from backend.periscopex.review_fingerprint import (
     graph_ic_fingerprints,
     skip_unchanged_ics,
 )

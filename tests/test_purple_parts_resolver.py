@@ -450,7 +450,7 @@ async def test_lcsc_resolve_passive_success_and_cached(tmp_path, monkeypatch):
     """First call parses the LCSC description without the LLM. Second call
     short-circuits with cached=True and does not invoke auto_resolve_specs."""
     from backend.config import settings
-    from backend.pinscopex.models import CapacitorSpecs, ComponentModel
+    from backend.periscopex.models import CapacitorSpecs, ComponentModel
     from backend.services import purple_parts
     from backend.services import extraction as extraction_svc
 
@@ -539,7 +539,7 @@ async def test_lcsc_resolve_passive_success_and_cached(tmp_path, monkeypatch):
     assert call_count["n"] == 0
 
     # Library copy should exist for cross-project reuse.
-    from backend.pinscopex.utils import safe_mpn
+    from backend.periscopex.utils import safe_mpn
     safe = safe_mpn("CL21A106KAYNNNE")
     assert storage.exists(f"library/passives/{safe}.json")
 

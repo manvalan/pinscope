@@ -1,6 +1,6 @@
 """submit_review parsing — ERROR without a datasheet quote is demoted."""
 
-from backend.pinscopex.validate import _parse_review
+from backend.periscopex.validate import _parse_review
 
 
 def test_error_without_quote_becomes_unverified_warning():

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 
-from backend.pinscopex.models import Finding
+from backend.periscopex.models import Finding
 from backend.services.dedupe_findings import (
     SUBMIT_DEDUPED_SCHEMA,
     _build_deduped,
@@ -78,13 +78,13 @@ def test_dedupe_passthrough_keeps_cad_fields():
             reference="ref 1",
             net="USB_D+",
             pins=["U2.1"],
-            rule_id="PS-USB-001",
+            rule_id="PE-USB-001",
         )
     ]
     groups = [{"member_indices": [1], "change_rationale": "passthrough"}]
     built = _build_deduped(groups, originals)
     assert built is not None
-    assert built[0].rule_id == "PS-USB-001"
+    assert built[0].rule_id == "PE-USB-001"
     assert built[0].net == "USB_D+"
     assert built[0].pins == ["U2.1"]
 

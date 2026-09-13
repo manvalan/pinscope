@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from backend.pinscopex.parsers import parse_bom
+from backend.periscopex.parsers import parse_bom
 
 
 def test_parse_bom_uses_value_for_ic_when_mpn_column_empty(tmp_path: Path):

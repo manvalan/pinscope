@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from backend.pinscopex.impedance import GeometryError
-from backend.pinscopex.impedance_traces import (
+from backend.periscopex.impedance import GeometryError
+from backend.periscopex.impedance_traces import (
     analyze_specified_nets,
     analyze_where_needed,
 )
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     DesignGraph,
     LayoutDielectric,
     LayoutGraph,
@@ -25,7 +25,7 @@ from backend.pinscopex.models import (
     Net,
     NetType,
 )
-from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+from backend.periscopex.parsers_kicad_pcb import parse_kicad_pcb
 from backend.vendor_path import ensure_impedancefinder
 
 ensure_impedancefinder()

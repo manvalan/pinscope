@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from backend.pinscopex.parsers import detect_netlist_format, parse_netlist_any, validate_netlist
+from backend.periscopex.parsers import detect_netlist_format, parse_netlist_any, validate_netlist
 
 
 XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -93,14 +93,14 @@ def test_parse_kicad_sexp_and_mpn_fields(tmp_path: Path):
     parts, nets, fmt = parse_netlist_any(p)
     assert fmt == "kicad_sexp"
     assert ("U1", "1") in nets["3V3"]
-    from backend.pinscopex.parsers_kicad import kicad_part_fields
+    from backend.periscopex.parsers_kicad import kicad_part_fields
     fields = kicad_part_fields(p)
     assert fields["U1"]["mpn"] == "MSPM0G3507SPTR"
     assert fields["U1"]["lcsc"] == "C12345"
 
 
 def test_kicad_mpn_fills_empty_bom(tmp_path: Path):
-    from backend.pinscopex.graph import build_graph
+    from backend.periscopex.graph import build_graph
 
     net = tmp_path / "net.xml"
     net.write_text(XML)
@@ -180,7 +180,7 @@ def _sch(*body: str) -> str:
 
 def test_power_symbols_same_name_merge_without_wires(tmp_path: Path):
     """KiCad power flags are global: two GND symbols share one net even if islands."""
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     p = tmp_path / "power.kicad_sch"
     # R1 and R2 far apart, each with GND on pin 1, no wires between them.
@@ -200,7 +200,7 @@ def test_power_symbols_same_name_merge_without_wires(tmp_path: Path):
 
 
 def test_local_labels_same_name_merge_on_same_sheet(tmp_path: Path):
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     p = tmp_path / "local.kicad_sch"
     p.write_text(_sch(
@@ -219,7 +219,7 @@ def test_local_labels_same_name_merge_on_same_sheet(tmp_path: Path):
 
 
 def test_pin_on_mid_wire_segment_connects(tmp_path: Path):
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     p = tmp_path / "midwire.kicad_sch"
     # Horizontal wire from (-10,3.81) to (10,3.81); R1 pin1 at (0,3.81) sits mid-segment.
@@ -237,7 +237,7 @@ def test_pin_on_mid_wire_segment_connects(tmp_path: Path):
 
 
 def test_parse_single_sheet_kicad_sch(tmp_path: Path):
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     p = tmp_path / "one.kicad_sch"
     p.write_text(_sch(
@@ -253,7 +253,7 @@ def test_parse_single_sheet_kicad_sch(tmp_path: Path):
 
 
 def test_hierarchical_global_gnd_merges_across_sheets(tmp_path: Path):
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     child = tmp_path / "child.kicad_sch"
     child.write_text(_sch(
@@ -283,7 +283,7 @@ def test_hierarchical_global_gnd_merges_across_sheets(tmp_path: Path):
 
 
 def test_hierarchical_label_connects_through_sheet_pin(tmp_path: Path):
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     child = tmp_path / "analog.kicad_sch"
     child.write_text(_sch(
@@ -313,7 +313,7 @@ def test_hierarchical_label_connects_through_sheet_pin(tmp_path: Path):
 
 
 def test_local_labels_same_name_do_not_merge_across_sheets(tmp_path: Path):
-    from backend.pinscopex.parsers import parse_netlist_any
+    from backend.periscopex.parsers import parse_netlist_any
 
     child = tmp_path / "child.kicad_sch"
     child.write_text(_sch(
@@ -345,7 +345,7 @@ def test_local_labels_same_name_do_not_merge_across_sheets(tmp_path: Path):
 
 def test_sheetfile_parent_traversal_is_rejected(tmp_path: Path):
     import pytest
-    from backend.pinscopex.parsers_kicad import parse_kicad
+    from backend.periscopex.parsers_kicad import parse_kicad
 
     root = tmp_path / "root.kicad_sch"
     root.write_text(_sch(
@@ -366,7 +366,7 @@ def test_sheetfile_parent_traversal_is_rejected(tmp_path: Path):
 
 def test_missing_child_sheet_raises(tmp_path: Path):
     import pytest
-    from backend.pinscopex.parsers_kicad import parse_kicad
+    from backend.periscopex.parsers_kicad import parse_kicad
 
     root = tmp_path / "root.kicad_sch"
     root.write_text(_sch(
@@ -387,7 +387,7 @@ def test_missing_child_sheet_raises(tmp_path: Path):
 
 def test_cyclic_sheet_include_is_rejected(tmp_path: Path):
     import pytest
-    from backend.pinscopex.parsers_kicad import parse_kicad
+    from backend.periscopex.parsers_kicad import parse_kicad
 
     child = tmp_path / "child.kicad_sch"
     child.write_text(_sch(

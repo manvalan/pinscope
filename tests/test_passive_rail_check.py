@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.graph import _infer_net_properties
-from backend.pinscopex.models import (
+from backend.periscopex.graph import _infer_net_properties
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -13,7 +13,7 @@ from backend.pinscopex.models import (
     Pin,
     PinConnection,
 )
-from backend.pinscopex.passive_rail_check import (
+from backend.periscopex.passive_rail_check import (
     check_i2c_pullups,
     check_reset_pullups,
     check_supply_decoupling,
@@ -104,7 +104,7 @@ def test_i2c_missing_pullup():
     findings = check_i2c_pullups(g, cons)
     assert len(findings) == 1
     assert findings[0].source == "i2c_pullup_check"
-    assert findings[0].rule_id == "PS-I2C-001"
+    assert findings[0].rule_id == "PE-I2C-001"
     assert findings[0].net == "I2C_SDA"
 
 
@@ -250,8 +250,8 @@ def test_nc_supply_net_is_skipped():
 
 
 def test_fb_and_rn_prefixes():
-    from backend.pinscopex.graph import _classify_component
-    from backend.pinscopex.models import ComponentType
+    from backend.periscopex.graph import _classify_component
+    from backend.periscopex.models import ComponentType
 
     assert _classify_component("FB1", "") == ComponentType.INDUCTOR
     assert _classify_component("RN4", "") == ComponentType.RESISTOR
@@ -261,7 +261,7 @@ def test_fb_and_rn_prefixes():
 def _res(ref, pins, value="4.7k", ohms=None):
     specs = None
     if ohms is not None:
-        from backend.pinscopex.models import ResistorSpecs
+        from backend.periscopex.models import ResistorSpecs
         specs = ResistorSpecs(value_ohms=ohms, value_formatted=f"{ohms}")
     return Component(
         reference=ref, value=value, footprint="",
@@ -272,7 +272,7 @@ def _res(ref, pins, value="4.7k", ohms=None):
 def _cap(ref, pins, value="100n", farads=None):
     specs = None
     if farads is not None:
-        from backend.pinscopex.models import CapacitorSpecs
+        from backend.periscopex.models import CapacitorSpecs
         specs = CapacitorSpecs(value_farads=farads, value_formatted=value)
     return Component(
         reference=ref, value=value, footprint="",
@@ -313,7 +313,7 @@ def test_i2c_100ohm_pullup_is_too_stiff():
     )
     findings = check_i2c_pullups(g, _cmap_i2c())
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-I2C-002"
+    assert findings[0].rule_id == "PE-I2C-002"
     assert findings[0].status == "WARNING"
 
 
@@ -327,7 +327,7 @@ def test_i2c_100k_pullup_is_too_weak():
         },
     )
     findings = check_i2c_pullups(g, _cmap_i2c())
-    assert [f.rule_id for f in findings] == ["PS-I2C-002"]
+    assert [f.rule_id for f in findings] == ["PE-I2C-002"]
 
 
 def test_i2c_pullup_without_value_is_not_sized():
@@ -359,7 +359,7 @@ def test_nrst_pulldown_is_warning():
         },
     )
     findings = check_reset_pullups(g, cons)
-    assert any(f.rule_id == "PS-RST-002" for f in findings)
+    assert any(f.rule_id == "PE-RST-002" for f in findings)
 
 
 def test_nrst_pullup_is_not_pulldown():
@@ -410,7 +410,7 @@ def test_ldo_vout_needs_cout():
         },
     )
     findings = check_supply_decoupling(g, cons)
-    assert any(f.net == "VOUT" and f.rule_id == "PS-DEC-001" for f in findings)
+    assert any(f.net == "VOUT" and f.rule_id == "PE-DEC-001" for f in findings)
     assert not any(f.net == "VIN" for f in findings)
 
 
@@ -439,7 +439,7 @@ def test_ldo_vout_100n_only_is_value_warning():
     )
     findings = check_supply_decoupling(g, cons)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-DEC-002"
+    assert findings[0].rule_id == "PE-DEC-002"
     assert findings[0].status == "WARNING"
 
 

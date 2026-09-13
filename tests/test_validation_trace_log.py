@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from pypdf import PdfWriter
 
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.services import validation as val
 from backend.services.llm.types import Completion, ToolCall, Usage
 from backend.services.storage import LocalStorageBackend
@@ -191,8 +191,9 @@ async def test_trace_written_per_ic_with_schema(workspace, monkeypatch):
         assert isinstance(t["duration_ms"], int)
 
     report = json.loads(workspace["report"].read_text())
-    # 3 ICs x 1 finding each
-    assert report["summary"]["total"] == 3
+    # 3 ICs x 1 LLM finding each (deterministic checks may add more)
+    review = [f for f in report["findings"] if not f.get("rule_id")]
+    assert len(review) == 3
 
 
 @pytest.mark.asyncio
@@ -214,7 +215,8 @@ async def test_trace_write_failure_does_not_break_review(workspace, monkeypatch)
     await _run(workspace, monkeypatch, before_ic)
 
     report = json.loads(workspace["report"].read_text())
-    assert report["summary"]["total"] == 3
+    review = [f for f in report["findings"] if not f.get("rule_id")]
+    assert len(review) == 3
     assert not (workspace["data"] / PREFIX / "review_traces").exists()
 
 

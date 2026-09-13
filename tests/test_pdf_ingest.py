@@ -58,7 +58,7 @@ def test_sparse_page_is_flagged(tmp_path: Path):
 
 
 def test_one_table_markdown_from_extract_rows():
-    from backend.pinscopex.pdf_text import _one_table_markdown
+    from backend.periscopex.pdf_text import _one_table_markdown
 
     class _Table:
         def to_markdown(self):

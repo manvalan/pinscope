@@ -15,7 +15,7 @@ exact-string matching on section markers, so:
 
 from __future__ import annotations
 
-from backend.pinscopex.parsers import parse_netlist
+from backend.periscopex.parsers import parse_netlist
 
 
 EASYEDA_PRO_NETLIST = """\

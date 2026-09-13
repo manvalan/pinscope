@@ -6,7 +6,7 @@ import { pageMetadata } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "Privacy Policy",
   description:
-    "How Pinscope collects, stores, and protects the schematics, datasheets, and BOMs you upload.",
+    "How Periscope collects, stores, and protects the schematics, datasheets, and BOMs you upload.",
   path: "/privacy",
 });
 

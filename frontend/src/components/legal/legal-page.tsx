@@ -115,7 +115,7 @@ export function LegalPageShell({ children }: { children: ReactNode }) {
           </Link>
           <Link href="/" className="flex items-center gap-2">
             <Cpu className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium">Pinscope</span>
+            <span className="text-sm font-medium">Periscope</span>
           </Link>
         </div>
       </header>

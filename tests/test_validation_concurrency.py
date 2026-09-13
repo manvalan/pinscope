@@ -21,9 +21,9 @@ import pytest
 from pypdf import PdfWriter
 
 from backend.config import settings
-from backend.pinscopex.models import Component, ComponentType, DesignGraph, Finding
-from backend.pinscopex.utils import safe_mpn
-from backend.pinscopex.validate import ReviewResult
+from backend.periscopex.models import Component, ComponentType, DesignGraph, Finding
+from backend.periscopex.utils import safe_mpn
+from backend.periscopex.validate import ReviewResult
 from backend.services import validation as val
 from backend.services.api_logs import ApiLogger
 from backend.services.storage import LocalStorageBackend

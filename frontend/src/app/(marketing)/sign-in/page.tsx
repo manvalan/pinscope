@@ -45,7 +45,7 @@ export default function SignInPage() {
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
       <h1 className="font-display text-3xl tracking-tight">Sign in</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Pinscope account for this server. Invite collaborators from a project once they have an account.
+        Periscope account for this server. Invite collaborators from a project once they have an account.
       </p>
       <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4">
         <div className="space-y-2">

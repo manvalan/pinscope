@@ -174,7 +174,7 @@ def _render_report_email(
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.025em;">
-                Pinscope
+                Periscope
               </td>
               <td align="right" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">
                 Report Ready
@@ -247,7 +247,7 @@ def _render_report_email(
         <tr><td style="background-color: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af;">
-              Pinscope &middot; Agentic schematic validation
+              Periscope &middot; Agentic schematic validation
             </td></tr>
           </table>
         </td></tr>
@@ -292,7 +292,7 @@ def _render_pipeline_started_email(
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.025em;">
-                Pinscope
+                Periscope
               </td>
               <td align="right" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">
                 Pipeline Started
@@ -398,7 +398,7 @@ def _render_pipeline_started_email(
         <tr><td style="background-color: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af;">
-              Pinscope &middot; Agentic schematic validation
+              Periscope &middot; Agentic schematic validation
             </td></tr>
           </table>
         </td></tr>
@@ -448,7 +448,7 @@ def _build_report_message(
 ) -> MIMEMultipart:
     """Build the report-ready email message."""
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
     msg["Subject"] = f"Report ready: {project_name}"
 
@@ -460,7 +460,7 @@ def _build_report_message(
     infos = summary.get("INFO", 0)
     text_body = (
         f"Hi {recipient_name},\n\n"
-        f"Your Pinscope validation report for \"{project_name}\" is ready.\n\n"
+        f"Your Periscope validation report for \"{project_name}\" is ready.\n\n"
         f"Summary: {total} findings — {errors} errors, {warnings} warnings, {infos} info\n\n"
         f"View the report: {report_url}\n"
     )
@@ -485,7 +485,7 @@ def _build_paused_message(
     credits_needed_low: float,
 ) -> MIMEMultipart:
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
     msg["Subject"] = f"Paused: {project_name} is waiting for credits"
 
@@ -495,7 +495,7 @@ def _build_paused_message(
 
     text_body = (
         f"Hi {recipient_name},\n\n"
-        f"Your Pinscope run for \"{project_name}\" paused because you're low on credits.\n\n"
+        f"Your Periscope run for \"{project_name}\" paused because you're low on credits.\n\n"
         f"{last_line}\n{stage_line}\n\n"
         f"Current balance: {balance:.2f} credits\n"
         f"Credits needed to finish (est): {credits_needed_low:.2f}+\n\n"
@@ -510,13 +510,13 @@ def _build_topup_failed_message(
     amount_usd: float, reason: str,
 ) -> MIMEMultipart:
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
-    msg["Subject"] = "Pinscope: auto top-up failed"
+    msg["Subject"] = "Periscope: auto top-up failed"
     manage_url = f"{settings.email_frontend_url}/credits"
     text_body = (
         f"Hi {recipient_name},\n\n"
-        f"We tried to auto top-up your Pinscope balance with "
+        f"We tried to auto top-up your Periscope balance with "
         f"${amount_usd:.2f} but the charge failed.\n\n"
         f"Reason: {reason}\n\n"
         f"Auto top-up has been disabled until you update your payment method. "
@@ -549,13 +549,13 @@ def _build_low_balance_message(
     to_email: str, recipient_name: str, balance: float, threshold: float,
 ) -> MIMEMultipart:
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
-    msg["Subject"] = "Pinscope: low credit balance"
+    msg["Subject"] = "Periscope: low credit balance"
     credits_url = f"{settings.email_frontend_url}/credits"
     text_body = (
         f"Hi {recipient_name},\n\n"
-        f"Your Pinscope credit balance has dropped to "
+        f"Your Periscope credit balance has dropped to "
         f"{balance:.2f} credits (below your threshold of {threshold:.2f}).\n\n"
         f"Top up here so your pipelines don't pause mid-run: {credits_url}\n"
     )
@@ -691,10 +691,10 @@ async def send_test_email(to_email: str) -> dict:
 
         result["step"] = "send"
         msg = MIMEMultipart("alternative")
-        msg["From"] = f"Pinscope <{settings.email_sender}>"
+        msg["From"] = f"Periscope <{settings.email_sender}>"
         msg["To"] = to_email
-        msg["Subject"] = "Pinscope email test"
-        msg.attach(MIMEText(f"Test email from Pinscope. Sender: {settings.email_sender}. Creds: {cred_type}", "plain"))
+        msg["Subject"] = "Periscope email test"
+        msg.attach(MIMEText(f"Test email from Periscope. Sender: {settings.email_sender}. Creds: {cred_type}", "plain"))
 
         import asyncio as _asyncio
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
@@ -741,7 +741,7 @@ async def send_pipeline_started_email(
 
     # Build message
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
     msg["Subject"] = f"Pipeline started: {project_name} ({num_components} components)"
 
@@ -866,7 +866,7 @@ def _render_feedback_email(
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.025em;">
-                Pinscope
+                Periscope
               </td>
               <td align="right" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">
                 Feedback Received
@@ -953,7 +953,7 @@ def _render_feedback_email(
         <tr><td style="background-color: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af;">
-              Pinscope &middot; Agentic schematic validation
+              Periscope &middot; Agentic schematic validation
             </td></tr>
           </table>
         </td></tr>
@@ -1006,7 +1006,7 @@ async def send_feedback_received_email(
     to_email = settings.email_admin_notify
     subject_ctx = project_name or "general"
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
     msg["Subject"] = f"Feedback ({type_label}): {subject_ctx}"
 
@@ -1095,7 +1095,7 @@ def _render_feedback_reply_email(
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.025em;">
-                Pinscope
+                Periscope
               </td>
               <td align="right" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">
                 New Reply
@@ -1113,7 +1113,7 @@ def _render_feedback_reply_email(
               Hi {_esc(recipient_first_name)},
             </td></tr>
             <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #374151; padding-bottom: 18px;">
-              The Pinscope team just replied to your feedback.
+              The Periscope team just replied to your feedback.
             </td></tr>
 
             {context_line}
@@ -1124,7 +1124,7 @@ def _render_feedback_reply_email(
                 <tr><td style="padding: 18px 22px;">
                   <table width="100%" cellpadding="0" cellspacing="0" border="0">
                     <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; font-weight: 600; color: #047857; text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 10px;">
-                      Pinscope team
+                      Periscope team
                     </td></tr>
                     <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #064e3b; line-height: 1.55; white-space: pre-wrap;">
                       {_esc(reply_text)}
@@ -1155,12 +1155,12 @@ def _render_feedback_reply_email(
               <!--[if mso]>
               <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{feedback_url}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="14%" fillcolor="#3b82f6" stroke="f">
                 <w:anchorlock/>
-                <center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:bold;">View in Pinscope &rarr;</center>
+                <center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:bold;">View in Periscope &rarr;</center>
               </v:roundrect>
               <![endif]-->
               <!--[if !mso]><!-->
               <a href="{feedback_url}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; font-weight: 600; text-decoration: none; padding: 12px 32px; border-radius: 8px; letter-spacing: -0.01em;">
-                View in Pinscope &rarr;
+                View in Periscope &rarr;
               </a>
               <!--<![endif]-->
             </td></tr>
@@ -1170,7 +1170,7 @@ def _render_feedback_reply_email(
               Thank you so much for taking the time to share your feedback — we truly value it.
             </td></tr>
             <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #374151; padding-top: 6px;">
-              — The Pinscope team
+              — The Periscope team
             </td></tr>
 
           </table>
@@ -1180,7 +1180,7 @@ def _render_feedback_reply_email(
         <tr><td style="background-color: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9ca3af;">
-              Pinscope &middot; Agentic schematic validation
+              Periscope &middot; Agentic schematic validation
             </td></tr>
           </table>
         </td></tr>
@@ -1203,7 +1203,7 @@ async def send_feedback_reply_email(
     finding_designator: str | None = None,
     finding_mpn: str | None = None,
 ) -> None:
-    """Notify the original submitter that the Pinscope team replied. Fire-and-forget."""
+    """Notify the original submitter that the Periscope team replied. Fire-and-forget."""
     if not settings.use_email:
         return
 
@@ -1229,15 +1229,15 @@ async def send_feedback_reply_email(
     first_name = full_name.split()[0] if full_name else "there"
 
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = to_email
-    msg["Subject"] = "The Pinscope team replied to your feedback"
+    msg["Subject"] = "The Periscope team replied to your feedback"
 
     # Plain text fallback
     text_lines = [
         f"Hi {first_name},",
         "",
-        "The Pinscope team just replied to your feedback.",
+        "The Periscope team just replied to your feedback.",
         "",
         "— Reply —",
         reply_text,
@@ -1245,10 +1245,10 @@ async def send_feedback_reply_email(
         "— Your original message —",
         original_message,
         "",
-        f"View in Pinscope: {settings.email_frontend_url}/feedback",
+        f"View in Periscope: {settings.email_frontend_url}/feedback",
         "",
         "Thank you so much for taking the time to share your feedback — we truly value it.",
-        "— The Pinscope team",
+        "— The Periscope team",
     ]
     msg.attach(MIMEText("\n".join(text_lines), "plain"))
 

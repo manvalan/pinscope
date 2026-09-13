@@ -1,4 +1,4 @@
-"""Locate pinscope-findings.json and decide schematic vs PCB focus.
+"""Locate periscope-findings.json and decide schematic vs PCB focus.
 
 Imported by the KiCad action plugin. No pcbnew/wx at import time so tests
 can run in the repo venv.
@@ -15,7 +15,7 @@ def find_bridge_file(start: str | Path, *, max_up: int = 6) -> Path | None:
     if cur.is_file():
         cur = cur.parent
     for _ in range(max_up + 1):
-        cand = cur / "pinscope-findings.json"
+        cand = cur / "periscope-findings.json"
         if cand.is_file():
             return cand
         if cur.parent == cur:
@@ -27,7 +27,7 @@ def find_bridge_file(start: str | Path, *, max_up: int = 6) -> Path | None:
 def load_bridge(path: str | Path) -> dict:
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
-        raise ValueError("pinscope-findings.json is not an object")
+        raise ValueError("periscope-findings.json is not an object")
     return raw
 
 
@@ -39,7 +39,7 @@ def focus_target(finding: dict) -> dict:
     kind = finding.get("target")
     if kind not in ("sch", "pcb"):
         rid = str(finding.get("rule_id") or "")
-        kind = "pcb" if rid.startswith(("PS-PLC", "PS-SI", "PS-LAY", "PS-3W", "PS-CLR")) else "sch"
+        kind = "pcb" if rid.startswith(("PE-PLC", "PE-SI", "PE-LAY", "PE-3W", "PE-CLR")) else "sch"
     return {
         "kind": kind,
         "ref": ref,

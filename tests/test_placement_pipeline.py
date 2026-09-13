@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from backend.pinscopex.functional_groups import (
+from backend.periscopex.functional_groups import (
     FunctionalGroupsReport,
     build_placement_plan,
 )
-from backend.pinscopex.models import DesignGraph
+from backend.periscopex.models import DesignGraph
 
 
 ROOT = Path(__file__).resolve().parents[1]

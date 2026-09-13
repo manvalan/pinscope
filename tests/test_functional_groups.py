@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.pinscopex.functional_groups import build_functional_groups
-from backend.pinscopex.models import DesignGraph
+from backend.periscopex.functional_groups import build_functional_groups
+from backend.periscopex.models import DesignGraph
 
 SIMPLE = Path(__file__).resolve().parents[1] / "simple_project"
 
@@ -69,7 +69,7 @@ def test_simple_project_splits_5v_and_3v3_domains():
 
 def test_ldo_power_satellites_stay_on_primary_rail():
     """LDO input-rail caps must not appear as primary-rail satellites."""
-    from backend.pinscopex.models import (
+    from backend.periscopex.models import (
         CapacitorSpecs,
         Component,
         ComponentType,
@@ -203,7 +203,7 @@ def test_ldo_power_satellites_stay_on_primary_rail():
 
 def test_multi_rail_board_does_not_collapse_to_one_domain():
     """Charger→LDO→MCU must not become a single domain via shared POWER nets."""
-    from backend.pinscopex.models import (
+    from backend.periscopex.models import (
         Component,
         ComponentType,
         DesignGraph,
@@ -279,7 +279,7 @@ def test_multi_rail_board_does_not_collapse_to_one_domain():
 
 
 def test_build_placement_plan_alias():
-    from backend.pinscopex.functional_groups import build_placement_plan
+    from backend.periscopex.functional_groups import build_placement_plan
     report = build_placement_plan(_graph())
     assert report.objective == "routing"
     assert {g.ref for g in report.groups} >= {"U1", "U2", "U3"}

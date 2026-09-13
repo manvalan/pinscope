@@ -1,16 +1,16 @@
 """G1 SI vs simple_project — no invented millimetres or USBPHY boards.
 
 Favor: real /USB.D+ and /USB.D- pair by suffix; eval stays 3 keys.
-Against: no .kicad_pcb → no PS-SI-001; 3W is not invented.
+Against: no .kicad_pcb → no PE-SI-001; 3W is not invented.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from backend.pinscopex.eval_report import eval_simple_project
-from backend.pinscopex.models import DesignGraph
-from backend.pinscopex.si_check import check_si, partner_net
+from backend.periscopex.eval_report import eval_simple_project
+from backend.periscopex.models import DesignGraph
+from backend.periscopex.si_check import check_si, partner_net
 
 SIMPLE = Path(__file__).resolve().parents[1] / "simple_project"
 
@@ -33,7 +33,7 @@ def test_simple_project_usb_dp_dm_are_a_named_pair():
 def test_simple_project_without_pcb_has_no_ps_si_001():
     findings = check_si(_graph(), {}, None)
     assert findings == []
-    assert all(f.rule_id != "PS-3W-001" for f in findings)
+    assert all(f.rule_id != "PE-3W-001" for f in findings)
 
 
 def test_simple_project_eval_has_no_si_keys():
@@ -42,6 +42,6 @@ def test_simple_project_eval_has_no_si_keys():
     assert scores.precision == 1.0
     assert scores.recall == 1.0
     assert not any(
-        k.startswith("PS-SI-") or k.startswith("PS-3W-")
+        k.startswith("PE-SI-") or k.startswith("PE-3W-")
         for k in scores.extra_keys
     )

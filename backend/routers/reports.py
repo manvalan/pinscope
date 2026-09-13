@@ -11,15 +11,15 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from backend.pinscopex.models import Finding
-from backend.pinscopex.review_workflow import (
+from backend.periscopex.models import Finding
+from backend.periscopex.review_workflow import (
     ReviewError,
     apply_review_state,
     build_eco,
     eco_csv,
     sign_report,
 )
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.routers.deps import get_storage, get_user_id, resolve_or_404
 from backend.services import projects as proj_svc
 
@@ -51,7 +51,7 @@ async def get_cad_bridge(project_id: str, request: Request):
     storage = get_storage(request)
     owner_user_id, _ = await resolve_or_404(request, project_id)
     prefix = proj_svc.project_prefix(owner_user_id, project_id)
-    key = f"{prefix}/pinscope-findings.json"
+    key = f"{prefix}/periscope-findings.json"
     if not storage.exists(key):
         raise HTTPException(404, "CAD bridge not found — run the pipeline first")
     return JSONResponse(storage.read_json(key))

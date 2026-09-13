@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
 
-    container_name: pinscope-backend
+    container_name: periscope-backend
     restart: unless-stopped
 
     env_file:
@@ -24,7 +24,7 @@ services:
       - "8080:8080"
 
     networks:
-      - pinscope
+      - periscope
 
   frontend:
     build:
@@ -34,7 +34,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
         NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-}
 
-    container_name: pinscope-frontend
+    container_name: periscope-frontend
     restart: unless-stopped
 
     depends_on:
@@ -44,9 +44,9 @@ services:
       - "3000:3000"
 
     networks:
-      - pinscope
+      - periscope
 
 
 networks:
-  pinscope:
+  periscope:
     driver: bridge

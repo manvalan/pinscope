@@ -1,4 +1,4 @@
-"""JWT verification for FastAPI (Clerk JWKS or local Pinscope HS256)."""
+"""JWT verification for FastAPI (Clerk JWKS or local Periscope HS256)."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ async def verify_clerk_token(request: Request) -> str | None:
 
 
 async def verify_local_token(request: Request) -> str | None:
-    """Verify Pinscope local JWT and return user_id, or None if invalid."""
+    """Verify Periscope local JWT and return user_id, or None if invalid."""
     if request.url.path in _SKIP_PATHS:
         return "anonymous"
 

@@ -1,4 +1,4 @@
-"""PinscopeX backend — FastAPI application."""
+"""PeriscopeX backend — FastAPI application."""
 
 import logging
 import os
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
     if env == "production" and not settings.use_auth:
         raise RuntimeError(
             "Production requires authentication: set AUTH_JWT_SECRET "
-            "(local Pinscope accounts) or CLERK_JWKS_URL + CLERK_SECRET_KEY."
+            "(local Periscope accounts) or CLERK_JWKS_URL + CLERK_SECRET_KEY."
         )
     if not settings.use_auth:
         logger.warning(
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
             "This is only safe for local development."
         )
     elif settings.use_local_auth:
-        logger.info("Local Pinscope authentication enabled (AUTH_JWT_SECRET)")
+        logger.info("Local Periscope authentication enabled (AUTH_JWT_SECRET)")
     elif settings.use_clerk:
         logger.info("Clerk authentication enabled")
     if not settings.billing_enabled:
@@ -130,7 +130,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(
-    title="PinscopeX",
+    title="PeriscopeX",
     description="Agentic schematic validation API",
     lifespan=lifespan,
 )

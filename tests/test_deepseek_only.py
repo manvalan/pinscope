@@ -1,4 +1,4 @@
-"""Pinscope LLM routing is DeepSeek only.
+"""Periscope LLM routing is DeepSeek only.
 
 Favor: every pipeline stage uses DeepSeek even if PROVIDER_* is set to
 anthropic; model_for_stage stays on deepseek-flash.

@@ -272,7 +272,7 @@ export interface Project {
   lcscToMpn?: Record<string, string> | null;
   lcscPayloads?: Record<string, LcscPayload> | null;
   componentMpns?: ComponentMpnBuckets | null;
-  pinscopeVersion?: string | null;
+  periscopeVersion?: string | null;
   // "pads" | "edif" | "kicad_*" — netlist the user uploaded. null on legacy projects.
   // projects predating EDIF support; treat null as PADS for rendering.
   netlistFormat?: "pads" | "edif" | "kicad_xml" | "kicad_sexp" | "kicad_sch" | null;

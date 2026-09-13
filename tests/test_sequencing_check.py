@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -13,7 +13,7 @@ from backend.pinscopex.models import (
     PinConnection,
     SimpleComponentSpecs,
 )
-from backend.pinscopex.sequencing_check import check_power_sequencing
+from backend.periscopex.sequencing_check import check_power_sequencing
 
 
 def _graph(components, nets):
@@ -79,7 +79,7 @@ def _dual(pg_net, en_net, sequence=True):
 def test_pg_not_tied_to_en_is_warning():
     findings = check_power_sequencing(_dual("PGOOD", "EN_1V8"), _cons())
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-SEQ-001"
+    assert findings[0].rule_id == "PE-SEQ-001"
     assert findings[0].status == "WARNING"
 
 

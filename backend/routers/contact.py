@@ -41,10 +41,10 @@ class ContactResponse(BaseModel):
 def _build_contact_message(data: ContactRequest) -> MIMEMultipart:
     """Build the contact form email."""
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Pinscope <{settings.email_sender}>"
+    msg["From"] = f"Periscope <{settings.email_sender}>"
     msg["To"] = settings.contact_recipient
     msg["Reply-To"] = data.email
-    msg["Subject"] = f"[Pinscope Contact] {data.subject or 'New message'} from {data.name}"
+    msg["Subject"] = f"[Periscope Contact] {data.subject or 'New message'} from {data.name}"
 
     # Plain text
     lines = [
@@ -55,7 +55,7 @@ def _build_contact_message(data: ContactRequest) -> MIMEMultipart:
         lines.append(f"Company: {data.company}")
     if data.subject:
         lines.append(f"Subject: {data.subject}")
-    lines += ["", data.message, "", "— Sent from the Pinscope contact form"]
+    lines += ["", data.message, "", "— Sent from the Periscope contact form"]
     msg.attach(MIMEText("\n".join(lines), "plain"))
 
     # HTML
@@ -94,7 +94,7 @@ def _build_contact_message(data: ContactRequest) -> MIMEMultipart:
         {rows}
       </table>
       <div style="margin-top: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">{message}</div>
-      <p style="margin-top: 24px; font-size: 12px; color: #888;">Sent from the Pinscope contact form</p>
+      <p style="margin-top: 24px; font-size: 12px; color: #888;">Sent from the Periscope contact form</p>
     </div>"""
     msg.attach(MIMEText(html_body, "html"))
 

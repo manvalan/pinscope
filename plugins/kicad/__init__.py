@@ -3,6 +3,6 @@
 from __future__ import annotations
 
 try:
-    from . import pinscope_plugin  # noqa: F401
+    from . import periscope_plugin  # noqa: F401
 except ImportError:
     pass

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -14,7 +14,7 @@ from backend.pinscopex.models import (
     ResistorSpecs,
     SimpleComponentSpecs,
 )
-from backend.pinscopex.thermal_check import check_thermal
+from backend.periscopex.thermal_check import check_thermal
 
 
 def _graph(components, nets):
@@ -63,7 +63,7 @@ def test_ldo_without_theta_ja_is_info():
     )
     findings = check_thermal(g, _cons())
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-TH-001"
+    assert findings[0].rule_id == "PE-TH-001"
     assert findings[0].status == "INFO"
     assert "theta_ja" in findings[0].finding.lower() or "theta_ja" in findings[0].why.lower()
 
@@ -92,7 +92,7 @@ def test_ldo_hot_tj_is_warning():
     )
     findings = check_thermal(g, _cons())
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-TH-002"
+    assert findings[0].rule_id == "PE-TH-002"
     assert findings[0].status == "WARNING"
 
 
@@ -112,7 +112,7 @@ def test_shunt_over_rating_is_warning():
     )
     findings = check_thermal(g)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-TH-003"
+    assert findings[0].rule_id == "PE-TH-003"
     assert findings[0].status == "WARNING"
 
 

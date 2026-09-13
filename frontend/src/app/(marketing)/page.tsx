@@ -117,7 +117,7 @@ export default function LandingPage() {
           <Link href="/" className="flex items-center gap-2">
             <Cpu className="h-5 w-5 text-blue-500" />
             <span className="text-sm font-semibold tracking-tight">
-              Pinscope
+              Periscope
             </span>
           </Link>
           <nav className="hidden sm:flex items-center gap-6 text-sm text-muted-foreground">
@@ -169,7 +169,7 @@ export default function LandingPage() {
           <br className="hidden lg:block" /> first time
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed animate-fade-up [animation-delay:100ms]">
-          Pinscope reviews your schematic against every datasheet and
+          Periscope reviews your schematic against every datasheet and
           catches the errors that would otherwise surface at bring-up.
         </p>
         <div className="mt-8 flex flex-col items-start gap-4 animate-fade-up [animation-delay:200ms]">
@@ -191,7 +191,7 @@ export default function LandingPage() {
         <div className="rounded-xl border border-border overflow-hidden bg-card/40">
           <Image
             src="/report.png"
-            alt="Pinscope validation report"
+            alt="Periscope validation report"
             width={2400}
             height={1500}
             className="w-full h-auto"
@@ -328,7 +328,7 @@ export default function LandingPage() {
             Your designs stay yours
           </h2>
           <p className="mt-3 text-muted-foreground text-center max-w-lg mx-auto">
-            Hardware IP is sensitive. Pinscope is built to keep it that way.
+            Hardware IP is sensitive. Periscope is built to keep it that way.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
             {[

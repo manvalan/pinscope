@@ -152,7 +152,7 @@ function autoDetect(headers: string[], candidates: string[]): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// BOM classification — mirrors pinscopex/taxonomy.py REF_PREFIX_TO_TYPE
+// BOM classification — mirrors periscopex/taxonomy.py REF_PREFIX_TO_TYPE
 // ---------------------------------------------------------------------------
 
 interface IcMpnEntry {

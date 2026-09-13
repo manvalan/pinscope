@@ -2,11 +2,11 @@
 
 /**
  * Open-core seam: cloud/gateway replaces this with Clerk hooks.
- * Self-host local mode uses Pinscope JWT in localStorage.
+ * Self-host local mode uses Periscope JWT in localStorage.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { authEnabled, localAuthEnabled, TOKEN_STORAGE_KEY } from "@/lib/auth";
+import { authEnabled, localAuthEnabled, TOKEN_STORAGE_KEY, readAuthToken } from "@/lib/auth";
 
 export interface AppUser {
   id: string;
@@ -36,12 +36,7 @@ const LOCAL_USER: AppUser = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function readStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  } catch {
-    return null;
-  }
+  return readAuthToken();
 }
 
 export function storeAuthToken(token: string | null) {
@@ -52,7 +47,7 @@ export function storeAuthToken(token: string | null) {
   } catch {
     /* ignore */
   }
-  window.dispatchEvent(new Event("pinscope-auth-changed"));
+  window.dispatchEvent(new Event("periscope-auth-changed"));
 }
 
 export function useOptionalAuth(): OptionalAuth {
@@ -67,10 +62,10 @@ export function useOptionalAuth(): OptionalAuth {
     const sync = () => setToken(readStoredToken());
     sync();
     setReady(true);
-    window.addEventListener("pinscope-auth-changed", sync);
+    window.addEventListener("periscope-auth-changed", sync);
     window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("pinscope-auth-changed", sync);
+      window.removeEventListener("periscope-auth-changed", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);

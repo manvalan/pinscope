@@ -1,14 +1,14 @@
 """Errata catalog — workaround on the graph, no scraping.
 
-Favor: known MPN with a pull-up workaround missing on the net → PS-ERRATA-001.
+Favor: known MPN with a pull-up workaround missing on the net → PE-ERRATA-001.
 Against: MPN not in catalog is silent (even TI-looking); workaround pull-up
 present is silent; catalog entry without url is skipped.
 """
 
 from __future__ import annotations
 
-from backend.pinscopex.errata_check import check_errata
-from backend.pinscopex.models import (
+from backend.periscopex.errata_check import check_errata
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -76,7 +76,7 @@ CATALOG = {
 def test_missing_errata_pullup_is_ps_errata_001():
     findings = check_errata(_graph(False), _cons(), CATALOG)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-ERRATA-001"
+    assert findings[0].rule_id == "PE-ERRATA-001"
     assert findings[0].status == "WARNING"
     assert findings[0].source == "errata_check"
     assert "ti.com/lit/er" in findings[0].reference

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.crystal_cl_check import check_crystal_cl
-from backend.pinscopex.models import (
+from backend.periscopex.crystal_cl_check import check_crystal_cl
+from backend.periscopex.models import (
     Component,
     ComponentType,
     DesignGraph,
@@ -79,19 +79,19 @@ def test_series_above_cl_without_stray_warns():
     # 100p || 100p = 50p > CL 18p * 1.25
     g = _xtal_graph(cl_f=18e-12, c1="100p", c2="100p")
     findings = check_crystal_cl(g)
-    assert any(f.rule_id == "PS-XTAL-002" for f in findings)
+    assert any(f.rule_id == "PE-XTAL-002" for f in findings)
 
 
 def test_with_stray_mismatch_warns():
     # 18p||18p = 9p + 2p stray = 11p vs CL 18p → below 0.75*18
     g = _xtal_graph(cl_f=18e-12, c1="18p", c2="18p", stray=2e-12)
     findings = check_crystal_cl(g)
-    assert any(f.rule_id == "PS-XTAL-002" for f in findings)
+    assert any(f.rule_id == "PE-XTAL-002" for f in findings)
 
 
 def test_simple_project_without_cl_silent():
     from pathlib import Path
-    from backend.pinscopex.models import DesignGraph
+    from backend.periscopex.models import DesignGraph
     path = Path(__file__).resolve().parents[1] / "simple_project" / "design_graph.json"
     g = DesignGraph.model_validate_json(path.read_text())
     assert check_crystal_cl(g) == []

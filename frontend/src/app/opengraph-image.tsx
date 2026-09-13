@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Pinscope — Agentic schematic validation";
+export const alt = "Periscope — Agentic schematic validation";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -51,7 +51,7 @@ export default function Image() {
               letterSpacing: "-0.01em",
             }}
           >
-            Pinscope
+            Periscope
           </div>
         </div>
 
@@ -97,7 +97,7 @@ export default function Image() {
             KiCad · Altium · OrCAD · Cadence · Siemens · EasyEDA · EAGLE
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            pinscope.ai
+            periscope.michelebigi.it
           </div>
         </div>
       </div>

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.pinscopex.dnp_check import check_dnp_enables
-from backend.pinscopex.models import (
+from backend.periscopex.dnp_check import check_dnp_enables
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -16,7 +16,7 @@ from backend.pinscopex.models import (
     PinConnection,
     ResistorSpecs,
 )
-from backend.pinscopex.parsers import parse_bom
+from backend.periscopex.parsers import parse_bom
 
 
 def _graph(components, nets, bom_fields=None):
@@ -78,7 +78,7 @@ def test_dnp_pull_leaves_enable_floating():
     )
     findings = check_dnp_enables(g, _cons())
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-DNP-001"
+    assert findings[0].rule_id == "PE-DNP-001"
     assert findings[0].status == "ERROR"
 
 

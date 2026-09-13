@@ -1,6 +1,6 @@
 """BOM vs schematic MPN/value match.
 
-Favor: identical MPNs silent; real mismatch is ERROR PS-BOM-001 with
+Favor: identical MPNs silent; real mismatch is ERROR PE-BOM-001 with
 designator; orphan BOM line is WARNING.
 Against: case/whitespace-only MPN is not a mismatch; empty schematic map
 skips the check (PADS path); BOM-empty + schematic MPN is fill, not ERROR.
@@ -8,8 +8,8 @@ skips the check (PADS path); BOM-empty + schematic MPN is fill, not ERROR.
 
 from __future__ import annotations
 
-from backend.pinscopex.bom_match_check import check_bom_schematic_match
-from backend.pinscopex.models import DesignGraph
+from backend.periscopex.bom_match_check import check_bom_schematic_match
+from backend.periscopex.models import DesignGraph
 
 
 def test_matching_mpns_produce_no_findings():
@@ -24,7 +24,7 @@ def test_mpn_mismatch_is_error_ps_bom_001():
     findings = check_bom_schematic_match(sch, bom)
     assert len(findings) == 1
     f = findings[0]
-    assert f.rule_id == "PS-BOM-001"
+    assert f.rule_id == "PE-BOM-001"
     assert f.source == "bom_match"
     assert f.status == "ERROR"
     assert f.designator == "U1"
@@ -40,7 +40,7 @@ def test_orphan_bom_ref_is_warning():
     }
     findings = check_bom_schematic_match(sch, bom)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-BOM-002"
+    assert findings[0].rule_id == "PE-BOM-002"
     assert findings[0].status == "WARNING"
     assert findings[0].designator == "R99"
 
@@ -75,7 +75,7 @@ def test_legacy_design_graph_without_source_fields_still_validates():
 
 
 def test_build_graph_kicad_mpn_mismatch_surfaces(tmp_path):
-    from backend.pinscopex.graph import build_graph
+    from backend.periscopex.graph import build_graph
 
     net = tmp_path / "net.xml"
     net.write_text(
@@ -103,5 +103,5 @@ def test_build_graph_kicad_mpn_mismatch_surfaces(tmp_path):
     )
     findings = check_bom_schematic_match(g.schematic_fields, g.bom_fields)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-BOM-001"
+    assert findings[0].rule_id == "PE-BOM-001"
     assert findings[0].designator == "U1"

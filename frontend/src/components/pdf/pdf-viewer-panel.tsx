@@ -40,7 +40,7 @@ interface PdfViewerPanelProps {
   className?: string;
 }
 
-const HIGHLIGHT_CLASS = "pinscope-quote-hl";
+const HIGHLIGHT_CLASS = "periscope-quote-hl";
 
 // U+00B5 MICRO SIGN and U+03BC GREEK SMALL MU render identically but the
 // model and the PDF often disagree on which one — fold them together.

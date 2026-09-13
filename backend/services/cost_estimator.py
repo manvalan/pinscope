@@ -27,10 +27,10 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from backend.config import settings
-from backend.pinscopex.parsers import parse_bom
-from backend.pinscopex.resolve_passives import resolve_mpn
-from backend.pinscopex.taxonomy import SIMPLE_TYPES, type_for_ref
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.parsers import parse_bom
+from backend.periscopex.resolve_passives import resolve_mpn
+from backend.periscopex.taxonomy import SIMPLE_TYPES, type_for_ref
+from backend.periscopex.utils import safe_mpn
 from backend.services import projects as proj_svc
 from backend.services.billing_hook import get_billing
 from backend.services.llm.pricing import CACHE_RATES, PRICING

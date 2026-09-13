@@ -1,7 +1,7 @@
 """HF coverage INFO when bulk C exists without a 100 nF-class ceramic."""
 
-from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
-from backend.pinscopex.models import (
+from backend.periscopex.hf_coverage_check import check_hf_decoupling_coverage
+from backend.periscopex.models import (
     CapacitorSpecs,
     Component,
     ComponentConstraints,
@@ -62,7 +62,7 @@ def test_bulk_only_is_info_ps_esr_001():
     )
     findings = check_hf_decoupling_coverage(g, _cmap())
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-ESR-001"
+    assert findings[0].rule_id == "PE-ESR-001"
     assert findings[0].status == "INFO"
 
 

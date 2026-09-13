@@ -22,7 +22,7 @@ COPY taxonomy/ /app/taxonomy/
 # Extraction skills (SKILL.md + validate.py) — required for DeepSeek/Gemini
 COPY skills/ /app/skills/
 
-# Changelog: single source of truth for the user-facing Pinscope version.
+# Changelog: single source of truth for the user-facing Periscope version.
 COPY frontend/content/changelog.md /app/changelog.md
 
 # ImpedenceFinder closed-form engine (no OpenEMS / pcbnew).

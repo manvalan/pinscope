@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+from backend.periscopex.parsers_kicad_pcb import parse_kicad_pcb
 
 _PCB = """(kicad_pcb (version 20240108) (generator pcbnew)
   (net 0 "")
@@ -106,7 +106,7 @@ _PCB_V10 = """(kicad_pcb (version 20260206) (generator pcbnew)
 
 
 def test_kicad10_pad_net_string_form(tmp_path: Path):
-    from backend.pinscopex.parsers_kicad_pcb import nets_from_pcb
+    from backend.periscopex.parsers_kicad_pcb import nets_from_pcb
 
     p = tmp_path / "v10.kicad_pcb"
     p.write_text(_PCB_V10)
@@ -120,7 +120,7 @@ def test_kicad10_pad_net_string_form(tmp_path: Path):
 
 def test_build_graph_prefers_pcb_nets_over_sch(tmp_path: Path):
     """Board pad nets win when sch geometry would swap rails."""
-    from backend.pinscopex.graph import build_graph
+    from backend.periscopex.graph import build_graph
 
     sch = tmp_path / "netlist.kicad_sch"
     # Minimal sch: only needs to parse as kicad_sch with some parts.

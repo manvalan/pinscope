@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from pypdf import PdfWriter
 
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.services import validation as val
 from backend.services.llm.types import Completion, ToolCall, Usage
 from backend.services.storage import LocalStorageBackend
@@ -148,8 +148,9 @@ async def test_no_tool_calls_triggers_forced_submit_next_turn(workspace, monkeyp
     # All three ICs should have recovered: each had a no-tool-call turn 0,
     # then submit_review under forced tool_choice on turn 1.
     report = json.loads(workspace["report"].read_text())
-    assert report["summary"]["total"] == 3
-    assert report["summary"]["INFO"] == 3
+    review = [f for f in report["findings"] if not f.get("rule_id")]
+    assert len(review) == 3
+    assert sum(1 for f in review if f.get("status") == "INFO") == 3
 
     # Verify the recovery actually forced submit_review on turn 1 for each IC.
     by_ic_turn = {(ic, n): tc for ic, n, tc in seen_tool_choices}

@@ -13,7 +13,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from backend.pinscopex.models import Finding
+from backend.periscopex.models import Finding
 
 
 def test_legacy_json_without_new_fields_still_validates():
@@ -42,7 +42,7 @@ def test_new_fields_round_trip_json():
         status="WARNING",
         net="VIN",
         pins=["U1.1", "C1.1"],
-        rule_id="PS-DEC-001",
+        rule_id="PE-DEC-001",
         cad_sheet="power.kicad_sch",
         cad_uuid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         variant="DNP",
@@ -51,7 +51,7 @@ def test_new_fields_round_trip_json():
     again = Finding.model_validate(dumped)
     assert again.net == "VIN"
     assert again.pins == ["U1.1", "C1.1"]
-    assert again.rule_id == "PS-DEC-001"
+    assert again.rule_id == "PE-DEC-001"
     assert again.cad_sheet == "power.kicad_sch"
     assert again.cad_uuid == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     assert again.variant == "DNP"

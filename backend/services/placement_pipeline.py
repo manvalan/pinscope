@@ -11,10 +11,10 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from backend.pinscopex.functional_groups import build_placement_plan
-from backend.pinscopex.graph import build_graph
-from backend.pinscopex.models import ComponentConstraints, DesignGraph, LayoutGraph
-from backend.pinscopex.placement_pack import build_placement_pack
+from backend.periscopex.functional_groups import build_placement_plan
+from backend.periscopex.graph import build_graph
+from backend.periscopex.models import ComponentConstraints, DesignGraph, LayoutGraph
+from backend.periscopex.placement_pack import build_placement_pack
 from backend.services import projects as proj_svc
 from backend.services.pipeline import PipelineWorkspace, broker
 from backend.services.storage import StorageBackend
@@ -218,7 +218,7 @@ def _load_layout(ws: PipelineWorkspace) -> LayoutGraph | None:
     if not pcb.is_file():
         return None
     try:
-        from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+        from backend.periscopex.parsers_kicad_pcb import parse_kicad_pcb
 
         layout = parse_kicad_pcb(pcb)
         cached.write_text(layout.model_dump_json(indent=2) + "\n")

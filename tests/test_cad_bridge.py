@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.pinscopex.cad_bridge import annotate_findings_cad, build_cad_bridge
-from backend.pinscopex.models import CadIndexEntry, Finding, ValidationReport
-from backend.pinscopex.parsers_kicad import kicad_part_fields, parse_kicad
+from backend.periscopex.cad_bridge import annotate_findings_cad, build_cad_bridge
+from backend.periscopex.models import CadIndexEntry, Finding, ValidationReport
+from backend.periscopex.parsers_kicad import kicad_part_fields, parse_kicad
 from plugins.kicad.focus import find_bridge_file, focus_target, load_bridge
 
 
@@ -20,7 +20,7 @@ def test_bridge_exports_version_and_strips_pin_prefix():
     report = ValidationReport(
         project="p", timestamp="t",
         findings=[_f(
-            finding_id="U3-001", rule_id="PS-MUX-001",
+            finding_id="U3-001", rule_id="PE-MUX-001",
             pins=["U3.12"], cad_sheet="power.kicad_sch",
             cad_uuid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
             net="UART5_TX",
@@ -42,7 +42,7 @@ def test_bridge_exports_version_and_strips_pin_prefix():
 def test_missing_uuid_stays_empty_and_pcb_rule_targets_board():
     report = ValidationReport(
         project="p", timestamp="t",
-        findings=[_f(rule_id="PS-PLC-001", pins=["1"], status="ERROR")],
+        findings=[_f(rule_id="PE-PLC-001", pins=["1"], status="ERROR")],
         summary={"total": 1},
     )
     row = build_cad_bridge(report, "x")["findings"][0]
@@ -92,15 +92,15 @@ def test_kicad_sch_fields_include_uuid_and_child_sheet(tmp_path: Path):
 
 
 def test_plugin_finds_bridge_and_pcb_target(tmp_path: Path):
-    (tmp_path / "pinscope-findings.json").write_text(
+    (tmp_path / "periscope-findings.json").write_text(
         '{"version":1,"project_id":"p","findings":[]}\n'
     )
     nested = tmp_path / "board"
     nested.mkdir()
     found = find_bridge_file(nested / "x.kicad_pcb")
-    assert found == tmp_path / "pinscope-findings.json"
+    assert found == tmp_path / "periscope-findings.json"
     assert load_bridge(found)["version"] == 1
-    t = focus_target({"ref": "U1", "rule_id": "PS-PLC-001", "uuid": "x", "sheet": ""})
+    t = focus_target({"ref": "U1", "rule_id": "PE-PLC-001", "uuid": "x", "sheet": ""})
     assert t["kind"] == "pcb" and t["ref"] == "U1"
     missing = tmp_path / "nowhere"
     missing.mkdir()

@@ -104,7 +104,7 @@ export default function FeedbackPage() {
               )}
               {expanded === t.ticket_id && t.admin_notes && (
                 <div className="mt-3 rounded border border-emerald-500/20 bg-emerald-500/5 p-3">
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">Pinscope Team:</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">Periscope Team:</p>
                   <p className="text-sm text-muted-foreground">{t.admin_notes}</p>
                 </div>
               )}

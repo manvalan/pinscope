@@ -234,7 +234,7 @@ function ProjectsPanel() {
     // Stash the source project id and hand off to the dashboard, which
     // mounts the create-project dialog. The dialog fetches the full
     // Project on its end so we don't have to pass the entire object here.
-    window.sessionStorage.setItem("pinscopex:cloneAsNewProjectId", projectId);
+    window.sessionStorage.setItem("periscopex:cloneAsNewProjectId", projectId);
     router.push("/dashboard");
   }
 

@@ -1,14 +1,14 @@
 """Internal features (block-diagram extraction) — open-drain pull-up.
 
-Favor: pin listed in pullup_pins with no resistor to a rail → PS-INT-001.
+Favor: pin listed in pullup_pins with no resistor to a rail → PE-INT-001.
 Against: empty internal_features is silent; listed pin with a pull-up is
 silent; a pin not in pullup_pins is not guessed as open-drain.
 """
 
 from __future__ import annotations
 
-from backend.pinscopex.internal_features_check import check_internal_features
-from backend.pinscopex.models import (
+from backend.periscopex.internal_features_check import check_internal_features
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -69,7 +69,7 @@ def test_listed_open_drain_without_pull_is_warning():
     feats = InternalFeatures(pullup_pins=["SDA"])
     findings = check_internal_features(_graph(False), _cons(feats))
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-INT-001"
+    assert findings[0].rule_id == "PE-INT-001"
     assert findings[0].status == "WARNING"
 
 

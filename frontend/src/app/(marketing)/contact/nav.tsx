@@ -14,7 +14,7 @@ export function Nav() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2">
           <Cpu className="h-5 w-5 text-blue-500" />
-          <span className="text-sm font-semibold tracking-tight">Pinscope</span>
+          <span className="text-sm font-semibold tracking-tight">Periscope</span>
         </Link>
         <nav className="hidden sm:flex items-center gap-6 text-sm text-muted-foreground">
           <Link href="/#features" className="hover:text-foreground transition-colors">

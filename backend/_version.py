@@ -1,4 +1,4 @@
-"""Pinscope app version, sourced from frontend/content/changelog.md.
+"""Periscope app version, sourced from frontend/content/changelog.md.
 
 The changelog is the single source of truth for the user-facing version.
 The Dockerfile copies it into the image at /app/changelog.md; locally we
@@ -23,7 +23,7 @@ _VERSION_RE = re.compile(r"^##\s+(\d+\.\d+\.\d+)\b", re.MULTILINE)
 
 
 @lru_cache(maxsize=1)
-def get_pinscope_version() -> str:
+def get_periscope_version() -> str:
     for path in _candidate_paths():
         try:
             text = path.read_text(encoding="utf-8")
@@ -35,4 +35,4 @@ def get_pinscope_version() -> str:
     return "unknown"
 
 
-PINSCOPE_VERSION = get_pinscope_version()
+PERISCOPE_VERSION = get_periscope_version()

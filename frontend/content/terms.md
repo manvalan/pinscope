@@ -1,8 +1,8 @@
-# Pinscope Terms of Service
+# Periscope Terms of Service
 
 **Last updated: April 5, 2026**
 
-These Terms of Service ("Terms") govern access to and use of the Pinscope platform (pinscope.ai) and related services (the "Service"). These Terms apply to free users and self-serve paid users. If you have a separate written agreement signed by Faradworks, Inc. (for example, an enterprise agreement), that agreement governs your use of the Service to the extent it conflicts with these Terms.
+These Terms of Service ("Terms") govern access to and use of the Periscope platform (periscope.michelebigi.it) and related services (the "Service"). These Terms apply to free users and self-serve paid users. If you have a separate written agreement signed by Faradworks, Inc. (for example, an enterprise agreement), that agreement governs your use of the Service to the extent it conflicts with these Terms.
 
 These Terms incorporate Faradworks' [Privacy Policy](/privacy) and any policies referenced in the Service.
 
@@ -16,7 +16,7 @@ By creating an account, clicking to accept these Terms (for example, by clicking
 
 **"Derived Data"** means technical artifacts generated solely to operate the Service, such as parsed text, indexes, embeddings, summaries, or extracted metadata.
 
-**"Service"** means the Pinscope platform (pinscope.ai), including all features, APIs, and related services.
+**"Service"** means the Periscope platform (periscope.michelebigi.it), including all features, APIs, and related services.
 
 **"Content"** refers collectively to Customer Content, Outputs, and Derived Data.
 
@@ -170,15 +170,15 @@ Plans may include limits on reviews, tokens, files, API spend, usage allocations
 
 ### 11.2 Prepaid service credits.
 
-Certain Services, plans, or features may allow or require you to prepay for future eligible Pinscope review services for professional, business, or organizational use by purchasing prepaid service credits ("Usage Credits"). Usage Credits represent a prepaid, limited, revocable, non-transferable license to access eligible Pinscope review services up to the applicable credited amount and may be used only for eligible Pinscope review charges as described in the Service. Faradworks may also, in its sole discretion, provide free or promotional credits ("Promotional Credits"), which may be subject to additional restrictions or expiration dates stated when issued.
+Certain Services, plans, or features may allow or require you to prepay for future eligible Periscope review services for professional, business, or organizational use by purchasing prepaid service credits ("Usage Credits"). Usage Credits represent a prepaid, limited, revocable, non-transferable license to access eligible Periscope review services up to the applicable credited amount and may be used only for eligible Periscope review charges as described in the Service. Faradworks may also, in its sole discretion, provide free or promotional credits ("Promotional Credits"), which may be subject to additional restrictions or expiration dates stated when issued.
 
 ### 11.3 Credit characteristics and workspace scope.
 
-Credits may be used only for eligible Pinscope review charges and may not be used for any other product or service unless Faradworks expressly states otherwise in the Service. Credits are not legal tender, are not currency, are not redeemable for cash, are not refundable except as required by law or expressly stated by Faradworks, do not constitute or confer any personal property right, and do not constitute a bank account, deposit account, stored-value account, digital wallet, payment instrument, or other monetary account. Credits are an internal service accounting mechanism that measures the amount of eligible Pinscope review services you have prepaid and are licensed to use. Any credit balance or similar amount displayed in the Service reflects only our record of remaining prepaid eligibility for future eligible review charges and does not represent money held on your behalf. Credits are non-transferable, may not be sold, assigned, gifted, or sublicensed, and may be used only by the workspace or account to which they are issued. If credits are issued to an organization or workspace, they belong to that workspace and may be consumed by authorized users acting within that workspace.
+Credits may be used only for eligible Periscope review charges and may not be used for any other product or service unless Faradworks expressly states otherwise in the Service. Credits are not legal tender, are not currency, are not redeemable for cash, are not refundable except as required by law or expressly stated by Faradworks, do not constitute or confer any personal property right, and do not constitute a bank account, deposit account, stored-value account, digital wallet, payment instrument, or other monetary account. Credits are an internal service accounting mechanism that measures the amount of eligible Periscope review services you have prepaid and are licensed to use. Any credit balance or similar amount displayed in the Service reflects only our record of remaining prepaid eligibility for future eligible review charges and does not represent money held on your behalf. Credits are non-transferable, may not be sold, assigned, gifted, or sublicensed, and may be used only by the workspace or account to which they are issued. If credits are issued to an organization or workspace, they belong to that workspace and may be consumed by authorized users acting within that workspace.
 
 ### 11.4 Credit purchases and application to charges.
 
-Your order for Usage Credits constitutes an offer to purchase those Usage Credits. Faradworks may accept or reject any purchase request in its discretion. Credits are issued when Faradworks confirms the purchase or otherwise makes the credits available in your account or workspace. Credits are applied to eligible Pinscope review charges in the manner described in the Service. Faradworks may reserve, deduct, reverse, release, or adjust credits to reflect quoted charges, completed usage, failed runs, duplicate requests, fraud checks, refunds, chargebacks, or billing corrections. Credit pricing, minimum purchase amounts, maximum purchase amounts, and applicable taxes will be shown in the Service or at checkout. Fees are exclusive of taxes unless stated otherwise.
+Your order for Usage Credits constitutes an offer to purchase those Usage Credits. Faradworks may accept or reject any purchase request in its discretion. Credits are issued when Faradworks confirms the purchase or otherwise makes the credits available in your account or workspace. Credits are applied to eligible Periscope review charges in the manner described in the Service. Faradworks may reserve, deduct, reverse, release, or adjust credits to reflect quoted charges, completed usage, failed runs, duplicate requests, fraud checks, refunds, chargebacks, or billing corrections. Credit pricing, minimum purchase amounts, maximum purchase amounts, and applicable taxes will be shown in the Service or at checkout. Fees are exclusive of taxes unless stated otherwise.
 
 ### 11.5 Credit expiration, forfeiture, and promotional credits.
 

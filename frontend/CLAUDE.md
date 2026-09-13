@@ -1,8 +1,8 @@
 @AGENTS.md
 
-# Pinscope Frontend
+# Periscope Frontend
 
-Next.js 16 app (App Router, Turbopack) providing a web UI for Pinscope schematic validation. Talks to the FastAPI backend at `localhost:8000`.
+Next.js 16 app (App Router, Turbopack) providing a web UI for Periscope schematic validation. Talks to the FastAPI backend at `localhost:8000`.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ credit state only through `useCredits()` — both are inert in this repo.
 
 | Path | Purpose |
 |---|---|
-| `src/lib/types.ts` | TS types mirroring `pinscopex/models.py` |
+| `src/lib/types.ts` | TS types mirroring `periscopex/models.py` |
 | `src/lib/api.ts` | All data fetching — single integration point with backend |
 | `src/lib/mock-data.ts` | Pipeline step definitions for progress UI |
 | `src/components/report/` | Report viewer components + power tree React Flow graph + derating table + finding comments |
@@ -97,6 +97,6 @@ Requires the backend running at `localhost:8000` (or set `NEXT_PUBLIC_API_URL`).
 
 - Keep all data fetching in `src/lib/api.ts` — don't scatter fetch calls across components
 - Report filters persist in URL search params (`?status=ERROR&component=U3&q=decoupling`)
-- When modifying types, keep `src/lib/types.ts` in sync with `backend/pinscopex/models.py`
+- When modifying types, keep `src/lib/types.ts` in sync with `backend/periscopex/models.py`
 - Use `font-mono` for technical values: designators (U1), MPNs, pin names, component values
 - Status colors: emerald = PASS, amber = WARNING, rose = ERROR, blue = accent/active

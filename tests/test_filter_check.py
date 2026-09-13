@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.filter_check import check_filters
-from backend.pinscopex.models import (
+from backend.periscopex.filter_check import check_filters
+from backend.periscopex.models import (
     CapacitorSpecs,
     Component,
     ComponentConstraints,
@@ -90,7 +90,7 @@ def test_rc_reports_fc_info_without_adc_rate():
     )
     findings = check_filters(g)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-FLT-001"
+    assert findings[0].rule_id == "PE-FLT-001"
     assert findings[0].status == "INFO"
     assert findings[0].source == "filter_check"
 
@@ -110,7 +110,7 @@ def test_rc_vs_adc_rate_is_warning():
     )
     findings = check_filters(g)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-FLT-002"
+    assert findings[0].rule_id == "PE-FLT-002"
     assert findings[0].status == "WARNING"
 
 
@@ -154,7 +154,7 @@ def test_missing_c_value_does_not_invent_fc_warning():
     )
     findings = check_filters(g)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-FLT-001"
+    assert findings[0].rule_id == "PE-FLT-001"
     assert findings[0].status == "INFO"
 
 
@@ -172,7 +172,7 @@ def test_pi_and_t_need_l_and_c():
         },
     )
     pi = check_filters(g_pi)
-    assert len(pi) == 1 and pi[0].rule_id == "PS-FLT-001" and "π" in pi[0].finding
+    assert len(pi) == 1 and pi[0].rule_id == "PE-FLT-001" and "π" in pi[0].finding
 
     g_t = _graph(
         {
@@ -212,7 +212,7 @@ def test_ferrite_dcr_warns_only_with_datasheet_limit():
             "GND": (NetType.GROUND, [("U1", "2"), ("C1", "2")]),
         },
     )
-    assert not any(f.rule_id == "PS-FLT-003" for f in check_filters(g, cons))
+    assert not any(f.rule_id == "PE-FLT-003" for f in check_filters(g, cons))
 
     g2 = _graph(
         {
@@ -226,5 +226,5 @@ def test_ferrite_dcr_warns_only_with_datasheet_limit():
             "GND": (NetType.GROUND, [("U1", "2"), ("C1", "2")]),
         },
     )
-    dcr = [f for f in check_filters(g2, cons) if f.rule_id == "PS-FLT-003"]
+    dcr = [f for f in check_filters(g2, cons) if f.rule_id == "PE-FLT-003"]
     assert len(dcr) == 1 and dcr[0].status == "WARNING"

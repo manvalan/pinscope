@@ -131,7 +131,7 @@ export function ImpedancePanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "pinscope.kicad_dru";
+    a.download = "periscope.kicad_dru";
     a.click();
     URL.revokeObjectURL(url);
   }

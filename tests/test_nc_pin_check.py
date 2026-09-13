@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -12,7 +12,7 @@ from backend.pinscopex.models import (
     Pin,
     PinConnection,
 )
-from backend.pinscopex.nc_pin_check import check_nc_pins
+from backend.periscopex.nc_pin_check import check_nc_pins
 
 
 def test_nc_pin_on_active_net_warns():
@@ -56,7 +56,7 @@ def test_nc_pin_on_active_net_warns():
     }
     findings = check_nc_pins(g, cmap)
     assert len(findings) == 1
-    assert findings[0].rule_id == "PS-NC-001"
+    assert findings[0].rule_id == "PE-NC-001"
     assert findings[0].net == "SIG"
 
 

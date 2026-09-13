@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import re
 
-from backend.pinscopex.models import ComponentModel, SimpleComponentSpecs
-from backend.pinscopex.resolve_passives import simple_to_typed_passive_specs
+from backend.periscopex.models import ComponentModel, SimpleComponentSpecs
+from backend.periscopex.resolve_passives import simple_to_typed_passive_specs
 
 _CAP = re.compile(
     r"(?P<num>\d+(?:\.\d+)?)\s*(?P<mul>[pnuμµmk])?\s*[fF]\b",

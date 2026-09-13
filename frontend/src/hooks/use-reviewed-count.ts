@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  legacyReviewedFindingsKey,
+  migrateLocalKey,
+  reviewedFindingsKey,
+} from "@/lib/storage-keys";
 
 /**
  * Lightweight hook that reads the reviewed-findings count from localStorage
@@ -12,7 +17,10 @@ export function useReviewedCount(projectId: string): number {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(`pinscopex:reviewed-findings:${projectId}`);
+      const stored = migrateLocalKey(
+        reviewedFindingsKey(projectId),
+        legacyReviewedFindingsKey(projectId),
+      );
       if (stored) {
         const arr: unknown[] = JSON.parse(stored);
         setCount(arr.length);

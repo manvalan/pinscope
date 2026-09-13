@@ -1,4 +1,4 @@
-"""Local Pinscope auth endpoints (register / login / me)."""
+"""Local Periscope auth endpoints (register / login / me)."""
 
 from __future__ import annotations
 

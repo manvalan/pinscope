@@ -7,11 +7,11 @@ C0G is not treated as X7R.
 
 from __future__ import annotations
 
-from backend.pinscopex.derating import (
+from backend.periscopex.derating import (
     build_derating_table,
     dc_bias_remaining,
 )
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     CapacitorSpecs,
     Component,
     ComponentType,

@@ -6,7 +6,7 @@ import { pageMetadata } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "Changelog",
   description:
-    "Recent updates and improvements to Pinscope — new EDA tool support, review accuracy improvements, and platform changes.",
+    "Recent updates and improvements to Periscope — new EDA tool support, review accuracy improvements, and platform changes.",
   path: "/changelog",
 });
 

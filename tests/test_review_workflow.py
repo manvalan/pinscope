@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.pinscopex.models import Finding
-from backend.pinscopex.review_workflow import (
+from backend.periscopex.models import Finding
+from backend.periscopex.review_workflow import (
     ReviewError,
     apply_review_state,
     build_eco,
@@ -30,7 +30,7 @@ def _finding(**kwargs):
         why="no 100nF on VDD",
         status="ERROR",
         recommendation="add 100nF",
-        rule_id="PS-DEC-001",
+        rule_id="PE-DEC-001",
     )
     defaults.update(kwargs)
     return Finding(**defaults)
@@ -65,7 +65,7 @@ def test_eco_includes_accepted_not_false_positive():
     states = apply_review_state(states, "U2-001", state="false_positive", reason="ok in app", user_id="a")
     eco = build_eco(findings, states)
     assert [row["finding_id"] for row in eco] == ["U1-001"]
-    assert eco[0]["rule_id"] == "PS-DEC-001"
+    assert eco[0]["rule_id"] == "PE-DEC-001"
     assert eco[0]["ref"] == "U1"
     assert "100nF" in eco[0]["after"]
     csv = eco_csv(eco)

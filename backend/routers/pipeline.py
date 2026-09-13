@@ -84,7 +84,7 @@ async def start(project_id: str, request: Request):
 
     # Idempotent enqueue: only one ``draft|complete|error|cancelled`` ->
     # ``queued`` transition can win. Concurrent /start clicks => 409.
-    from backend._version import PINSCOPE_VERSION
+    from backend._version import PERISCOPE_VERSION
     try:
         proj_svc.transition_status(
             storage, owner_user_id, project_id,
@@ -92,7 +92,7 @@ async def start(project_id: str, request: Request):
             to_status=proj_svc.STATUS_QUEUED,
             cancel_requested=False,
             execution_name=None,
-            pinscope_version=PINSCOPE_VERSION,
+            periscope_version=PERISCOPE_VERSION,
         )
     except proj_svc.StatusConflict:
         raise HTTPException(409, "Pipeline already running or queued")
@@ -199,7 +199,7 @@ async def reprocess(project_id: str, request: Request, req: ReprocessRequest | N
     (default) skips ICs that already produced a review; ``all`` re-reviews
     every IC.
     """
-    from backend._version import PINSCOPE_VERSION
+    from backend._version import PERISCOPE_VERSION
 
     storage = get_storage(request)
     owner_user_id, meta = await resolve_or_404(request, project_id)
@@ -241,7 +241,7 @@ async def reprocess(project_id: str, request: Request, req: ReprocessRequest | N
             pause_checkpoint=None,
             pause_reason=None,
             completed_review_refs=keep_refs,
-            pinscope_version=PINSCOPE_VERSION,
+            periscope_version=PERISCOPE_VERSION,
         )
     except proj_svc.StatusConflict:
         raise HTTPException(409, "Pipeline already running or queued")

@@ -13,7 +13,7 @@ Locks in:
 
 from __future__ import annotations
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -25,8 +25,8 @@ from backend.pinscopex.models import (
     PinConnection,
     ValidationReport,
 )
-from backend.pinscopex.pin_function_tokens import normalize_functions, parse_net_token
-from backend.pinscopex.pin_mux_check import check_pin_mux_feasibility
+from backend.periscopex.pin_function_tokens import normalize_functions, parse_net_token
+from backend.periscopex.pin_mux_check import check_pin_mux_feasibility
 
 
 def _constraints(mpn, pintable):
@@ -69,7 +69,7 @@ def test_real_defect_uart5_swapped_is_error():
     assert {f.designator for f in findings} == {"U3"}
     tx = next(f for f in findings if "MCU-UART5-TX" in f.finding)
     assert "cannot be muxed as UART5_TX" in tx.finding
-    assert tx.rule_id == "PS-MUX-001"
+    assert tx.rule_id == "PE-MUX-001"
     assert tx.net == "MCU-UART5-TX"
     assert tx.pins == ["U3.54"]
 
@@ -181,7 +181,7 @@ def test_spi_controller_peripheral_names_are_synonyms():
 def test_simple_project_uart0_nets_are_feasible_on_mspm0_pins():
     from pathlib import Path
 
-    from backend.pinscopex.models import DesignGraph
+    from backend.periscopex.models import DesignGraph
 
     graph = DesignGraph.model_validate_json(
         (Path(__file__).resolve().parents[1] / "simple_project" / "design_graph.json").read_text()
@@ -203,7 +203,7 @@ def test_simple_project_uart0_nets_are_feasible_on_mspm0_pins():
 def test_simple_project_uart0_swapped_on_mspm0_is_error():
     from pathlib import Path
 
-    from backend.pinscopex.models import DesignGraph
+    from backend.periscopex.models import DesignGraph
 
     graph = DesignGraph.model_validate_json(
         (Path(__file__).resolve().parents[1] / "simple_project" / "design_graph.json").read_text()

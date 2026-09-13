@@ -45,8 +45,8 @@ def _check_model_defaults() -> list[str]:
 
 
 def _check_simple_project_offline() -> list[str]:
-    from backend.pinscopex.models import DesignGraph
-    from backend.pinscopex.validation_tools import shortest_path
+    from backend.periscopex.models import DesignGraph
+    from backend.periscopex.validation_tools import shortest_path
 
     errs: list[str] = []
     graph_path = SIMPLE / "design_graph.json"

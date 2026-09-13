@@ -6,7 +6,7 @@ import { fetchReport, fetchGraph } from "@/lib/api";
 
 function describeLoadError(e: unknown): string {
   if (e instanceof TypeError) {
-    return "Could not reach the Pinscope API. Check that the backend is running and that /api is proxied to it.";
+    return "Could not reach the Periscope API. Check that the backend is running and that /api is proxied to it.";
   }
   return e instanceof Error ? e.message : "Failed to load report";
 }

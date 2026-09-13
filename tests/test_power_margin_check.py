@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     Component,
     ComponentConstraints,
     ComponentType,
@@ -14,7 +14,7 @@ from backend.pinscopex.models import (
     ResistorSpecs,
     SimpleComponentSpecs,
 )
-from backend.pinscopex.power_margin_check import check_power_margin
+from backend.periscopex.power_margin_check import check_power_margin
 
 
 def _graph(components, nets):
@@ -74,7 +74,7 @@ def test_load_over_iout_max_is_ps_pwr_001():
         },
     )
     findings = check_power_margin(g, _cons())
-    assert any(f.rule_id == "PS-PWR-001" and f.designator == "U1" for f in findings)
+    assert any(f.rule_id == "PE-PWR-001" and f.designator == "U1" for f in findings)
 
 
 def test_missing_iq_is_not_guessed_into_margin_fail():
@@ -109,7 +109,7 @@ def test_series_r_ir_drop_uses_i_load_not_trace():
         },
     )
     findings = check_power_margin(g, _cons())
-    assert any(f.designator == "R1" and f.rule_id == "PS-PWR-001" for f in findings)
+    assert any(f.designator == "R1" and f.rule_id == "PE-PWR-001" for f in findings)
 
 
 def test_no_series_r_does_not_invent_trace_drop():

@@ -21,7 +21,7 @@ from typing import Awaitable, Callable
 
 log = logging.getLogger(__name__)
 
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     ComponentConstraints,
     ComponentType,
     DesignGraph,
@@ -30,7 +30,7 @@ from backend.pinscopex.models import (
     NetType,
     ValidationReport,
 )
-from backend.pinscopex.validate import (
+from backend.periscopex.validate import (
     SYSTEM_PROMPT,
     _MAX_REVIEW_TURNS,
     ReviewResult,
@@ -41,30 +41,30 @@ from backend.pinscopex.validate import (
     build_component_context,
     _parse_review,
 )
-from backend.pinscopex.quote_verify import verify_finding_citations
-from backend.pinscopex.utils import safe_mpn
-from backend.pinscopex.pin_mux_check import check_pin_mux_feasibility
-from backend.pinscopex.led_current_check import check_led_current
-from backend.pinscopex.passive_rail_check import (
+from backend.periscopex.quote_verify import verify_finding_citations
+from backend.periscopex.utils import safe_mpn
+from backend.periscopex.pin_mux_check import check_pin_mux_feasibility
+from backend.periscopex.led_current_check import check_led_current
+from backend.periscopex.passive_rail_check import (
     check_i2c_pullups,
     check_reset_pullups,
     check_supply_decoupling,
 )
-from backend.pinscopex.bom_match_check import check_bom_schematic_match
-from backend.pinscopex.hf_coverage_check import check_hf_decoupling_coverage
-from backend.pinscopex.cad_bridge import annotate_findings_cad, build_cad_bridge, write_cad_bridge
-from backend.pinscopex.filter_check import check_filters
-from backend.pinscopex.thermal_check import check_thermal
-from backend.pinscopex.power_margin_check import check_power_margin
-from backend.pinscopex.sequencing_check import check_power_sequencing
-from backend.pinscopex.dnp_check import check_dnp_enables
-from backend.pinscopex.lifecycle import check_lifecycle, load_lifecycle_dir
-from backend.pinscopex.errata_check import check_errata
-from backend.pinscopex.internal_features_check import check_internal_features
-from backend.pinscopex.placement_check import check_placement
-from backend.pinscopex.si_check import check_si
-from backend.pinscopex.crystal_cl_check import check_crystal_cl
-from backend.pinscopex.nc_pin_check import check_nc_pins
+from backend.periscopex.bom_match_check import check_bom_schematic_match
+from backend.periscopex.hf_coverage_check import check_hf_decoupling_coverage
+from backend.periscopex.cad_bridge import annotate_findings_cad, build_cad_bridge, write_cad_bridge
+from backend.periscopex.filter_check import check_filters
+from backend.periscopex.thermal_check import check_thermal
+from backend.periscopex.power_margin_check import check_power_margin
+from backend.periscopex.sequencing_check import check_power_sequencing
+from backend.periscopex.dnp_check import check_dnp_enables
+from backend.periscopex.lifecycle import check_lifecycle, load_lifecycle_dir
+from backend.periscopex.errata_check import check_errata
+from backend.periscopex.internal_features_check import check_internal_features
+from backend.periscopex.placement_check import check_placement
+from backend.periscopex.si_check import check_si
+from backend.periscopex.crystal_cl_check import check_crystal_cl
+from backend.periscopex.nc_pin_check import check_nc_pins
 
 TRACE_VERSION = 1
 
@@ -139,14 +139,14 @@ def _assistant_text(blocks) -> str:
     except Exception:
         log.exception("trace: assistant_text extraction failed")
     return "\n".join(parts)
-from backend.pinscopex.validation_tools import (
+from backend.periscopex.validation_tools import (
     ALL_TOOLS,
     SUBMIT_REVIEW_SCHEMA,
     ConstraintsMap,
     ExcerptState,
     execute_tool,
 )
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 
 from backend.config import settings
 from backend.services.api_logs import ApiLogger
@@ -639,7 +639,7 @@ def _find_pdf(
     then tries to download from the library.
     """
     from backend.services.datasheet_finder import find_local_pdf
-    from backend.pinscopex.utils import safe_mpn as _safe
+    from backend.periscopex.utils import safe_mpn as _safe
 
     mpn = (mpn or "").strip()
     if not mpn:
@@ -836,7 +836,7 @@ async def validate_design_async(
         try:
             prefix_id = (project_prefix or "").rstrip("/").rsplit("/", 1)[-1]
             bridge = build_cad_bridge(report, prefix_id or report.project)
-            write_cad_bridge(existing_path.with_name("pinscope-findings.json"), bridge)
+            write_cad_bridge(existing_path.with_name("periscope-findings.json"), bridge)
         except Exception:
             log.exception("cad bridge write failed")
         return report

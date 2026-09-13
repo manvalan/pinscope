@@ -20,7 +20,7 @@ import { useCredits } from "@/components/billing/credits-context";
 import { OnboardingSurvey } from "@/components/dashboard/onboarding-survey";
 
 type ViewMode = "cards" | "table";
-const VIEW_STORAGE_KEY = "pinscopex:dashboard:view";
+const VIEW_STORAGE_KEY = "periscopex:dashboard:view";
 
 export default function DashboardPage() {
   return (
@@ -79,10 +79,10 @@ function DashboardContent() {
     // Admin handoff: "Rerun as new project" stashes a project ID here.
     const cloneId =
       typeof window !== "undefined"
-        ? window.sessionStorage.getItem("pinscopex:cloneAsNewProjectId")
+        ? window.sessionStorage.getItem("periscopex:cloneAsNewProjectId")
         : null;
     if (cloneId) {
-      window.sessionStorage.removeItem("pinscopex:cloneAsNewProjectId");
+      window.sessionStorage.removeItem("periscopex:cloneAsNewProjectId");
       fetchProject(cloneId)
         .then(setCloneAsNewProject)
         .catch(() => {

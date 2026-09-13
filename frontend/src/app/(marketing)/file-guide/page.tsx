@@ -6,7 +6,7 @@ import { pageMetadata } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "File Upload Guide",
   description:
-    "Step-by-step export instructions for KiCad, Altium, OrCAD, Cadence Allegro, Siemens Xpedition, EasyEDA, and Autodesk EAGLE — netlists, BOMs, and datasheets ready for Pinscope.",
+    "Step-by-step export instructions for KiCad, Altium, OrCAD, Cadence Allegro, Siemens Xpedition, EasyEDA, and Autodesk EAGLE — netlists, BOMs, and datasheets ready for Periscope.",
   path: "/file-guide",
 });
 

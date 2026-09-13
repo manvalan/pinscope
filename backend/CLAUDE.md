@@ -1,6 +1,6 @@
-# Pinscope Backend
+# Periscope Backend
 
-FastAPI application providing async pipeline orchestration, project storage, and SSE progress streaming. Wraps the `pinscopex/` core library — calls existing functions with local paths, adds no domain logic of its own.
+FastAPI application providing async pipeline orchestration, project storage, and SSE progress streaming. Wraps the `periscopex/` core library — calls existing functions with local paths, adds no domain logic of its own.
 
 ## Running
 
@@ -22,7 +22,7 @@ backend/
 ├── _version.py          # Reads app version from frontend/content/changelog.md (single source of truth)
 ├── Dockerfile           # Python 3.12-slim, copies taxonomy/ + changelog.md for runtime
 ├── skills_manifest.json # Claude Console Skill IDs (extract-pintable, extract-pattern, extract-specs)
-├── pinscopex/           # Core library (models, parsers, graph, validator, taxonomy, derating)
+├── periscopex/           # Core library (models, parsers, graph, validator, taxonomy, derating)
 │   ├── utils.py         # Shared utilities: safe_mpn(), natural_sort_key()
 │   └── resolve_passives.py  # Passive MPN pattern matching + value decoders (R/C/L)
 ├── middleware/
@@ -63,7 +63,7 @@ All file I/O goes through `StorageBackend` (protocol in `services/storage.py`):
 
 Storage keys follow GCS-style paths: `users/{user_id}/projects/{id}/uploads/bom.csv`
 
-The `pinscopex/` core library is **unaware of storage** — it operates on local paths. During pipeline execution, `PipelineWorkspace` downloads files to a temp dir, runs `pinscopex/` functions locally, then uploads results back.
+The `periscopex/` core library is **unaware of storage** — it operates on local paths. During pipeline execution, `PipelineWorkspace` downloads files to a temp dir, runs `periscopex/` functions locally, then uploads results back.
 
 ## Project Storage
 
@@ -108,7 +108,7 @@ The pipeline runs async via `asyncio.create_task()`. Progress emitted as SSE eve
 3. **Extract Passives** — Pattern-based extraction per MPN group, then a specs fallback per MPN.
 3.5. **DigiKey Auto-Resolve (exact MPN)** — Fallback for unresolved passives; parameters mapped to taxonomy specs via Haiku. Requires exact MPN match so the shared `library/passives/` stays clean.
 3.6. **Value Fallback (R/C/L/FB only)** — When DigiKey misses, parse the BOM `Value` string via Haiku into typed passive specs. Per-project only; never written to the shared library.
-4. **Build Graph** — Call `pinscopex.graph.build_graph()` with local temp paths
+4. **Build Graph** — Call `periscopex.graph.build_graph()` with local temp paths
 5. **BOM Summary** — Collate components from design graph (no AI)
 6. **Derating Table** — Capacitor voltage derating computation (no AI)
 7. **Direct Datasheet Review** — Per-IC (isolated): Claude reads the datasheet PDF + circuit neighborhood from the graph, compares to reference application circuit, and submits findings via graph query tools. ICs are reviewed **concurrently**, up to `IC_CONCURRENCY` in flight at once.
@@ -118,7 +118,7 @@ The pipeline runs async via `asyncio.create_task()`. Progress emitted as SSE eve
 ## Key Patterns
 
 - **StorageBackend protocol** — all file I/O is abstracted; swap local/GCS via `GCS_BUCKET` env var
-- **PipelineWorkspace** — downloads to temp dir, runs pinscopex locally, uploads results
+- **PipelineWorkspace** — downloads to temp dir, runs periscopex locally, uploads results
 - **BillingHook seam (open-core)** — core code reaches billing exclusively through `services/billing_hook.py:get_billing()`. In this repo that's `NullBilling`: every pipeline runs free and no billing routes are mounted. Never import billing modules directly from core code — go through the hook.
 - **Auth middleware** — JWT verification via a JWKS endpoint; disabled when `CLERK_JWKS_URL` is empty (local mode: `user_id="local"`, `is_admin()` returns True)
 - **AsyncAnthropic** for all Claude API calls — extraction and validation
@@ -131,10 +131,10 @@ The pipeline runs async via `asyncio.create_task()`. Progress emitted as SSE eve
 - **Taxonomy specs schemas** — auto-generated via Claude per type/subtype; extraction discards parameters not in schema (`extra_specs`)
 - **Shared router deps** — `routers/deps.py` centralizes `get_storage()`, `get_user_id()`, `resolve_or_404()` across all routers
 - **DigiKey OAuth2** — Token caching in `services/digikey.py`; `_find_product` requires exact MPN (no silent first-match fallback)
-- **Version stamping** — `backend/_version.py` reads the latest `##` heading from `frontend/content/changelog.md` and exports `PINSCOPE_VERSION`; stamped onto `ProjectMeta.pinscope_version` at `/start`
+- **Version stamping** — `backend/_version.py` reads the latest `##` heading from `frontend/content/changelog.md` and exports `PERISCOPE_VERSION`; stamped onto `ProjectMeta.periscope_version` at `/start`
 - **Datasheet page trimming** — `_select_pages()` in `extraction.py` keyword-trims large PDFs to reduce token costs
 - **Content-addressed datasheets** — `datasheet_store.py` writes PDFs to `library/datasheets/blobs/{md5}.pdf` and maps MPNs via refs
-- **Passive value decoders** — `pinscopex/resolve_passives.py` decodes EIA-198, R-notation, letter-decimal, EIA3/EIA4 for R/C/L values
+- **Passive value decoders** — `periscopex/resolve_passives.py` decodes EIA-198, R-notation, letter-decimal, EIA3/EIA4 for R/C/L values
 - **Collaborator access** — `resolve_or_404()` grants access to both owner and collaborators
 - **Per-IC review isolation** — In `services/validation.py`, each IC review is wrapped so a single bad payload is captured as a skipped component rather than aborting the run
 
@@ -144,5 +144,5 @@ The pipeline runs async via `asyncio.create_task()`. Progress emitted as SSE eve
 - Keep all storage operations in `services/projects.py` (uses `StorageBackend`)
 - Routers are thin — validate input, call service, return response
 - Thread `user_id` from `request.state` through to all service calls
-- Don't import from `backend/` in `pinscopex/` — dependency flows one way
+- Don't import from `backend/` in `periscopex/` — dependency flows one way
 - CORS is configured for `localhost:3000` by default; override with `CORS_ORIGINS` env var

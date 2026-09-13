@@ -1,6 +1,6 @@
-# Pinscope — Agentic Schematic Validation
+# Periscope — Agentic Schematic Validation
 
-Pinscope validates hardware schematics against component datasheets. It extracts constraints from PDFs, parses netlists and BOMs into a queryable graph, and runs an agentic validation loop to flag design violations.
+Periscope validates hardware schematics against component datasheets. It extracts constraints from PDFs, parses netlists and BOMs into a queryable graph, and runs an agentic validation loop to flag design violations.
 
 > **Open-core note.** This is the open-source core. A small set of files are
 > "gateway-owned seams" — pass-through stubs here (`frontend/src/proxy.ts`,
@@ -18,7 +18,7 @@ Three layers:
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
-| **Core library** | `backend/pinscopex/` | Models, parsers, graph builder, agentic validator, passive resolver, taxonomy, BOM summary, derating |
+| **Core library** | `backend/periscopex/` | Models, parsers, graph builder, agentic validator, passive resolver, taxonomy, BOM summary, derating |
 | **Backend** | `backend/` | FastAPI app — async pipeline orchestration, SSE progress, project/file storage |
 | **Frontend** | `frontend/` | Next.js 16 app — project dashboard, pipeline progress, report viewer, derating, admin dashboard |
 
@@ -55,17 +55,17 @@ Files: `.asc` (PADS-PCB netlist; `.edn` EDIF 2.0.0 also accepted), `.csv`/`.xlsx
 - **Cross-IC finding dedup** — After all per-IC reviews complete, a single pass (`services/dedupe_findings.py`) collapses one physical interface defect reported from both endpoints into a single finding. Gated by `cross_ic_dedup_enabled`; fail-soft.
 - **Capacitor voltage derating** — Deterministic derating table computed from graph (ceramic/tantalum/electrolytic percentages, pass/fail per capacitor)
 - **Deterministic checks over heuristics** — Exact checks where possible
-- **Zero coupling between layers** — Backend calls pinscopex functions with paths; frontend talks to backend via REST + SSE
+- **Zero coupling between layers** — Backend calls periscopex functions with paths; frontend talks to backend via REST + SSE
 - **Library deduplication** — Shared library (`library/extracted/`, `library/patterns/`, `library/models/`, `library/passives/`, `library/datasheets/`) caches extractions across projects
 - **Content-addressed datasheets** — `library/datasheets/blobs/{md5}.pdf` stores unique PDFs once; `library/datasheets/refs/{safe_mpn}.json` maps MPNs to blobs (dedupe + multi-MPN sharing)
 - **Taxonomy-driven extraction** — Living component taxonomy (`taxonomy/`) with per-subtype classification and specs schemas
 - **Per-stage model config** — Each pipeline stage can use a different Claude model (e.g., Sonnet for review, Haiku for auto-resolve)
 - **API call logging** — Every Claude API call is logged with token counts, cost, and timing per pipeline run
-- **Report versioning** — Each project run is stamped with the current app version on the first `/start` transition (`ProjectMeta.pinscope_version`). The version comes from `frontend/content/changelog.md`'s latest `##` heading — single source of truth — read at backend startup via `backend/_version.py`.
+- **Report versioning** — Each project run is stamped with the current app version on the first `/start` transition (`ProjectMeta.periscope_version`). The version comes from `frontend/content/changelog.md`'s latest `##` heading — single source of truth — read at backend startup via `backend/_version.py`.
 
 ## Datasheet Extraction
 
-Extracted data lives in `library/extracted/` (shared) or per-project under the storage backend. One JSON per MPN, schema in `backend/pinscopex/models.py`.
+Extracted data lives in `library/extracted/` (shared) or per-project under the storage backend. One JSON per MPN, schema in `backend/periscopex/models.py`.
 
 Per-MPN IC extraction captures:
 1. **Pintable** — Pin number + name (required), description + alt functions (optional)
@@ -131,8 +131,8 @@ All `ComponentConstraints` extracted JSON files carry a `model_version` semver f
 
 - Write tests against `simple_project/` — it's the ground truth
 - Netlist parser and BOM parser are pure functions with no side effects
-- All data structures use Pydantic models in `backend/pinscopex/models.py`
-- Frontend types in `frontend/src/lib/types.ts` must stay in sync with `backend/pinscopex/models.py`
+- All data structures use Pydantic models in `backend/periscopex/models.py`
+- Frontend types in `frontend/src/lib/types.ts` must stay in sync with `backend/periscopex/models.py`
 - Extraction prompts live in `skills/` (SKILL.md + schema.json + validate.py) and run locally against DeepSeek
 - **Never swallow exceptions silently** — prefer logging or re-raising over bare `except: continue`. Silent failures hide real bugs.
 

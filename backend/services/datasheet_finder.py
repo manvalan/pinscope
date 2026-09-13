@@ -1,6 +1,6 @@
 """Automatic datasheet lookup — LCSC, manufacturer URLs, optional DigiKey.
 
-DeepSeek-adapted Pinscope still needs the actual PDF. The original wizard
+DeepSeek-adapted Periscope still needs the actual PDF. The original wizard
 only auto-fetched via DigiKey, which requires paid API keys and often
 fails when the manufacturer CDN blocks the download.
 
@@ -39,7 +39,7 @@ _PDF_MAGIC = b"%PDF-"
 _MIN_PDF_SIZE = 5_000
 _UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Pinscope/2.8"
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Periscope/2.8"
 )
 _LCSC_BASE = "https://wmsc.lcsc.com/ftps/wm"
 
@@ -154,7 +154,7 @@ def find_local_pdf(pdf_dir: Path, mpn: str) -> Path | None:
     ``ESP32-S31-WROOM-3`` matches ``ESP32-S31-WROOM-3-N16R16V.pdf`` and the
     reverse — packing / flash-size suffixes, not sibling dies (CH340 vs CH340E).
     """
-    from backend.pinscopex.utils import safe_mpn
+    from backend.periscopex.utils import safe_mpn
 
     if not mpn or not pdf_dir.is_dir():
         return None

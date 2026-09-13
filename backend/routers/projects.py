@@ -11,7 +11,7 @@ from pydantic import BaseModel
 MAX_UPLOAD_BYTES = 30 * 1024 * 1024  # 30 MB
 
 from backend.config import settings
-from backend.pinscopex.utils import safe_mpn
+from backend.periscopex.utils import safe_mpn
 from backend.routers.deps import get_storage, get_user_id, resolve_or_404
 from backend.services import projects as proj_svc
 
@@ -63,7 +63,7 @@ async def check_library(req: LibraryCheckRequest, request: Request):
 
     passive_resolved: list[str] = []
     if req.passive_mpns:
-        from backend.pinscopex.resolve_passives import resolve_mpn
+        from backend.periscopex.resolve_passives import resolve_mpn
 
         passive_resolved = [
             mpn for mpn in req.passive_mpns
@@ -256,7 +256,7 @@ async def get_netlist_subdesigns(project_id: str, request: Request):
     ``selected`` list (None = "include everything") so the wizard can render
     the picker pre-populated.
     """
-    from backend.pinscopex.parsers_edif import list_edif_subdesigns
+    from backend.periscopex.parsers_edif import list_edif_subdesigns
     import tempfile, os
 
     storage = get_storage(request)
@@ -360,7 +360,7 @@ async def upload_bom(
     import os
     import tempfile
 
-    from backend.pinscopex.parsers import parse_bom
+    from backend.periscopex.parsers import parse_bom
 
     try:
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
@@ -420,7 +420,7 @@ async def upload_bom(
     # simple → datasheet upload). Mirrors the bucket logic in
     # services/pipeline.py:_stage_bom_parse so the field is correct after
     # either path runs.
-    from backend.pinscopex.taxonomy import SIMPLE_TYPES, type_for_ref
+    from backend.periscopex.taxonomy import SIMPLE_TYPES, type_for_ref
 
     ic_mpns: list[str] = []
     passive_mpns: list[str] = []
@@ -511,9 +511,9 @@ async def upload_netlist(
         raise HTTPException(404, "Project not found")
     user_id = result[0]  # owner_user_id for storage paths
 
-    from backend.pinscopex.netlist_bundle import materialize_netlist_upload
-    from backend.pinscopex.parsers import parse_netlist_any, validate_netlist
-    from backend.pinscopex.parsers_edif import list_edif_subdesigns
+    from backend.periscopex.netlist_bundle import materialize_netlist_upload
+    from backend.periscopex.parsers import parse_netlist_any, validate_netlist
+    from backend.periscopex.parsers_edif import list_edif_subdesigns
     import tempfile
 
     blobs: list[tuple[str, bytes]] = []
@@ -616,7 +616,7 @@ async def upload_pcb(project_id: str, file: UploadFile, request: Request):
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // 1024 // 1024} MB)")
     import tempfile, os
-    from backend.pinscopex.parsers_kicad_pcb import parse_kicad_pcb
+    from backend.periscopex.parsers_kicad_pcb import parse_kicad_pcb
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".kicad_pcb")
     try:
@@ -647,7 +647,7 @@ def _build_designator_pins(
     (natural sort on refs and on pin numbers) so the wizard's dropdowns
     look identical regardless of netlist format.
     """
-    from backend.pinscopex.utils import natural_sort_key
+    from backend.periscopex.utils import natural_sort_key
 
     by_ref: dict[str, dict[str, str]] = {ref: {} for ref in parts}
     for net_name, pins in nets.items():
@@ -1079,7 +1079,7 @@ async def lcsc_resolve_passive(
     # Catalog miss (ferrite, odd text): LLM path, charged if the logger has tokens.
 
     # Download taxonomy to a temp dir so auto_resolve_specs can read/write it.
-    # Mirrors the PipelineWorkspace pattern: pinscopex operates on local paths.
+    # Mirrors the PipelineWorkspace pattern: periscopex operates on local paths.
     api_logger = ApiLogger()
     with tempfile.TemporaryDirectory() as tmpdir:
         tax_dir = Path(tmpdir) / "taxonomy"

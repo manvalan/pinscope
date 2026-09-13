@@ -1,4 +1,4 @@
-"""Local Pinscope user directory (self-host auth, no Clerk).
+"""Local Periscope user directory (self-host auth, no Clerk).
 
 Users live under ``data/auth/users/{user_id}.json`` with an email index.
 Passwords use stdlib ``hashlib.scrypt``.

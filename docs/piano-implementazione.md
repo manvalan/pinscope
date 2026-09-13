@@ -1,8 +1,8 @@
-# Piano di implementazione — Pinscope
+# Piano di implementazione — Periscope
 
 Documento di lavoro **prima dello sviluppo**. La lista dell’utente è il minimo; sotto c’è anche ciò che serve perché quella lista non resti un insieme di moduli scollegati.
 
-**Questo piano copre due prodotti.** Pinscope originale resta il primo. Layout/plugin/placement mm sono il secondo. Non mescolare i changelog né vendere il secondo come “un po’ di Pinscope in più”.
+**Questo piano copre due prodotti.** Periscope originale resta il primo. Layout/plugin/placement mm sono il secondo. Non mescolare i changelog né vendere il secondo come “un po’ di Periscope in più”.
 
 Stato del codice di riferimento: branch `cursor/deepseek-71c5` (post DeepSeek V4.1, costi USD, replace BOM/netlist, parser KiCad, fingerprint review, auth multi-utente, PCB pad nets).
 
@@ -10,7 +10,7 @@ Stato del codice di riferimento: branch `cursor/deepseek-71c5` (post DeepSeek V4
 
 ## 0b. Roadmap DeepSeek / crescita (integrata)
 
-Fonte originale: canvas *Pinscope: crescita e DeepSeek*. Qui lo stato operativo.
+Fonte originale: canvas *Periscope: crescita e DeepSeek*. Qui lo stato operativo.
 
 | Fase | Voce | Stato |
 | --- | --- | --- |
@@ -48,27 +48,27 @@ Obiettivo unico: **routing migliore** (loop corti, meno crossing, canali liberi)
 
 1. **F1 polish (ora)** — satelliti classificatì; `other` nascosti; Domains/Rails = primary rail.
 2. **C4 fill** — riestrazione IC → `layout_rules` con `max_distance_mm` dove il PDF lo dice (skill 1.10.0).
-3. **PCB gate** — upload `.kicad_pcb` → `layout_graph.json` (footprint xy già usati da PS-PLC*).
+3. **PCB gate** — upload `.kicad_pcb` → `layout_graph.json` (footprint xy già usati da PE-PLC*).
 4. **F2 pack v1** — per ogni `decoupling_proximity` numerica: proporre xy satellite entro `max_distance_mm` dal pad (già skeleton); UI Pack lista proposte.
 5. **F2 pack v2** — collisioni courtyard, stesso layer, ordine `assemble_order` per dominio, ancore IC fissi se già piazzati.
 6. **F2 export** — scrivere posizioni proposte in file/plugin (pcbnew) senza muovere rame; `placement_check` resta verifica.
 
-Output F1: `functional_groups.json` scritto in `graph_build`. Pipeline parallela Placement (`POST …/placement/start`) riscrive anche `placement_plan.json` senza toccare lo `status` di analisi, poi tenta F2 pack. Verifica PCB esistente resta `placement_check` (PS-PLC*) — non confondere con packing.
+Output F1: `functional_groups.json` scritto in `graph_build`. Pipeline parallela Placement (`POST …/placement/start`) riscrive anche `placement_plan.json` senza toccare lo `status` di analisi, poi tenta F2 pack. Verifica PCB esistente resta `placement_check` (PE-PLC*) — non confondere con packing.
 
 ---
 
 ## 0. Due prodotti (stesso repo, due promesse)
 
-| | **Pinscope** (oggi + wave A–B, C schema, F/H leggere) | **Pinscope Layout** (wave D parziale, G, C4+G2, plugin pcbnew) |
+| | **Periscope** (oggi + wave A–B, C schema, F/H leggere) | **Periscope Layout** (wave D parziale, G, C4+G2, plugin pcbnew) |
 | --- | --- | --- |
 | Promessa | Lo schema rispetta il datasheet | Il rame rispetta datasheet + geometria |
 | File | BOM, netlist, `.kicad_sch` gerarchico | + `.kicad_pcb` |
 | Output | Finding su pin/net, derating, power tree | Distanze mm, 3W, creepage, skew, via EP |
 | Utente | Chi chiude lo schema | Chi sbroglia |
 
-Farli nello stesso codebase (`pinscopex` + `LayoutGraph`) è ragionevole. Farli **nella stessa run obbligatoria** no: senza PCB il progetto deve restare un Pinscope completo, non “incompleto perché manca il gerber”.
+Farli nello stesso codebase (`periscopex` + `LayoutGraph`) è ragionevole. Farli **nella stessa run obbligatoria** no: senza PCB il progetto deve restare un Periscope completo, non “incompleto perché manca il gerber”.
 
-Nome in UI: tab **Layout** o prodotto “Layout checks” gated dal file `.kicad_pcb`. Il report schema non deve riempirsi di `PS-PLC` se il PCB non c’è.
+Nome in UI: tab **Layout** o prodotto “Layout checks” gated dal file `.kicad_pcb`. Il report schema non deve riempirsi di `PE-PLC` se il PCB non c’è.
 
 Non serve un fork oggi. Serve disciplina: ogni PR dichiara se è Core o Layout.
 
@@ -76,7 +76,7 @@ Non serve un fork oggi. Serve disciplina: ogni PR dichiara se è Core o Layout.
 
 ## 0. Contratto di prodotto (non negoziabile)
 
-Pinscope oggi è un **validatore di schema**: BOM + netlist → grafo bipartito → check deterministici + review LLM con citazione datasheet. Non legge il PCB.
+Periscope oggi è un **validatore di schema**: BOM + netlist → grafo bipartito → check deterministici + review LLM con citazione datasheet. Non legge il PCB.
 
 Molti punti della lista (larghezza traccia, 3W, creepage, CPW clearance, length matching) **non esistono senza geometria**. Il piano li tiene, ma li mette **dopo** un ingest layout. Se li si forza sullo schema si producono finding inventati.
 
@@ -118,7 +118,7 @@ Da fare (Wave A1), in ordine:
 
 Regole:
 
-1. Ogni nuovo check è una funzione pura in `backend/pinscopex/` che legge `DesignGraph` (+ opzionale layout). Niente SDK LLM dentro `pinscopex/`.
+1. Ogni nuovo check è una funzione pura in `backend/periscopex/` che legge `DesignGraph` (+ opzionale layout). Niente SDK LLM dentro `periscopex/`.
 2. I finding usano lo stesso schema (`Finding` in `models.py` / `frontend/src/lib/types.ts`). Campo `source` già distingue check automatici vs review.
 3. Finding normalization resta **downgrade-only**.
 4. Libreria condivisa: MPN exact-match. Niente fuzzy sul die.
@@ -134,14 +134,14 @@ Aggiungere (backward compatible):
 | --- | --- |
 | `net` | Telemetry CAD, filtri, SI |
 | `pins[]` | Pan-and-zoom su U1.4 |
-| `rule_id` | Plugin DRC (`PS-DEC-001`) |
+| `rule_id` | Plugin DRC (`PE-DEC-001`) |
 | `cad_sheet` / `cad_uuid` | Sync plugin KiCad |
 | `variant` | DNP / ECO |
 | `severity_calibrated` | già implicito; non alzare in post |
 
 Passi:
 
-1. Estendere `Finding` in `backend/pinscopex/models.py` e `frontend/src/lib/types.ts`.
+1. Estendere `Finding` in `backend/periscopex/models.py` e `frontend/src/lib/types.ts`.
 2. Aggiornare `assign_finding_ids`, export Excel, report UI (campi opzionali nascosti se null).
 3. Test su `simple_project/` che i check esistenti ancora serializzano.
 
@@ -157,12 +157,12 @@ Passi:
 | 2 Datasheet / errata / OCR blocchi | Pintable, excerpt, quote_verify, errata, `internal_features` | Nessun RAG vendor | **OK** |
 | 3 Impedenze / stackup | ImpedenceFinder: calcolatrice + **Z0 sulle tracce** dei net signal (stackup PCB) | CPWG non nel vendor | **OK** |
 | 4 Filtri | `check_filters` (solo con poli/numeri in specs) | Niente \(f_c\) inventata | **OK** |
-| 5 Capacità PI | Decoupling sulla net; derating V; DC-bias/ESR se c’è il numero; mm sul PCB (`PS-PLC-001`) | — | **OK** |
+| 5 Capacità PI | Decoupling sulla net; derating V; DC-bias/ESR se c’è il numero; mm sul PCB (`PE-PLC-001`) | — | **OK** |
 | 6 Elettrico | Pin mux; I2C/reset pull-up; LED; sequencing/IR/power margin se c’è il parametro | Senza numero in specs → skip | **OK** |
 | 7 RF | Tab **RF / Impedance**: verify matching + template geometry (IFA/meander/stub → SVG + `.kicad_mod`); Z0 feed se PCB | CPWG / auto-place into `.kicad_pcb` dopo | **Improved** |
 | 8 HV / isolation | — | Serve `layout_rules` + V/mm dal datasheet, non IEC inventato | — |
 | 9 Termico | `check_thermal` se θJA/I sono in specs; via courtyard vs `min_via_count` | Niente \(T_j\) senza parametro | **OK** |
-| 10 SI / DNP | DNP enable; `PS-SI-001` solo con `length_match` mm | Niente 3W/crosstalk inventati | **OK** |
+| 10 SI / DNP | DNP enable; `PE-SI-001` solo con `length_match` mm | Niente 3W/crosstalk inventati | **OK** |
 | 11 Lifecycle | `lifecycle_check` su cache distributore (EOL/NRND/RoHS esplicito) | Niente equivalente LLM | **OK** |
 | 13 Placement da datasheet | `layout_rules` + `.kicad_pcb`: PLC-001…004, same_layer, crystal, keepout, path | 3W/creepage/CPW/isolation senza numero | **OK** |
 
@@ -176,7 +176,7 @@ Senza questi i moduli 1–12 non si misurano e i plugin mentono.
 
 **E1. KiCad gerarchico GA.** Obbligatorio. Vedi “Schema gerarchico” sopra. Senza flatten dei fogli il plugin e il `.kicad_pcb` non allineano i net.
 
-**E2. Protocollo plugin KiCad** (`pinscope-cad-bridge` JSON). Un file per progetto:
+**E2. Protocollo plugin KiCad** (`periscope-cad-bridge` JSON). Un file per progetto:
 
 ```json
 {
@@ -184,14 +184,14 @@ Senza questi i moduli 1–12 non si misurano e i plugin mentono.
   "project_id": "...",
   "findings": [
     {
-      "rule_id": "PS-MUX-001",
+      "rule_id": "PE-MUX-001",
       "ref": "U3",
       "pins": ["12"],
       "sheet": "...",
       "uuid": "...",
       "severity": "error",
       "message": "...",
-      "url": "https://pinscope.../report?finding=U3-001"
+      "url": "https://periscope.../report?finding=U3-001"
     }
   ]
 }
@@ -219,7 +219,7 @@ Passi: quelli in “Schema gerarchico (più file)” + file-guide riscritta (nie
 Passi:
 
 1. Pacchetto `plugins/kicad/` (action plugin Python, KiCad 9/10).
-2. `pinscope-findings.json` dal report (E2).
+2. `periscope-findings.json` dal report (E2).
 3. Marcatori / focus `uuid` su **eeschema** (foglio figlio corretto) e, per finding layout, su **pcbnew**.
 4. Pan-and-zoom: `FocusOnItem` / select symbol; se l’API 10 differisce, adapter sottile.
 
@@ -235,7 +235,7 @@ Passi:
 
 1. Da campi KiCad (`MPN`, `mpn`, `PN`, `lcsc`) già letti in `parsers_kicad.py` / `graph.py`.
 2. Tabella conflitti: ref in schema senza MPN, MPN in BOM senza ref, mismatch Value.
-3. Finding `source=bom_match` con `rule_id=PS-BOM-001`.
+3. Finding `source=bom_match` con `rule_id=PE-BOM-001`.
 4. UI wizard: riga rossa nel matching, non solo colonne.
 
 **Done when:** U1 in schema e U1 in BOM con MPN diversi → ERROR citabile.
@@ -244,7 +244,7 @@ Passi:
 
 ## Wave B — Check deterministici schema (sblocca 4, 5, 6, 9, 10 DNP)
 
-Obiettivo: meno LLM, più numeri. Ogni item = modulo `pinscopex` + test su grafo sintetico + riga in eval.
+Obiettivo: meno LLM, più numeri. Ogni item = modulo `periscopex` + test su grafo sintetico + riga in eval.
 
 ### B1. Power tree & drop (6)
 
@@ -253,7 +253,7 @@ Passi:
 1. Riuse UI power tree esistente.
 2. Per ogni IC: somma IQ + load stimato da specs se c’è; confronta con `Iout_max` LDO/Buck se estratto.
 3. IR drop **solo se** esiste Rseries esplicito (shunt/ferrite) — niente stima di pista.
-4. Finding `PS-PWR-001` margin fail.
+4. Finding `PE-PWR-001` margin fail.
 
 ### B2. Sequencing (6)
 
@@ -343,7 +343,7 @@ Passi:
 1. Non scraping indiscriminato (TOS, HTML instabile).
 2. Catalogo URL noti (TI `lit/er`, STM `errata`, Microchip).
 3. DeepSeek `web_search` **opzionale** gated, citazione obbligatoria, stesso `quote_verify`.
-4. Finding `PS-ERRATA-001` se il workaround (pull-up, bond-out) non è nello schema.
+4. Finding `PE-ERRATA-001` se il workaround (pull-up, bond-out) non è nello schema.
 
 **Done when:** un MPN con errata nota in fixture produce finding; vendor senza URL → skip silenzioso loggato.
 
@@ -407,7 +407,7 @@ Motore **standalone**, stile calcolatrice. I vincoli CAD sono export, non verit�
 
 Passi:
 
-1. `pinscopex/impedance.py`: microstrip, stripline, coupled diff, CPW — formule documentate + test numerici vs 3 valori ImpedanceFinder.
+1. `periscopex/impedance.py`: microstrip, stripline, coupled diff, CPW — formule documentate + test numerici vs 3 valori ImpedanceFinder.
 2. Input: `h`, `er`, `t`, `w`, `s`, `target_z`.
 3. UI tab progetto “Impedance” (non LLM).
 
@@ -461,7 +461,7 @@ Passi:
 
 Passi:
 
-1. Length matching / intra-pair skew vs limite datasheet (USB/HDMI/PCIe). **OK** (`PS-SI-001`, solo `length_match` mm).
+1. Length matching / intra-pair skew vs limite datasheet (USB/HDMI/PCIe). **OK** (`PE-SI-001`, solo `length_match` mm).
 2. 3W: distanza centro-centro vs W aggressore. — skip senza numero (non IEC/USB folklore).
 3. Creepage/clearance: profilo IEC 62368 (pollution, RMS V dai net). — skip senza V/mm nel datasheet.
 4. Isolation barrier: bbox isolator + divieto piste LV nel courtyard HV. — skip senza regola.
@@ -477,17 +477,17 @@ Passi:
 
 1. Per ogni pin alimentazione del pintable: footprint pad xy sul `.kicad_pcb`; condensatori sul medesimo net (grafo); distanza euclidea pad-cap (pin cap verso GND/VDD). **OK**
 2. Se `max_distance_mm` estratto: ERROR/WARNING se oltre. Se assente: skip (niente default 3 mm). **OK**
-3. Via in pad / via sotto EP: contare via nel courtyard del thermal pad vs `min_via_count`. **OK** (`PS-PLC-002`)
-4. Stesso layer: se `same_layer: true` e il cap è sull’altro lato senza via sotto il pin → WARNING. **OK** (`PS-PLC-003`)
+3. Via in pad / via sotto EP: contare via nel courtyard del thermal pad vs `min_via_count`. **OK** (`PE-PLC-002`)
+4. Stesso layer: se `same_layer: true` e il cap è sull’altro lato senza via sotto il pin → WARNING. **OK** (`PE-PLC-003`)
 5. Piste: lunghezza net dal pin al cap = shortest path sui segmenti vs `max_distance_mm`. **OK**
 6. Crystal: cap load vs pin XIN/XOUT (stessa metrica). **OK** (`X1`/`C9`/`C10`)
-7. Finding `PS-PLC-001`…`004` con `pins`, `net`; plugin focus pcbnew. **OK** (keepout = `PS-PLC-004`)
+7. Finding `PE-PLC-001`…`004` con `pins`, `net`; plugin focus pcbnew. **OK** (keepout = `PE-PLC-004`)
 
 Non confrontare una foto del layout TI con il board pixel-a-pixel. Solo vincoli numerici/topologici.
 
-**Done when:** fixture PCB con C di decoupling a 15 mm da VDD (regola 2 mm) → `PS-PLC-001`; cap a 1 mm → niente finding.
+**Done when:** fixture PCB con C di decoupling a 15 mm da VDD (regola 2 mm) → `PE-PLC-001`; cap a 1 mm → niente finding.
 
-**Done when (G1+G2):** un `.kicad_pcb` di test (USB diff pair volutamente sbagliata) produce `PS-SI-001`. I net coincidono con lo schema gerarchico della stessa repo.
+**Done when (G1+G2):** un `.kicad_pcb` di test (USB diff pair volutamente sbagliata) produce `PE-SI-001`. I net coincidono con lo schema gerarchico della stessa repo.
 
 ---
 
@@ -529,7 +529,7 @@ Stima onesta: Wave A–B (schema) sono il ritorno; G è un secondo prodotto. Non
 ## Passi operativi per **ogni** check nuovo
 
 1. Fixture grafo minimo in `tests/test_<nome>.py` (non solo `simple_project`).
-2. Funzione in `pinscopex/` senza I/O.
+2. Funzione in `periscopex/` senza I/O.
 3. Registrare in `services/validation.py` accanto a pin_mux/LED.
 4. `rule_id` + `source`.
 5. Una riga changelog.
@@ -557,6 +557,6 @@ Resta, senza inventare numeri:
 
 1. HV / isolation (blocco 8) se il datasheet dà V/mm o keepout HV.
 2. 3W / creepage / CPW solo con numero in `layout_rules` o dal calcolatore D2.
-3. Un `.kicad_pcb` reale di progetto (non fixture USB inventata) per vedere `PS-PLC`/`PS-SI` sul board.
+3. Un `.kicad_pcb` reale di progetto (non fixture USB inventata) per vedere `PE-PLC`/`PE-SI` sul board.
 
 Il plugin KiCad aspetta ancora verifica uuid + sheet su un progetto multi-foglio vero.

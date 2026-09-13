@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 
-from backend.pinscopex.models import Finding
+from backend.periscopex.models import Finding
 from backend.services.normalize_findings import (
     SUBMIT_NORMALIZED_SCHEMA,
     _build_normalized,
@@ -63,7 +63,7 @@ def test_normalize_passthrough_keeps_cad_fields():
             reference="",
             net="UART5_TX",
             pins=["U3.54"],
-            rule_id="PS-MUX-001",
+            rule_id="PE-MUX-001",
             cad_sheet="mcu.kicad_sch",
         )
     ]
@@ -74,7 +74,7 @@ def test_normalize_passthrough_keeps_cad_fields():
     built = _build_normalized(raw_findings, [], originals)
     assert built is not None
     kept, _ = built
-    assert kept[0].rule_id == "PS-MUX-001"
+    assert kept[0].rule_id == "PE-MUX-001"
     assert kept[0].net == "UART5_TX"
     assert kept[0].pins == ["U3.54"]
     assert kept[0].cad_sheet == "mcu.kicad_sch"

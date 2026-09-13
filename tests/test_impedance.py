@@ -1,6 +1,6 @@
 """D1 impedance — ImpedenceFinder closed forms, no second formula set.
 
-Favor: Pinscope Z0 equals vendored ImpedenceFinder bit-for-bit; classic
+Favor: Periscope Z0 equals vendored ImpedenceFinder bit-for-bit; classic
 3 mm / 1.6 mm FR4 is ~50 Ω; solve_width round-trips.
 Against: h<=0 invents nothing; CPWG stays unimplemented; stripline t=0
 raises; calculator emits no findings. OpenEMS is not imported.
@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from impedancefinder import zsolver as ifz
-from backend.pinscopex.impedance import (
+from backend.periscopex.impedance import (
     GeometryError,
     TraceGeometry,
     coupled_diff_z,
@@ -105,8 +105,8 @@ def test_stackup_rejects_non_positive_h():
 
 def test_kicad_dru_is_advice_not_a_finding():
     dru = export_kicad_dru(stackup_targets(h=0.20, er=4.5, t=0.035, s=0.20))
-    assert "(rule PINSCOPE_50OHM" in dru
-    assert "PS-Z" not in dru
+    assert "(rule PERISCOPE_50OHM" in dru
+    assert "PE-Z" not in dru
 
 
 def _impedance_client():
@@ -163,5 +163,5 @@ def test_api_stackup_returns_dru_not_findings():
     assert res.status_code == 200
     body = res.json()
     assert body["targets"]["microstrip_50"]["z0"] == pytest.approx(50.0, rel=0.02)
-    assert "(rule PINSCOPE_50OHM" in body["kicad_dru"]
+    assert "(rule PERISCOPE_50OHM" in body["kicad_dru"]
     assert "findings" not in body

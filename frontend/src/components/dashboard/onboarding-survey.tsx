@@ -63,7 +63,7 @@ export function OnboardingSurvey() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent showCloseButton={false} className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Welcome to Pinscope</DialogTitle>
+          <DialogTitle>Welcome to Periscope</DialogTitle>
           <DialogDescription>
             Two quick questions to help us improve the product.
           </DialogDescription>

@@ -73,7 +73,7 @@ export function Sidebar() {
       <div className="px-4 py-4 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Cpu className="h-5 w-5 text-blue-500" />
-          <span className="text-sm font-semibold tracking-tight">Pinscope</span>
+          <span className="text-sm font-semibold tracking-tight">Periscope</span>
         </Link>
       </div>
 

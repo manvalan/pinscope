@@ -124,7 +124,7 @@ class Settings(BaseSettings):
     clerk_publishable_key: str = ""
     clerk_jwks_url: str = ""
 
-    # Local Pinscope auth (self-host). Set AUTH_JWT_SECRET to enable email/password
+    # Local Periscope auth (self-host). Set AUTH_JWT_SECRET to enable email/password
     # accounts and multi-user project collaborators without Clerk.
     auth_jwt_secret: str = ""
     # Comma-separated emails that become admin on register (in addition to the
@@ -182,7 +182,7 @@ class Settings(BaseSettings):
     ]
 
     # Cloud Run Job worker (pipeline runner)
-    pipeline_worker_job_name: str = "pinscopex-pipeline-worker"
+    pipeline_worker_job_name: str = "periscopex-pipeline-worker"
     pipeline_worker_region: str = "us-central1"
     pipeline_worker_project: str = ""  # GCP project id; defaults to GOOGLE_CLOUD_PROJECT or metadata
     pipeline_worker_timeout_seconds: int = 3600

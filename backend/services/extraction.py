@@ -17,8 +17,8 @@ import tempfile
 import time
 from pathlib import Path
 
-from backend.pinscopex.utils import safe_mpn
-from backend.pinscopex.models import (
+from backend.periscopex.utils import safe_mpn
+from backend.periscopex.models import (
     CapacitorSpecs,
     ComponentConstraints,
     ComponentModel,
@@ -27,7 +27,7 @@ from backend.pinscopex.models import (
     NetType,
     SimpleComponentSpecs,
 )
-from backend.pinscopex.taxonomy import (
+from backend.periscopex.taxonomy import (
     TAXONOMY_DIR,
     add_subtype,
     format_for_prompt,
@@ -399,13 +399,13 @@ def _coerce_abs_max(raw: object) -> list[dict]:
 
 
 def _coerce_layout_rules(raw: object) -> list[dict]:
-    from backend.pinscopex.layout_rules import validate_layout_rules
+    from backend.periscopex.layout_rules import validate_layout_rules
     rows, _errors = validate_layout_rules(raw if isinstance(raw, list) else [])
     return rows
 
 
 def _coerce_internal_features(raw: object):
-    from backend.pinscopex.models import InternalFeatures
+    from backend.periscopex.models import InternalFeatures
     if not isinstance(raw, dict):
         return None
     try:
@@ -1088,7 +1088,7 @@ async def auto_resolve_specs(
 
     # Convert passive SimpleComponentSpecs to typed models
     if component_type == "passive":
-        from backend.pinscopex.resolve_passives import simple_to_typed_passive_specs
+        from backend.periscopex.resolve_passives import simple_to_typed_passive_specs
         typed = simple_to_typed_passive_specs(specs)
         return ComponentModel(mpn=mpn, specs=typed)
 
@@ -1260,7 +1260,7 @@ async def resolve_from_value(
     )
 
     if component_type == "passive":
-        from backend.pinscopex.resolve_passives import simple_to_typed_passive_specs
+        from backend.periscopex.resolve_passives import simple_to_typed_passive_specs
         typed = simple_to_typed_passive_specs(specs)
         return ComponentModel(mpn=mpn, specs=typed)
 

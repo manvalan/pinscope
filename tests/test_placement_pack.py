@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.pinscopex.functional_groups import (
+from backend.periscopex.functional_groups import (
     PlacementIcGroup,
     PlacementSatellite,
     FunctionalGroupsReport,
     build_functional_groups,
 )
-from backend.pinscopex.models import (
+from backend.periscopex.models import (
     DesignGraph,
     LayoutFootprint,
     LayoutGraph,
     LayoutPad,
 )
-from backend.pinscopex.placement_pack import build_placement_pack
+from backend.periscopex.placement_pack import build_placement_pack
 
 SIMPLE = Path(__file__).resolve().parents[1] / "simple_project"
 
