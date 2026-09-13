@@ -58,6 +58,92 @@ def test_domains_cover_all_ics():
     assert all(d.assemble_order for d in report.domains)
 
 
+def test_simple_project_splits_5v_and_3v3_domains():
+    """LDO bridges +5V/+3V3 electrically but domains follow primary rails."""
+    report = build_functional_groups(_graph())
+    by_rail = {d.power_nets[0]: set(d.ic_refs) for d in report.domains if d.power_nets}
+    assert by_rail.get("+5V") == {"U2"}
+    assert by_rail.get("+3V3") == {"U1", "U3"}
+    assert len(report.domains) == 2
+
+
+def test_multi_rail_board_does_not_collapse_to_one_domain():
+    """Charger→LDO→MCU must not become a single domain via shared POWER nets."""
+    from backend.pinscopex.models import (
+        Component,
+        ComponentType,
+        DesignGraph,
+        Net,
+        NetType,
+        PinConnection,
+    )
+
+    components = {
+        "U1": Component(
+            reference="U1", value="BQ25896", footprint="",
+            component_type=ComponentType.IC,
+            component_subtype="ic.power.battery_charger",
+            pins={"1": "VBUS", "2": "VSYS", "3": "GND"},
+        ),
+        "U2": Component(
+            reference="U2", value="AP2112", footprint="",
+            component_type=ComponentType.IC,
+            component_subtype="ic.power.ldo",
+            pins={"1": "VSYS", "2": "3V3_DIGITAL", "3": "GND"},
+        ),
+        "U3": Component(
+            reference="U3", value="ESP32", footprint="",
+            component_type=ComponentType.IC,
+            component_subtype="ic.rf.wifi_module",
+            pins={"1": "3V3_DIGITAL", "2": "GND"},
+        ),
+        "U4": Component(
+            reference="U4", value="SRV05", footprint="",
+            component_type=ComponentType.IC,
+            component_subtype="ic.protection.esd",
+            pins={"1": "VBUS", "2": "GND"},
+        ),
+    }
+    nets = {
+        "VBUS": Net(
+            name="VBUS", net_type=NetType.POWER,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="1"),
+                PinConnection(component_ref="U4", pin_number="1"),
+            ],
+        ),
+        "VSYS": Net(
+            name="VSYS", net_type=NetType.POWER,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="2"),
+                PinConnection(component_ref="U2", pin_number="1"),
+            ],
+        ),
+        "3V3_DIGITAL": Net(
+            name="3V3_DIGITAL", net_type=NetType.POWER,
+            pins=[
+                PinConnection(component_ref="U2", pin_number="2"),
+                PinConnection(component_ref="U3", pin_number="1"),
+            ],
+        ),
+        "GND": Net(
+            name="GND", net_type=NetType.GROUND,
+            pins=[
+                PinConnection(component_ref="U1", pin_number="3"),
+                PinConnection(component_ref="U2", pin_number="3"),
+                PinConnection(component_ref="U3", pin_number="2"),
+                PinConnection(component_ref="U4", pin_number="2"),
+            ],
+        ),
+    }
+    report = build_functional_groups(DesignGraph(components=components, nets=nets))
+    by_rail = {d.power_nets[0]: set(d.ic_refs) for d in report.domains if d.power_nets}
+    assert len(report.domains) >= 3
+    assert by_rail.get("VBUS") == {"U4"}
+    assert by_rail.get("VSYS") == {"U1"}
+    assert by_rail.get("3V3_DIGITAL") == {"U2", "U3"}
+
+
 def test_build_placement_plan_alias():
     from backend.pinscopex.functional_groups import build_placement_plan
     report = build_placement_plan(_graph())

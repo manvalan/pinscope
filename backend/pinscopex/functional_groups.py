@@ -1,6 +1,7 @@
 """Topology-only functional groups for Layout F1 (routing-first floorplan).
 
-No millimetres. Domains = power-net islands; satellites = 1-hop neighbors
+No millimetres. Domains = primary supply-rail clusters (not transitive
+POWER connectivity through converters); satellites = 1-hop neighbors
 classified with role_hint; layout_rules attached from IC extraction when present.
 
 Self-contained helpers (no import of ``validate`` / Anthropic).
@@ -331,52 +332,90 @@ def _net_is_ic_supply(
     return _is_power_net(graph, net_name)
 
 
+_UPSTREAM_BUS_RE = re.compile(
+    r"(?:^|[_/\-])(VBUS|VBAT|VIN|VCHG|VAC|VPH)(?:$|[_/\-\d])",
+    re.IGNORECASE,
+)
+_OUTPUT_BUS_RE = re.compile(
+    r"(?:^|[_/\-])(VSYS|VOUT|VREG)(?:$|[_/\-\d])",
+    re.IGNORECASE,
+)
+_REGULATED_RAIL_RE = re.compile(r"^\+?\d+V\d*", re.IGNORECASE)
+
+
+def _primary_supply_net(comp: Component, power_nets: set[str]) -> str | None:
+    """Pick one supply rail per IC so converters do not merge the whole board.
+
+    Consumers prefer regulated digital rails (3V3 / VDD). Power ICs prefer
+    output-ish nets (VSYS / VOUT / regulated) over upstream buses (VBUS / VIN).
+    """
+    if not power_nets:
+        return None
+
+    sub = (comp.component_subtype or "").lower()
+    is_power_ic = sub.startswith("ic.power")
+
+    def score(name: str) -> tuple[int, str]:
+        u = name.upper()
+        s = 0
+        if _UPSTREAM_BUS_RE.search(u):
+            s -= 100
+        if _OUTPUT_BUS_RE.search(u):
+            s += 50
+        if _REGULATED_RAIL_RE.match(u):
+            s += 40
+        if "3V3" in u or "3.3V" in u:
+            s += 25
+        elif re.search(r"1V\d+|1\.?\d+V", u):
+            s += 10  # core rails still regulated, but secondary to I/O
+        if "VDD" in u or "VCC" in u:
+            s += 15
+        if is_power_ic:
+            if _UPSTREAM_BUS_RE.search(u):
+                s -= 40
+            if _OUTPUT_BUS_RE.search(u) or _REGULATED_RAIL_RE.match(u):
+                s += 30
+        return (s, name)
+
+    return max(power_nets, key=score)
+
+
+def _domain_id_for_rail(rail: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9]+", "_", rail or "").strip("_")
+    return f"domain_{safe}" if safe else "domain_unknown"
+
+
 def _build_domains(graph: DesignGraph, ic_refs: list[str]) -> list[PlacementDomain]:
-    parent = {r: r for r in ic_refs}
-
-    def find(x: str) -> str:
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    def union(a: str, b: str) -> None:
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[rb] = ra
-
+    """Cluster ICs by primary supply rail (not union-find across converters)."""
     power_by_ic: dict[str, set[str]] = {}
     for ref in ic_refs:
-        nets = set()
+        nets: set[str] = set()
         for n in graph.nets_of_component(ref):
             if _is_power_net(graph, n) and not _is_ground_net(graph, n):
                 nets.add(n)
         power_by_ic[ref] = nets
 
-    rail_owners: dict[str, list[str]] = {}
-    for ref, nets in power_by_ic.items():
-        for n in nets:
-            rail_owners.setdefault(n, []).append(ref)
-    for refs in rail_owners.values():
-        for i in range(1, len(refs)):
-            union(refs[0], refs[i])
-
-    clusters: dict[str, list[str]] = {}
+    by_rail: dict[str, list[str]] = {}
+    no_rail: list[str] = []
     for ref in ic_refs:
-        clusters.setdefault(find(ref), []).append(ref)
+        primary = _primary_supply_net(graph.components[ref], power_by_ic[ref])
+        if primary is None:
+            no_rail.append(ref)
+        else:
+            by_rail.setdefault(primary, []).append(ref)
 
     domains: list[PlacementDomain] = []
-    for i, (_root, members) in enumerate(
-        sorted(clusters.items(), key=lambda x: sorted(x[1])[0]),
-    ):
-        members_sorted = sorted(members)
-        rails: set[str] = set()
-        for m in members_sorted:
-            rails |= power_by_ic.get(m, set())
+    for rail, members in sorted(by_rail.items(), key=lambda x: x[0].upper()):
         domains.append(PlacementDomain(
-            domain_id=f"domain_{i + 1}",
-            power_nets=sorted(rails),
-            ic_refs=members_sorted,
+            domain_id=_domain_id_for_rail(rail),
+            power_nets=[rail],
+            ic_refs=sorted(members),
+        ))
+    if no_rail:
+        domains.append(PlacementDomain(
+            domain_id="domain_unpowered",
+            power_nets=[],
+            ic_refs=sorted(no_rail),
         ))
     return domains
 

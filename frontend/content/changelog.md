@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.28.6 — 2026-09-13 — Split Domains by primary supply rail
+
+Domains no longer merge the whole board when a charger/LDO bridges VBUS→VSYS→3V3. Each IC is clustered by its primary supply rail (output for power ICs, regulated digital rail for consumers).
+
+- [Fixed] `_build_domains` groups by primary rail instead of transitive POWER union-find.
+- [Changed] Domain ids use the rail name (e.g. `domain_3V3_DIGITAL`).
+
 ## 2.28.5 — 2026-09-13 — Domains & power-rail topology views
 
 Browse routing-first functional groups from the project sidebar: Domains (power-net islands) and Power rails, each highlighting IC groups and satellite roles.
