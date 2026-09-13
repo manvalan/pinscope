@@ -465,6 +465,20 @@ export interface AntennaVerifyRow {
   marker_ref?: string | null;
 }
 
+export interface AntennaGeometry {
+  template: "ifa" | "meander" | "stub";
+  fit: "ok" | "scaled" | "overflow" | "need_f0";
+  segments: { points: number[][]; width_mm: number }[];
+  total_length_mm?: number | null;
+  length_ideal_mm?: number | null;
+  scale?: number;
+  svg?: string | null;
+  kicad_mod?: string | null;
+  footprint_name?: string | null;
+  note?: string;
+  detail?: string;
+}
+
 export interface AntennaDesignRecipe {
   status: "ready" | "need_pcb" | "need_stackup" | "need_marker";
   feed_point?: Record<string, unknown> | null;
@@ -481,6 +495,7 @@ export interface AntennaDesignRecipe {
     f0_mhz?: number | null;
     note?: string;
   } | null;
+  geometry?: AntennaGeometry | null;
   zone?: {
     net: string;
     layer: string;

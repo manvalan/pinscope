@@ -2,9 +2,10 @@
 
 Verify: matching topology from IC ANT/RF pin toward ANT footprint / ANT_FEED.
 Design: KiCad marker (ANT* footprint or ANT_FEED/RF_ANT net) → microstrip w
-for target Z0 from stackup; optional λ/4 length if f0_mhz is given.
+for target Z0 from stackup; optional λ/4 length if f0_mhz is given;
+parametric IFA / meander / stub geometry (segments + SVG + .kicad_mod).
 
-No EM/VSWR. No CPWG clearance. Length suggestion is a documented estimate only.
+No EM/VSWR. No CPWG clearance. Geometry is a documented routing template only.
 """
 
 from __future__ import annotations
@@ -15,6 +16,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from backend.pinscopex.antenna_geometry import (
+    AntennaGeometry,
+    AntennaTemplate,
+    build_geometry,
+)
 from backend.pinscopex.impedance import GeometryError, solve_width
 from backend.pinscopex.models import (
     ComponentType,
@@ -87,6 +93,7 @@ class AntennaDesignRecipe(BaseModel):
     feed_point: dict[str, Any] | None = None
     feed_line: AntennaFeedLine | None = None
     radiator: AntennaRadiator | None = None
+    geometry: AntennaGeometry | None = None
     zone: AntennaZoneInfo | None = None
     keepout_checklist: list[str] = []
     detail: str = ""
@@ -111,6 +118,7 @@ def build_antenna_report(
     h_mm: float | None = None,
     er: float | None = None,
     t_mm: float | None = None,
+    template: AntennaTemplate = "ifa",
 ) -> AntennaReport:
     verify = _verify(graph, layout, impedance_nets, target_z_ohm)
     design = build_design_recipe(
@@ -118,6 +126,7 @@ def build_antenna_report(
         f0_mhz=f0_mhz,
         target_z_ohm=target_z_ohm,
         h_mm=h_mm,
+        template=template,
         er=er,
         t_mm=t_mm,
     )
@@ -133,6 +142,7 @@ def build_design_recipe(
     h_mm: float | None = None,
     er: float | None = None,
     t_mm: float | None = None,
+    template: AntennaTemplate = "ifa",
 ) -> AntennaDesignRecipe:
     marker = _find_marker(graph, layout)
     zone = _find_antenna_zone(layout)
@@ -141,6 +151,8 @@ def build_design_recipe(
         "Short GND return from the matching network to the RF reference.",
         "Avoid long stubs and right angles on the 50 Ω feed.",
         "Place matching parts close to the RF pin / feed point.",
+        "IFA pad 2 (shorting tip) must connect to RF ground / pour edge.",
+        "Place the footprint with feed (pad 1) on the ANT* / ANT_FEED join.",
     ]
 
     stack = _resolve_stackup(layout, h_mm=h_mm, er=er, t_mm=t_mm)
@@ -197,14 +209,36 @@ def build_design_recipe(
             f0_mhz=f0_mhz,
         )
 
+    feed_xy = None
+    if marker.get("x") is not None and marker.get("y") is not None:
+        feed_xy = (float(marker["x"]), float(marker["y"]))
+    zone_bbox = zone.bbox_mm if zone else None
+    geometry = build_geometry(
+        template,
+        f0_mhz=f0_mhz,
+        w_mm=float(feed.w_mm or 0),
+        er=er_v,
+        zone_bbox_mm=zone_bbox,
+        feed_xy=feed_xy,
+    )
+
+    detail = "Recipe ready — feed at w_mm; geometry is a parametric template (not EM)."
+    if geometry.fit == "need_f0":
+        detail = "Feed w ready — set f0 to generate IFA / meander / stub geometry."
+    elif geometry.fit == "scaled":
+        detail = geometry.detail
+    elif geometry.fit == "overflow":
+        detail = geometry.detail
+
     return AntennaDesignRecipe(
         status="ready",
         feed_point=marker,
         feed_line=feed,
         radiator=radiator,
+        geometry=geometry,
         zone=zone,
         keepout_checklist=checklist,
-        detail="Recipe ready — draw the feed at w_mm; radiator length is an estimate only.",
+        detail=detail,
     )
 
 

@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.12 — 2026-09-13 — Antenna templates: IFA / meander / stub + .kicad_mod
+
+Progetta antenna now returns a full parametric drawing: polyline segments (mm), SVG preview, and a downloadable KiCad footprint. Choose IFA, meander, or stub; geometry scales to the `antenna` zone when present. Still a routing template — no EM/VSWR invented.
+
+- [New] `antenna_geometry.py` (IFA / meander / stub → segments + SVG + `.kicad_mod`).
+- [Changed] `POST /antenna/design` accepts `template`; recipe includes `geometry`.
+- [Changed] RF / Impedance Progetta UI: template select, SVG preview, download footprint.
+
 ## 2.28.11 — 2026-09-13 — RF / Impedance: verify antenna + design recipe
 
 Project tab renamed **RF / Impedance**. Verify matching from IC ANT/RF pins toward an `ANT*` / `ANT_FEED` marker; Progetta returns microstrip `w` for 50 Ω (stackup or UI h/εr), optional λ/4 length from `f0`, and antenna-zone bbox. Auto-draw copper comes later — no EM/VSWR invented.

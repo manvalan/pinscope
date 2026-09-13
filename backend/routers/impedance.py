@@ -133,6 +133,7 @@ class AntennaDesignRequest(BaseModel):
     h: float | None = None
     er: float | None = None
     t: float | None = None
+    template: Literal["ifa", "meander", "stub"] = "ifa"
 
 
 def _load_graph_layout(storage, prefix: str) -> tuple[DesignGraph | None, LayoutGraph | None, dict | None]:
@@ -190,6 +191,7 @@ async def post_project_antenna_design(
         h_mm=body.h,
         er=body.er,
         t_mm=body.t,
+        template=body.template,
     )
     # Recompute design with explicit params (same as report.design but ensure POST body wins)
     report.design = build_design_recipe(
@@ -200,5 +202,6 @@ async def post_project_antenna_design(
         h_mm=body.h,
         er=body.er,
         t_mm=body.t,
+        template=body.template,
     )
     return report.model_dump(mode="json")

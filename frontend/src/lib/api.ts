@@ -747,6 +747,7 @@ export async function designAntenna(
     h?: number | null;
     er?: number | null;
     t?: number | null;
+    template?: "ifa" | "meander" | "stub";
   },
 ): Promise<AntennaReport> {
   const res = await authFetch(

@@ -55,6 +55,7 @@ export function ImpedancePanel({
   const [extraNets, setExtraNets] = useState("");
   const [antenna, setAntenna] = useState<AntennaReport | null>(null);
   const [f0, setF0] = useState("2440");
+  const [template, setTemplate] = useState<"ifa" | "meander" | "stub">("ifa");
   const [antBusy, setAntBusy] = useState(false);
   const [antError, setAntError] = useState<string | null>(null);
 
@@ -163,6 +164,7 @@ export function ImpedancePanel({
         h: num(h),
         er: num(er),
         t: num(t),
+        template,
       });
       setAntenna(report);
     } catch (e) {
@@ -175,6 +177,19 @@ export function ImpedancePanel({
   function copyRecipe() {
     if (!antenna?.design) return;
     void navigator.clipboard.writeText(JSON.stringify(antenna.design, null, 2));
+  }
+
+  function downloadKicadMod() {
+    const mod = antenna?.design?.geometry?.kicad_mod;
+    const name = antenna?.design?.geometry?.footprint_name ?? "Antenna";
+    if (!mod) return;
+    const blob = new Blob([mod], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}.kicad_mod`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const needsGap = kind === "cpw" || kind === "diff";
@@ -243,13 +258,29 @@ export function ImpedancePanel({
           <p className="text-sm text-muted-foreground">
             Mark the feed join in KiCad (<code className="text-xs">ANT*</code>{" "}
             footprint or net <code className="text-xs">ANT_FEED</code>). Optional
-            zone net <code className="text-xs">antenna</code>. Auto-draw in the
-            zone comes later — this returns w / Z0 / length to draw by hand.
+            zone net <code className="text-xs">antenna</code>. Choose a template
+            (IFA / meander / stub) to get polylines, SVG preview, and a{" "}
+            <code className="text-xs">.kicad_mod</code> — parametric routing aid,
+            not an EM result.
           </p>
           {!hasPcb && (
             <PcbUploadButton projectId={projectId} onUploaded={onPcbUploaded} />
           )}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <label className="space-y-1">
+              <Label>Template</Label>
+              <select
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2 text-sm"
+                value={template}
+                onChange={(e) =>
+                  setTemplate(e.target.value as "ifa" | "meander" | "stub")
+                }
+              >
+                <option value="ifa">IFA</option>
+                <option value="meander">Meander</option>
+                <option value="stub">Stub</option>
+              </select>
+            </label>
             <label className="space-y-1">
               <Label>f0 (MHz)</Label>
               <Input value={f0} onChange={(e) => setF0(e.target.value)} placeholder="2440" />
@@ -278,12 +309,22 @@ export function ImpedancePanel({
             >
               Copy JSON
             </Button>
+            <Button
+              variant="outline"
+              onClick={downloadKicadMod}
+              disabled={!design?.geometry?.kicad_mod}
+            >
+              Download .kicad_mod
+            </Button>
           </div>
           {antError && <p className="text-sm text-destructive">{antError}</p>}
           {design && (
             <div className="rounded-lg border p-3 text-sm space-y-2">
               <div className="flex flex-wrap gap-2 items-center">
                 <Badge variant="secondary">{design.status}</Badge>
+                {design.geometry && (
+                  <Badge variant="outline">{design.geometry.fit}</Badge>
+                )}
                 <span className="text-muted-foreground text-xs">{design.detail}</span>
               </div>
               {design.feed_line && (
@@ -297,6 +338,28 @@ export function ImpedancePanel({
                 <p className="tabular-nums text-xs text-muted-foreground">
                   λ/4 suggest ≈ {fmt(design.radiator.length_mm_suggest)} mm at{" "}
                   {fmt(design.radiator.f0_mhz, 0)} MHz — {design.radiator.note}
+                </p>
+              )}
+              {design.geometry?.svg && (
+                <div
+                  className="overflow-auto rounded-md border bg-muted/30 p-2"
+                  dangerouslySetInnerHTML={{ __html: design.geometry.svg }}
+                />
+              )}
+              {design.geometry && design.geometry.fit !== "need_f0" && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {design.geometry.template.toUpperCase()}
+                  {design.geometry.total_length_mm != null
+                    ? ` · path ${fmt(design.geometry.total_length_mm)} mm`
+                    : ""}
+                  {design.geometry.length_ideal_mm != null
+                    ? ` · ideal λ/4 ${fmt(design.geometry.length_ideal_mm)} mm`
+                    : ""}
+                  {design.geometry.segments.length
+                    ? ` · ${design.geometry.segments.length} segment(s)`
+                    : ""}
+                  {" — "}
+                  {design.geometry.note}
                 </p>
               )}
               {design.zone && (
