@@ -99,6 +99,15 @@ export function usePipelineProgress(projectId: string | null) {
 
     if (eventType === "pipeline_complete" || event.lastEventId === "pipeline_complete") {
       setSummary(data.summary as Record<string, number>);
+      // Force every stage complete so a historical replay cannot leave
+      // "Review Design" spinning if the last substep was still running.
+      setSteps((prev) =>
+        prev.map((s) => ({
+          ...s,
+          status: "complete" as const,
+          substeps: s.substeps.map((ss) => ({ ...ss, status: "complete" as const })),
+        })),
+      );
       setDone(true);
       terminalRef.current = true;
       esRef.current?.close();

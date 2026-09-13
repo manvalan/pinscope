@@ -20,7 +20,7 @@ import {
 import { PipelineStepper } from "@/components/progress/pipeline-stepper";
 import { PausedRunBanner } from "@/components/billing/paused-run-banner";
 import { usePipelineProgress } from "@/hooks/use-pipeline-progress";
-import { cancelPipeline, fetchProject, fetchReport, resumePipeline, reprocessPipeline } from "@/lib/api";
+import { cancelPipeline, fetchPipelineStatus, fetchProject, fetchReport, resumePipeline, reprocessPipeline } from "@/lib/api";
 import type { PauseCheckpoint } from "@/lib/types";
 import {
   AlertTriangle,
@@ -72,32 +72,41 @@ export default function ProgressPage({
   }
 
   // Decide whether this visit is a live run before opening SSE / auto-redirect.
+  // /status also heals zombies whose event log already ends with pipeline_complete.
   useEffect(() => {
     let cancelledFetch = false;
-    fetchProject(id)
-      .then((p) => {
+    (async () => {
+      try {
+        const st = await fetchPipelineStatus(id);
         if (cancelledFetch) return;
-        setProjectName(p.name);
+        const nameP = fetchProject(id).then((p) => {
+          if (!cancelledFetch) {
+            setProjectName(p.name);
+            if (p.pauseCheckpoint) setProjectCheckpoint(p.pauseCheckpoint);
+          }
+        }).catch(() => {});
+
         if (
-          p.status === "paused_insufficient_credits" ||
-          p.status === "paused_by_user"
+          st.status === "paused_insufficient_credits" ||
+          st.status === "paused_by_user"
         ) {
           setProjectPaused(true);
-          setProjectCheckpoint(p.pauseCheckpoint ?? null);
           setGate("paused");
+          await nameP;
           return;
         }
-        if (p.status === "running" || p.status === "queued") {
+        if (st.status === "running" || st.status === "queued") {
           setGate("live");
+          await nameP;
           return;
         }
-        // Finished / draft — progress is the wrong page; go to the project hub.
+        // Finished / draft / healed — progress is the wrong page.
         setGate("idle");
         router.replace(`/project/${id}`);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelledFetch) setGate("live");
-      });
+      }
+    })();
     return () => {
       cancelledFetch = true;
     };

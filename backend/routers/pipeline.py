@@ -509,8 +509,16 @@ async def events(project_id: str, request: Request):
 
 @router.get("/pipeline/{project_id}/status")
 async def status(project_id: str, request: Request):
-    """Polling fallback — returns current project state."""
-    _, meta = await resolve_or_404(request, project_id)
+    """Polling fallback — returns current project state.
+
+    Also heals zombie ``running``/``queued`` projects whose event log
+    already ends with ``pipeline_complete`` (worker died after finishing).
+    """
+    storage = get_storage(request)
+    owner_user_id, meta = await resolve_or_404(request, project_id)
+    healed = proj_svc.heal_if_pipeline_finished(storage, owner_user_id, project_id)
+    if healed is not None:
+        meta = healed
     return {
         "status": meta.status,
         "summary": meta.summary,
@@ -519,6 +527,7 @@ async def status(project_id: str, request: Request):
         "placement_status": meta.placement_status,
         "placement_state": meta.placement_state,
         "placement_running": (meta.placement_status or "draft") in ("queued", "running"),
+        "healed": healed is not None,
     }
 
 

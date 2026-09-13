@@ -281,6 +281,51 @@ def mark_stale_running(
         return None
 
 
+def heal_if_pipeline_finished(
+    storage: StorageBackend, user_id: str, project_id: str,
+) -> ProjectMeta | None:
+    """If meta says queued/running but events already ended with
+    ``pipeline_complete``, flip status to ``complete``.
+
+    Covers zombies where the worker wrote the terminal event (and often
+    the report) then died before the meta transition — e.g. container
+    rebuild mid-shutdown. Returns updated meta, or ``None`` if no heal.
+    """
+    meta = get_project(storage, user_id, project_id)
+    if meta is None or meta.status not in (STATUS_RUNNING, STATUS_QUEUED):
+        return None
+
+    events_prefix = f"{_project_prefix(user_id, project_id)}/events/"
+    try:
+        keys = storage.list_prefix(events_prefix)
+    except Exception:
+        return None
+    event_keys = sorted(
+        k for k in keys if k.endswith(".json") and "/events/" in k
+    )
+    if not event_keys:
+        return None
+    try:
+        last = storage.read_json(event_keys[-1])
+    except Exception:
+        return None
+    if (last or {}).get("event") != "pipeline_complete":
+        return None
+
+    summary = (last.get("data") or {}).get("summary")
+    try:
+        return transition_status(
+            storage, user_id, project_id,
+            from_status={STATUS_RUNNING, STATUS_QUEUED},
+            to_status=STATUS_COMPLETE,
+            summary=summary if isinstance(summary, dict) else meta.summary,
+            cancel_requested=False,
+            pipeline_state=None,
+        )
+    except StatusConflict:
+        return None
+
+
 # --- CRUD ---
 
 

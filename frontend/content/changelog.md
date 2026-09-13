@@ -2,6 +2,14 @@
 
 What's new in Pinscope.
 
+## 2.28.4 — 2026-09-13 — Unstick zombie running pipelines
+
+A finished run whose worker died before flipping meta stayed `running`, so Progress showed Review spinning forever. Heal those projects when the event log already ends with `pipeline_complete`.
+
+- [Fixed] `heal_if_pipeline_finished` on project get / pipeline status.
+- [Fixed] Progress stepper marks all stages complete on `pipeline_complete`.
+- [Fixed] Admin sweeper also covers local zombies without `execution_name`.
+
 ## 2.28.3 — 2026-09-13 — Stop progress→report bounce on finished projects
 
 Opening a finished project no longer flashes Processing and dumps you on the report. Progress only auto-opens the report after a live run on that visit.

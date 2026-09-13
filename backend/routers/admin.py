@@ -497,13 +497,23 @@ async def list_running_pipelines(request: Request):
             if meta.status not in (proj_svc.STATUS_QUEUED, proj_svc.STATUS_RUNNING):
                 continue
 
-            # Sweeper: if the execution is in a terminal Cloud Run state,
-            # the worker is already gone. Flip status → error so the UI
-            # stops lying. Skip the sweep when execution_name is missing
-            # (worker may still be enqueueing).
+            # Sweeper: if the execution is in a terminal Cloud Run / local
+            # state, the worker is already gone. Flip status → error so the
+            # UI stops lying. Also heal projects whose event log already
+            # ends with pipeline_complete (finished, meta never flipped).
+            healed = proj_svc.heal_if_pipeline_finished(storage, uid, meta.id)
+            if healed is not None:
+                continue
+
             exec_state = "unknown"
             if meta.execution_name:
                 exec_state = job_runner.get_execution_state(meta.execution_name)
+            elif not job_runner.use_cloud_run_jobs():
+                # Local zombie: no execution_name but a dead pid file, or
+                # no live proc — treat as failed after the stale window.
+                exec_state = job_runner.get_execution_state(
+                    f"local/projects/{meta.id}"
+                )
             if exec_state in ("succeeded", "failed", "cancelled"):
                 # Allow a short grace period so we don't race the worker
                 # writing its own terminal status. updated may be stale
