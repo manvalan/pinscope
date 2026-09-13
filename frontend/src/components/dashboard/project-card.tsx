@@ -155,8 +155,9 @@ export function ProjectCard({
     );
   }
 
-  // Open the report by default — that's what users want to see for a finished
-  // project. In-flight or paused runs go to the progress page where the SSE
+  // Open the project hub by default so BOM / derating / settings in the
+  // sidebar work immediately. Report stays one click away in ProjectNav.
+  // In-flight or paused runs go to the progress page where the SSE
   // stepper and resume controls live.
   const inFlight =
     project.status === "running"
@@ -164,6 +165,6 @@ export function ProjectCard({
     || project.status === "paused_by_user";
   const href = inFlight
     ? `/project/${project.id}/progress`
-    : `/project/${project.id}/report`;
+    : `/project/${project.id}`;
   return <Link href={href}>{card}</Link>;
 }

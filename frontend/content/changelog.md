@@ -2,6 +2,13 @@
 
 What's new in Pinscope.
 
+## 2.28.2 — 2026-09-13 — Fix project sidebar navigation
+
+Opening a finished project no longer dumps you on the report with a stuck left menu. Hub first; Report stays in the sidebar. Leaving `/report` for BOM/tabs uses a full navigation so the page actually changes.
+
+- [Fixed] Dashboard project cards/table open `/project/{id}` (not `/report`).
+- [Fixed] Sidebar Dashboard / Library / BOM tabs escape nested report/progress/placement routes.
+
 ## 2.28.1 — 2026-09-12 — Placement pipeline (parallel)
 
 Dedicated Placement job builds the routing-first topology plan without touching the analysis pipeline status or spending credits. No millimetres — domains, IC groups, satellites only.

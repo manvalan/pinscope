@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect, type ReactNode } from "react";
 import {
   LayoutDashboard,
   Cpu,
@@ -77,7 +77,14 @@ export function Sidebar() {
 
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
         {projectId ? (
-          <ProjectNav pathname={pathname} projectId={projectId} project={project} isAdmin={isAdmin} />
+          <Suspense fallback={<nav className="flex-1 px-2 py-3" aria-hidden />}>
+            <ProjectNav
+              pathname={pathname}
+              projectId={projectId}
+              project={project}
+              isAdmin={isAdmin}
+            />
+          </Suspense>
         ) : (
           <DefaultNav pathname={pathname} isAdmin={isAdmin} />
         )}
@@ -185,6 +192,37 @@ const PROJECT_NAV_ITEMS: NavItem[] = [
   { type: "tab", tab: "settings", label: "Settings", icon: Settings },
 ];
 
+function NavLink({
+  href,
+  active,
+  children,
+  forceDocument,
+}: {
+  href: string;
+  active?: boolean;
+  children: ReactNode;
+  forceDocument?: boolean;
+}) {
+  const className = cn(
+    "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+    active
+      ? "bg-accent text-accent-foreground"
+      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+  );
+  if (forceDocument) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 function ProjectNav({
   pathname,
   projectId,
@@ -201,10 +239,17 @@ function ProjectNav({
   const currentTab = searchParams.get("tab");
   const isRunning = project?.status === "running";
   const isOnProgress = pathname === `${base}/progress`;
+  // Nested routes (report / progress / placement): soft-nav to `?tab=` can
+  // leave the report page mounted — use a full document navigation instead.
+  const onNestedRoute = pathname.startsWith(`${base}/`);
 
   function isActive(item: NavItem): boolean {
     if (item.type === "route") {
       return pathname === `${base}${item.path}` && !currentTab;
+    }
+    // Hub with no tab defaults to BOM in the project page.
+    if (item.tab === "bom") {
+      return pathname === base && (currentTab === "bom" || currentTab === null);
     }
     return pathname === base && currentTab === item.tab;
   }
@@ -216,20 +261,14 @@ function ProjectNav({
 
   return (
     <nav className="flex-1 px-2 py-3 space-y-1">
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-      >
+      <NavLink href="/dashboard" forceDocument={onNestedRoute}>
         <ArrowLeft className="h-4 w-4" />
         Dashboard
-      </Link>
-      <Link
-        href="/library"
-        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-      >
+      </NavLink>
+      <NavLink href="/library" forceDocument={onNestedRoute}>
         <Library className="h-4 w-4" />
         Library
-      </Link>
+      </NavLink>
 
       <div className="px-3 pt-3 pb-1">
         <p className="text-xs font-semibold text-foreground truncate">
@@ -239,22 +278,16 @@ function ProjectNav({
 
       <div className="space-y-0.5">
         {isRunning && (
-          <Link
-            href={`${base}/progress`}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-              isOnProgress
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-          >
+          <NavLink href={`${base}/progress`} active={isOnProgress}>
             <Loader2 className="h-4 w-4 animate-spin" />
             Processing
-          </Link>
+          </NavLink>
         )}
         {PROJECT_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
           const active = isActive(item);
           const disabled = isRunning;
+          const href = getHref(item);
+          const forceDocument = item.type === "tab" && onNestedRoute;
           return disabled ? (
             <span
               key={item.label}
@@ -262,23 +295,23 @@ function ProjectNav({
             >
               <item.icon className="h-4 w-4" />
               {item.label}
-              {item.adminOnly && <Shield className="h-3 w-3 ml-auto text-amber-600/60 dark:text-amber-500/60" />}
+              {item.adminOnly && (
+                <Shield className="h-3 w-3 ml-auto text-amber-600/60 dark:text-amber-500/60" />
+              )}
             </span>
           ) : (
-            <Link
+            <NavLink
               key={item.label}
-              href={getHref(item)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              )}
+              href={href}
+              active={active}
+              forceDocument={forceDocument}
             >
               <item.icon className="h-4 w-4" />
               {item.label}
-              {item.adminOnly && <Shield className="h-3 w-3 ml-auto text-amber-600/60 dark:text-amber-500/60" />}
-            </Link>
+              {item.adminOnly && (
+                <Shield className="h-3 w-3 ml-auto text-amber-600/60 dark:text-amber-500/60" />
+              )}
+            </NavLink>
           );
         })}
       </div>

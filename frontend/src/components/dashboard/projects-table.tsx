@@ -105,7 +105,7 @@ function ProjectRow({
     || project.status === "paused_by_user";
   const href = inFlight
     ? `/project/${project.id}/progress`
-    : `/project/${project.id}/report`;
+    : `/project/${project.id}`;
 
   const nameCell = (
     <div className="flex items-center gap-1.5 min-w-0">
